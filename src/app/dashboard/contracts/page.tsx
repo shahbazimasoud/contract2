@@ -1,13 +1,13 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
-import DatePicker from "react-multi-date-picker";
+import DatePicker, { DateObject } from "react-multi-date-picker";
 import { Calendar as PersianCalendar } from "react-date-object/calendars/persian";
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 
@@ -107,6 +107,7 @@ export default function ContractsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
 
@@ -123,6 +124,40 @@ export default function ContractsPage() {
         attachments: [],
     },
   });
+
+  useEffect(() => {
+    if (editingContract) {
+      const [sy, sm, sd] = editingContract.startDate.split('-').map(Number);
+      const [ey, em, ed] = editingContract.endDate.split('-').map(Number);
+
+      form.reset({
+        contractorName: editingContract.contractorName,
+        type: editingContract.type,
+        description: editingContract.description,
+        startDate: new DateObject({ year: sy, month: sm, day: sd, calendar: new PersianCalendar() }),
+        endDate: new DateObject({ year: ey, month: em, day: ed, calendar: new PersianCalendar() }),
+        renewal: editingContract.renewal,
+        unit: editingContract.unit,
+        reminderEmails: editingContract.reminderEmails.map(email => ({ email })),
+        reminders: editingContract.reminders.map(days => ({ days })),
+        attachments: [], // Cannot pre-fill file inputs
+      });
+      // We cannot pre-fill the File objects, but we can show the existing attachments.
+      // For simplicity, we'll just clear the list for editing. A real app might handle this differently.
+      setAttachedFiles([]);
+    } else {
+      form.reset({
+        contractorName: "",
+        type: "",
+        description: "",
+        renewal: "manual",
+        unit: "",
+        reminderEmails: [{email: ""}],
+        reminders: [{days: 30}],
+        attachments: [],
+      });
+    }
+  }, [editingContract, form]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -141,31 +176,63 @@ export default function ContractsPage() {
     control: form.control,
     name: "reminders"
   });
+  
+  const handleOpenDialog = (contract: Contract | null) => {
+    setEditingContract(contract);
+    setIsDialogOpen(true);
+  };
 
-  const onSubmit = (values: z.infer<typeof contractSchema>) => {
-    const newContract: Contract = {
-      id: `C-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(4, '0')}`,
-      contractorName: values.contractorName,
-      type: values.type,
-      description: values.description,
-      renewal: values.renewal,
-      unit: values.unit,
-      startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
-      endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
-      status: 'active',
-      attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
-      reminders: values.reminders.map(r => r.days),
-      reminderEmails: values.reminderEmails.map(e => e.email),
-      createdBy: 'Super Admin', // In real app, get from user session
-    };
-    setContracts([newContract, ...contracts]);
-    toast({
-        title: "Contract Created",
-        description: `Contract for "${newContract.contractorName}" has been successfully created.`,
-    });
+  const handleCloseDialog = () => {
+    setEditingContract(null);
+    setIsDialogOpen(false);
     form.reset();
     setAttachedFiles([]);
-    setIsDialogOpen(false);
+  }
+
+  const onSubmit = (values: z.infer<typeof contractSchema>) => {
+    if (editingContract) {
+      // Update existing contract
+      const updatedContract: Contract = {
+        ...editingContract,
+        ...values,
+        startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
+        endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
+        reminders: values.reminders.map(r => r.days),
+        reminderEmails: values.reminderEmails.map(e => e.email),
+        // Note: Attachment handling for updates can be complex. 
+        // Here we'll just replace them. A real app might merge them.
+        attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
+      };
+      setContracts(contracts.map(c => c.id === editingContract.id ? updatedContract : c));
+      toast({
+        title: "Contract Updated",
+        description: `Contract for "${updatedContract.contractorName}" has been successfully updated.`,
+      });
+    } else {
+      // Create new contract
+      const newContract: Contract = {
+        id: `C-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(4, '0')}`,
+        contractorName: values.contractorName,
+        type: values.type,
+        description: values.description,
+        renewal: values.renewal,
+        unit: values.unit,
+        startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
+        endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
+        status: 'active',
+        attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
+        reminders: values.reminders.map(r => r.days),
+        reminderEmails: values.reminderEmails.map(e => e.email),
+        createdBy: 'Super Admin', // In real app, get from user session
+      };
+      setContracts([newContract, ...contracts]);
+      toast({
+          title: "Contract Created",
+          description: `Contract for "${newContract.contractorName}" has been successfully created.`,
+      });
+    }
+
+    handleCloseDialog();
   };
 
   const filteredContracts = useMemo(() => {
@@ -215,303 +282,310 @@ export default function ContractsPage() {
                 Manage, view, and organize all your contracts.
                 </PageHeaderDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) {
-                    form.reset();
-                    setAttachedFiles([]);
-                }
-                setIsDialogOpen(isOpen);
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add New Contract
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
-                    <DialogTitle>Add New Contract</DialogTitle>
-                    <DialogDescription>
-                        Fill out the form below to create a new contract.
-                    </DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
-                        <FormField
-                            control={form.control}
-                            name="contractorName"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Contractor Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g., Innovate Solutions Ltd." {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Contract Type</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g., Service Agreement" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="startDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Start Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            calendar={PersianCalendar}
-                                            format="YYYY/MM/DD"
-                                            render={(value, openCalendar) => (
-                                                <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {value || <span>Pick a date</span>}
-                                                </Button>
-                                            )}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="endDate"
-                            render={({ field }) => (
-                               <FormItem className="flex flex-col">
-                                    <FormLabel>End Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker
-                                            value={field.value}
-                                            onChange={field.onChange}
-                                            calendar={PersianCalendar}
-                                            format="YYYY/MM/DD"
-                                            render={(value, openCalendar) => (
-                                                <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {value || <span>Pick a date</span>}
-                                                </Button>
-                                            )}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="unit"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Unit</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                    <SelectValue placeholder="Select an organizational unit" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {mockUnits.map((unit) => (
-                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="renewal"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Renewal Policy</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                    <SelectValue placeholder="Select renewal policy" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="manual">Manual</SelectItem>
-                                    <SelectItem value="auto">Automatic</SelectItem>
-                                </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <div className="md:col-span-2">
-                            <FormField
-                                control={form.control}
-                                name="description"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Description</FormLabel>
-                                        <FormControl>
-                                            <Textarea placeholder="Briefly describe the contract..." {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-
-                         <div className="md:col-span-2 space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="attachments"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Attachments</FormLabel>
-                                    <FormControl>
-                                    <div className="relative">
-                                        <Button type="button" variant="outline" asChild>
-                                        <label htmlFor="file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
-                                            <Upload className="h-4 w-4"/>
-                                            <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
-                                        </label>
-                                        </Button>
-                                        <Input 
-                                            id="file-upload"
-                                            type="file" 
-                                            multiple 
-                                            onChange={handleFileChange}
-                                            className="sr-only"
-                                        />
-                                    </div>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            {attachedFiles.length > 0 && (
-                                <div className="space-y-2">
-                                <p className="text-sm font-medium">Selected files:</p>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                                    {attachedFiles.map((file, index) => (
-                                    <li key={index} className="flex items-center gap-2">
-                                        <Paperclip className="h-4 w-4" />
-                                        <span>{file.name}</span>
-                                        <Button 
-                                            type="button" 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-6 w-6 ml-auto"
-                                            onClick={() => {
-                                                const newFiles = attachedFiles.filter((_, i) => i !== index);
-                                                setAttachedFiles(newFiles);
-                                                form.setValue('attachments', newFiles);
-                                            }}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </li>
-                                    ))}
-                                </ul>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="md:col-span-2 space-y-4">
-                           <div>
-                             <FormLabel>Reminder Emails</FormLabel>
-                             <FormDescription className="mb-2">Emails for notifications.</FormDescription>
-                             {emailFields.map((field, index) => (
-                                <FormField
-                                  key={field.id}
-                                  control={form.control}
-                                  name={`reminderEmails.${index}`}
-                                  render={({ field }) => (
-                                     <FormItem>
-                                        <div className="flex items-center gap-2">
-                                           <FormControl>
-                                                <Input {...field} placeholder={`email@example.com`} onChange={e => field.onChange({ email: e.target.value })} value={field.value.email} />
-                                           </FormControl>
-                                           {emailFields.length > 1 && (
-                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(index)}>
-                                               <X className="h-4 w-4" />
-                                             </Button>
-                                           )}
-                                        </div>
-                                        <FormMessage />
-                                     </FormItem>
-                                  )}
-                                />
-                             ))}
-                             <Button
-                               type="button"
-                               variant="outline"
-                               size="sm"
-                               className="mt-2"
-                               onClick={() => appendEmail({ email: '' })}
-                             >
-                               Add Email
-                             </Button>
-                           </div>
-                        </div>
-                        <div className="md:col-span-2 space-y-4">
-                           <div>
-                             <FormLabel>Reminder Days</FormLabel>
-                             <FormDescription className="mb-2">Days before expiration to send reminders.</FormDescription>
-                             {reminderDayFields.map((field, index) => (
-                                <FormField
-                                  key={field.id}
-                                  control={form.control}
-                                  name={`reminders.${index}.days`}
-                                  render={({ field }) => (
-                                     <FormItem>
-                                        <div className="flex items-center gap-2">
-                                           <FormControl>
-                                              <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 30" />
-                                           </FormControl>
-                                           {reminderDayFields.length > 1 && (
-                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
-                                               <X className="h-4 w-4" />
-                                             </Button>
-                                           )}
-                                        </div>
-                                        <FormMessage />
-                                     </FormItem>
-                                  )}
-                                />
-                             ))}
-                             <Button
-                               type="button"
-                               variant="outline"
-                               size="sm"
-                               className="mt-2"
-                               onClick={() => appendReminderDay({ days: 15 })}
-                             >
-                               Add Reminder Day
-                             </Button>
-                           </div>
-                        </div>
-                        <DialogFooter className="md:col-span-2">
-                            <DialogClose asChild>
-                                <Button type="button" variant="ghost">Cancel</Button>
-                            </DialogClose>
-                            <Button type="submit">Create Contract</Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => handleOpenDialog(null)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Contract
+            </Button>
         </div>
       </PageHeader>
+      
+      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+              <DialogTitle>{editingContract ? 'Edit Contract' : 'Add New Contract'}</DialogTitle>
+              <DialogDescription>
+                  {editingContract ? 'Update the details of the existing contract.' : 'Fill out the form below to create a new contract.'}
+              </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
+                  <FormField
+                      control={form.control}
+                      name="contractorName"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Contractor Name</FormLabel>
+                              <FormControl>
+                                  <Input placeholder="e.g., Innovate Solutions Ltd." {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Contract Type</FormLabel>
+                              <FormControl>
+                                  <Input placeholder="e.g., Service Agreement" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                              <FormLabel>Start Date</FormLabel>
+                              <FormControl>
+                                  <DatePicker
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      calendar={PersianCalendar}
+                                      format="YYYY/MM/DD"
+                                      render={(value, openCalendar) => (
+                                          <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
+                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                              {value || <span>Pick a date</span>}
+                                          </Button>
+                                      )}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                              <FormLabel>End Date</FormLabel>
+                              <FormControl>
+                                  <DatePicker
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      calendar={PersianCalendar}
+                                      format="YYYY/MM/DD"
+                                      render={(value, openCalendar) => (
+                                          <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
+                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                              {value || <span>Pick a date</span>}
+                                          </Button>
+                                      )}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                    <FormField
+                      control={form.control}
+                      name="unit"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Unit</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                              <SelectTrigger>
+                              <SelectValue placeholder="Select an organizational unit" />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              {mockUnits.map((unit) => (
+                              <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                              ))}
+                          </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+                    <FormField
+                      control={form.control}
+                      name="renewal"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Renewal Policy</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                              <SelectTrigger>
+                              <SelectValue placeholder="Select renewal policy" />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              <SelectItem value="manual">Manual</SelectItem>
+                              <SelectItem value="auto">Automatic</SelectItem>
+                          </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+                  <div className="md:col-span-2">
+                      <FormField
+                          control={form.control}
+                          name="description"
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Description</FormLabel>
+                                  <FormControl>
+                                      <Textarea placeholder="Briefly describe the contract..." {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                  </div>
+
+                    <div className="md:col-span-2 space-y-4">
+                      <FormField
+                          control={form.control}
+                          name="attachments"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Attachments</FormLabel>
+                              <FormControl>
+                              <div className="relative">
+                                  <Button type="button" variant="outline" asChild>
+                                  <label htmlFor="file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
+                                      <Upload className="h-4 w-4"/>
+                                      <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
+                                  </label>
+                                  </Button>
+                                  <Input 
+                                      id="file-upload"
+                                      type="file" 
+                                      multiple 
+                                      onChange={handleFileChange}
+                                      className="sr-only"
+                                  />
+                              </div>
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      {attachedFiles.length > 0 && (
+                          <div className="space-y-2">
+                          <p className="text-sm font-medium">New files to upload:</p>
+                          <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                              {attachedFiles.map((file, index) => (
+                              <li key={index} className="flex items-center gap-2">
+                                  <Paperclip className="h-4 w-4" />
+                                  <span>{file.name}</span>
+                                  <Button 
+                                      type="button" 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6 ml-auto"
+                                      onClick={() => {
+                                          const newFiles = attachedFiles.filter((_, i) => i !== index);
+                                          setAttachedFiles(newFiles);
+                                          form.setValue('attachments', newFiles);
+                                      }}
+                                  >
+                                      <X className="h-4 w-4" />
+                                  </Button>
+                              </li>
+                              ))}
+                          </ul>
+                          </div>
+                      )}
+                      {editingContract && editingContract.attachments.length > 0 && (
+                         <div className="space-y-2">
+                            <p className="text-sm font-medium">Current attachments:</p>
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                {editingContract.attachments.map((file, index) => (
+                                <li key={index} className="flex items-center gap-2">
+                                    <AttachmentIcon className="h-4 w-4" />
+                                    <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
+                                </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-muted-foreground">Uploading new files will replace current attachments.</p>
+                         </div>
+                      )}
+                  </div>
+
+                  <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <FormLabel>Reminder Emails</FormLabel>
+                        <FormDescription className="mb-2">Emails for notifications.</FormDescription>
+                        {emailFields.map((field, index) => (
+                          <FormField
+                            key={field.id}
+                            control={form.control}
+                            name={`reminderEmails.${index}`}
+                            render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                      <FormControl>
+                                          <Input {...field} placeholder={`email@example.com`} onChange={e => field.onChange({ email: e.target.value })} value={field.value.email} />
+                                      </FormControl>
+                                      {emailFields.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(index)}>
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                            )}
+                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => appendEmail({ email: '' })}
+                        >
+                          Add Email
+                        </Button>
+                      </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <FormLabel>Reminder Days</FormLabel>
+                        <FormDescription className="mb-2">Days before expiration to send reminders.</FormDescription>
+                        {reminderDayFields.map((field, index) => (
+                          <FormField
+                            key={field.id}
+                            control={form.control}
+                            name={`reminders.${index}.days`}
+                            render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                      <FormControl>
+                                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 30" />
+                                      </FormControl>
+                                      {reminderDayFields.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                            )}
+                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => appendReminderDay({ days: 15 })}
+                        >
+                          Add Reminder Day
+                        </Button>
+                      </div>
+                  </div>
+                  <DialogFooter className="md:col-span-2">
+                      <DialogClose asChild>
+                          <Button type="button" variant="ghost">Cancel</Button>
+                      </DialogClose>
+                      <Button type="submit">{editingContract ? 'Save Changes' : 'Create Contract'}</Button>
+                  </DialogFooter>
+              </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -597,7 +671,7 @@ export default function ContractsPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>
@@ -647,6 +721,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-
-    

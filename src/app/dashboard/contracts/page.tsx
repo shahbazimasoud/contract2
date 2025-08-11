@@ -2,11 +2,14 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X } from 'lucide-react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
+import DatePicker from "react-multi-date-picker";
+import { Calendar as PersianCalendar } from "react-date-object/calendars/persian";
+import { format as formatPersian } from "date-fns-jalali";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,12 +31,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
 import {
     Select,
     SelectContent,
@@ -74,20 +71,30 @@ import { cn } from "@/lib/utils"
 
 const ITEMS_PER_PAGE = 10;
 
+const reminderEmailSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email." }),
+});
+
+const reminderDaysSchema = z.object({
+  days: z.number().min(1, "Must be at least 1 day").max(365, "Cannot be more than 365 days"),
+});
+
 const contractSchema = z.object({
   contractorName: z.string().min(1, "Contractor name is required"),
   type: z.string().min(1, "Contract type is required"),
   description: z.string().optional(),
-  startDate: z.date({ required_error: "Start date is required" }),
-  endDate: z.date({ required_error: "End date is required" }),
+  startDate: z.any({ required_error: "Start date is required" }),
+  endDate: z.any({ required_error: "End date is required" }),
   renewal: z.enum(['auto', 'manual']),
   unit: z.string().min(1, "Unit is required"),
-  reminderEmails: z.string().refine((value) => {
-    if (!value) return true;
-    const emails = value.split(',').map(e => e.trim());
-    return emails.every(email => z.string().email().safeParse(email).success);
-  }, { message: "Please provide a valid, comma-separated list of emails." }),
-}).refine(data => data.endDate > data.startDate, {
+  reminderEmails: z.array(reminderEmailSchema).min(1, "At least one reminder email is required."),
+  reminders: z.array(reminderDaysSchema).min(1, "At least one reminder day is required."),
+}).refine(data => {
+    if (!data.startDate || !data.endDate) return false;
+    const start = new Date(data.startDate.valueOf());
+    const end = new Date(data.endDate.valueOf());
+    return end > start;
+}, {
     message: "End date must be after start date",
     path: ["endDate"],
 });
@@ -108,20 +115,35 @@ export default function ContractsPage() {
         description: "",
         renewal: "manual",
         unit: "",
-        reminderEmails: "",
+        reminderEmails: [{email: ""}],
+        reminders: [{days: 30}],
     },
+  });
+
+  const { fields: emailFields, append: appendEmail, remove: removeEmail } = useFieldArray({
+    control: form.control,
+    name: "reminderEmails"
+  });
+
+  const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
+    control: form.control,
+    name: "reminders"
   });
 
   const onSubmit = (values: z.infer<typeof contractSchema>) => {
     const newContract: Contract = {
       id: `C-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(4, '0')}`,
-      ...values,
-      startDate: format(values.startDate, "yyyy-MM-dd"),
-      endDate: format(values.endDate, "yyyy-MM-dd"),
+      contractorName: values.contractorName,
+      type: values.type,
+      description: values.description,
+      renewal: values.renewal,
+      unit: values.unit,
+      startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
+      endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
       status: 'active',
       attachments: [],
-      reminders: [30, 15, 7], // Default reminders
-      reminderEmails: values.reminderEmails ? values.reminderEmails.split(',').map(e => e.trim()) : [],
+      reminders: values.reminders.map(r => r.days),
+      reminderEmails: values.reminderEmails.map(e => e.email),
       createdBy: 'Super Admin', // In real app, get from user session
     };
     setContracts([newContract, ...contracts]);
@@ -173,14 +195,17 @@ export default function ContractsPage() {
                 Manage, view, and organize all your contracts.
                 </PageHeaderDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+                if (!isOpen) form.reset();
+                setIsDialogOpen(isOpen);
+            }}>
               <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add New Contract
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-2xl">
+              <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Add New Contract</DialogTitle>
                     <DialogDescription>
@@ -188,7 +213,7 @@ export default function ContractsPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4">
                         <FormField
                             control={form.control}
                             name="contractorName"
@@ -221,34 +246,20 @@ export default function ContractsPage() {
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                     <FormLabel>Start Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
+                                    <FormControl>
+                                        <DatePicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            calendar={PersianCalendar}
+                                            format="YYYY/MM/DD"
+                                            render={(value, openCalendar) => (
+                                                <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {value || <span>Pick a date</span>}
+                                                </Button>
                                             )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            initialFocus
                                         />
-                                        </PopoverContent>
-                                    </Popover>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -257,36 +268,22 @@ export default function ContractsPage() {
                             control={form.control}
                             name="endDate"
                             render={({ field }) => (
-                                <FormItem className="flex flex-col">
+                               <FormItem className="flex flex-col">
                                     <FormLabel>End Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
+                                    <FormControl>
+                                        <DatePicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            calendar={PersianCalendar}
+                                            format="YYYY/MM/DD"
+                                            render={(value, openCalendar) => (
+                                                <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {value || <span>Pick a date</span>}
+                                                </Button>
                                             )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            initialFocus
                                         />
-                                        </PopoverContent>
-                                    </Popover>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -349,23 +346,79 @@ export default function ContractsPage() {
                                 )}
                             />
                         </div>
-                        <div className="md:col-span-2">
-                             <FormField
-                                control={form.control}
-                                name="reminderEmails"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Reminder Emails</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g., manager@example.com, legal@example.com" {...field} />
-                                        </FormControl>
-                                        <FormDescription>
-                                            A comma-separated list of email addresses for notifications.
-                                        </FormDescription>
+                        <div className="md:col-span-2 space-y-4">
+                           <div>
+                             <FormLabel>Reminder Emails</FormLabel>
+                             <FormDescription className="mb-2">Emails for notifications.</FormDescription>
+                             {emailFields.map((field, index) => (
+                                <FormField
+                                  key={field.id}
+                                  control={form.control}
+                                  name={`reminderEmails.${index}`}
+                                  render={({ field }) => (
+                                     <FormItem>
+                                        <div className="flex items-center gap-2">
+                                           <FormControl>
+                                                <Input {...field} placeholder={`email@example.com`} onChange={e => field.onChange({ email: e.target.value })} value={field.value.email} />
+                                           </FormControl>
+                                           {emailFields.length > 1 && (
+                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(index)}>
+                                               <X className="h-4 w-4" />
+                                             </Button>
+                                           )}
+                                        </div>
                                         <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                     </FormItem>
+                                  )}
+                                />
+                             ))}
+                             <Button
+                               type="button"
+                               variant="outline"
+                               size="sm"
+                               className="mt-2"
+                               onClick={() => appendEmail({ email: '' })}
+                             >
+                               Add Email
+                             </Button>
+                           </div>
+                        </div>
+                        <div className="md:col-span-2 space-y-4">
+                           <div>
+                             <FormLabel>Reminder Days</FormLabel>
+                             <FormDescription className="mb-2">Days before expiration to send reminders.</FormDescription>
+                             {reminderDayFields.map((field, index) => (
+                                <FormField
+                                  key={field.id}
+                                  control={form.control}
+                                  name={`reminders.${index}.days`}
+                                  render={({ field }) => (
+                                     <FormItem>
+                                        <div className="flex items-center gap-2">
+                                           <FormControl>
+                                              <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 30" />
+                                           </FormControl>
+                                           {reminderDayFields.length > 1 && (
+                                             <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
+                                               <X className="h-4 w-4" />
+                                             </Button>
+                                           )}
+                                        </div>
+                                        <FormMessage />
+                                     </FormItem>
+                                  )}
+                                />
+                             ))}
+                             <Button
+                               type="button"
+                               variant="outline"
+                               size="sm"
+                               className="mt-2"
+                               onClick={() => appendReminderDay({ days: 15 })}
+                             >
+                               Add Reminder Day
+                             </Button>
+                           </div>
                         </div>
                         <DialogFooter className="md:col-span-2">
                             <DialogClose asChild>
@@ -422,7 +475,7 @@ export default function ContractsPage() {
                           {contract.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{contract.endDate}</TableCell>
+                      <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
                       <TableCell>{contract.unit}</TableCell>
                       <TableCell>
                         <DropdownMenu>

@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
 import DatePicker from "react-multi-date-picker";
 import { Calendar as PersianCalendar } from "react-date-object/calendars/persian";
-import { format as formatPersian } from "date-fns-jalali";
+import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +68,7 @@ import { contracts as mockContracts, units as mockUnits } from '@/lib/mock-data'
 import type { Contract } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -196,6 +197,13 @@ export default function ContractsPage() {
         variant: "destructive",
     });
   }
+
+  const getDaysLeft = (endDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    return differenceInDays(end, today);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -524,12 +532,12 @@ export default function ContractsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contract ID</TableHead>
                   <TableHead>Contractor</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>End Date</TableHead>
+                  <TableHead>Days Left</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Info</TableHead>
                   <TableHead>
                     <span className="sr-only">Actions</span>
                   </TableHead>
@@ -537,35 +545,66 @@ export default function ContractsPage() {
               </TableHeader>
               <TableBody>
                 {paginatedContracts.length > 0 ? (
-                  paginatedContracts.map((contract) => (
-                    <TableRow key={contract.id}>
-                      <TableCell className="font-medium">{contract.id}</TableCell>
-                      <TableCell>{contract.contractorName}</TableCell>
-                      <TableCell>{contract.type}</TableCell>
-                      <TableCell>
-                        <Badge variant={contract.status === 'active' ? 'default' : 'secondary'} className={contract.status === 'active' ? 'bg-green-500' : ''}>
-                          {contract.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
-                      <TableCell>{contract.unit}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  paginatedContracts.map((contract) => {
+                    const daysLeft = getDaysLeft(contract.endDate);
+                    const daysLeftText = daysLeft < 0 ? 'Expired' : `${daysLeft} days`;
+                    const daysLeftColor = daysLeft < 7 ? 'text-destructive' : daysLeft < 30 ? 'text-amber-600' : 'text-green-600';
+                    return (
+                        <TableRow key={contract.id}>
+                        <TableCell className="font-medium">
+                            <div>{contract.contractorName}</div>
+                            <div className="text-xs text-muted-foreground">{contract.id}</div>
+                        </TableCell>
+                        <TableCell>{contract.type}</TableCell>
+                        <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
+                        <TableCell className={cn("font-semibold", daysLeftColor)}>
+                            {daysLeftText}
+                        </TableCell>
+                        <TableCell>{contract.unit}</TableCell>
+                        <TableCell>
+                            <TooltipProvider>
+                                <div className="flex items-center gap-2">
+                                    {contract.attachments.length > 0 && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <AttachmentIcon className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{contract.attachments.length} attachment(s)</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    {contract.reminders.length > 0 && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Bell className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Reminders are active</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                </div>
+                            </TooltipProvider>
+                        </TableCell>
+                        <TableCell>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
@@ -609,3 +648,5 @@ export default function ContractsPage() {
   );
 }
 
+
+    

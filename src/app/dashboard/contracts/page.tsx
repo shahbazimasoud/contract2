@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
-import { Calendar as PersianCalendar } from "react-date-object/calendars/persian";
+import PersianCalendar from "react-date-object/calendars/persian";
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 
 import { Button } from '@/components/ui/button';
@@ -201,7 +201,7 @@ export default function ContractsPage() {
         reminderEmails: values.reminderEmails.map(e => e.email),
         // Note: Attachment handling for updates can be complex. 
         // Here we'll just replace them. A real app might merge them.
-        attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
+        attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) : editingContract.attachments,
       };
       setContracts(contracts.map(c => c.id === editingContract.id ? updatedContract : c));
       toast({
@@ -337,7 +337,7 @@ export default function ContractsPage() {
                                       onChange={field.onChange}
                                       calendar={PersianCalendar}
                                       format="YYYY/MM/DD"
-                                      render={(value, openCalendar) => (
+                                      render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
                                               {value || <span>Pick a date</span>}
@@ -361,7 +361,7 @@ export default function ContractsPage() {
                                       onChange={field.onChange}
                                       calendar={PersianCalendar}
                                       format="YYYY/MM/DD"
-                                      render={(value, openCalendar) => (
+                                      render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
                                               {value || <span>Pick a date</span>}
@@ -510,12 +510,12 @@ export default function ContractsPage() {
                           <FormField
                             key={field.id}
                             control={form.control}
-                            name={`reminderEmails.${index}`}
+                            name={`reminderEmails.${index}.email`}
                             render={({ field }) => (
                                 <FormItem>
                                   <div className="flex items-center gap-2">
                                       <FormControl>
-                                          <Input {...field} placeholder={`email@example.com`} onChange={e => field.onChange({ email: e.target.value })} value={field.value.email} />
+                                          <Input {...field} placeholder={`email@example.com`} />
                                       </FormControl>
                                       {emailFields.length > 1 && (
                                         <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(index)}>
@@ -721,3 +721,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

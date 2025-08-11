@@ -110,7 +110,6 @@ export default function ContractsPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
-  const PersianCalendar = persian;
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
@@ -135,8 +134,8 @@ export default function ContractsPage() {
         contractorName: editingContract.contractorName,
         type: editingContract.type,
         description: editingContract.description,
-        startDate: new DateObject({ year: sy, month: sm, day: sd, calendar: new PersianCalendar() }),
-        endDate: new DateObject({ year: ey, month: em, day: ed, calendar: new PersianCalendar() }),
+        startDate: new DateObject({ year: sy, month: sm, day: sd, calendar: persian }),
+        endDate: new DateObject({ year: ey, month: em, day: ed, calendar: persian }),
         renewal: editingContract.renewal,
         unit: editingContract.unit,
         reminderEmails: editingContract.reminderEmails.map(email => ({ email })),
@@ -158,7 +157,7 @@ export default function ContractsPage() {
         attachments: [],
       });
     }
-  }, [editingContract, form, PersianCalendar]);
+  }, [editingContract, form]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -336,7 +335,7 @@ export default function ContractsPage() {
                                   <DatePicker
                                       value={field.value}
                                       onChange={field.onChange}
-                                      calendar={PersianCalendar}
+                                      calendar={persian}
                                       format="YYYY/MM/DD"
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
@@ -360,7 +359,7 @@ export default function ContractsPage() {
                                   <DatePicker
                                       value={field.value}
                                       onChange={field.onChange}
-                                      calendar={PersianCalendar}
+                                      calendar={persian}
                                       format="YYYY/MM/DD"
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
@@ -722,5 +721,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-    

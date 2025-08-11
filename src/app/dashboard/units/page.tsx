@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, MoreHorizontal } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,6 +60,7 @@ const unitSchema = z.object({
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>(mockUnits);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof unitSchema>>({
@@ -68,19 +70,53 @@ export default function UnitsPage() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof unitSchema>) => {
-    const newUnit: Unit = {
-      id: `UNIT-${String(units.length + 1).padStart(2, '0')}`,
-      name: values.name,
-      userCount: 0,
-    };
-    setUnits([...units, newUnit]);
-    toast({
-        title: "Unit Created",
-        description: `Unit "${newUnit.name}" has been successfully created.`,
-    });
-    form.reset();
+  useEffect(() => {
+    if (editingUnit) {
+      form.reset({
+        name: editingUnit.name,
+      });
+    } else {
+      form.reset({
+        name: "",
+      });
+    }
+  }, [editingUnit, form]);
+
+
+  const handleOpenDialog = (unit: Unit | null) => {
+    setEditingUnit(unit);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setEditingUnit(null);
     setIsDialogOpen(false);
+    form.reset();
+  }
+
+  const onSubmit = (values: z.infer<typeof unitSchema>) => {
+    if (editingUnit) {
+      // Update existing unit
+      const updatedUnit = { ...editingUnit, name: values.name };
+      setUnits(units.map(u => u.id === editingUnit.id ? updatedUnit : u));
+      toast({
+        title: "Unit Updated",
+        description: `Unit "${updatedUnit.name}" has been successfully updated.`,
+      });
+    } else {
+      // Create new unit
+      const newUnit: Unit = {
+        id: `UNIT-${String(units.length + 1).padStart(2, '0')}`,
+        name: values.name,
+        userCount: 0, // New units start with 0 users
+      };
+      setUnits([...units, newUnit]);
+      toast({
+          title: "Unit Created",
+          description: `Unit "${newUnit.name}" has been successfully created.`,
+      });
+    }
+    handleCloseDialog();
   };
   
   const handleDelete = (id: string) => {
@@ -102,47 +138,47 @@ export default function UnitsPage() {
               Define and manage organizational units.
             </PageHeaderDescription>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Unit
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add New Unit</DialogTitle>
-                <DialogDescription>
-                  Create a new organizational unit to group users and contracts.
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Unit Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Sales Department" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="ghost">Cancel</Button>
-                    </DialogClose>
-                    <Button type="submit">Create Unit</Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => handleOpenDialog(null)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add New Unit
+          </Button>
         </div>
       </PageHeader>
+      
+       <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingUnit ? 'Edit Unit' : 'Add New Unit'}</DialogTitle>
+            <DialogDescription>
+              {editingUnit ? 'Update the name of the organizational unit.' : 'Create a new organizational unit to group users and contracts.'}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Sales Department" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">{editingUnit ? 'Save Changes' : 'Create Unit'}</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
 
       <Card>
         <CardHeader>
@@ -177,7 +213,7 @@ export default function UnitsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit Unit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenDialog(unit)}>Edit Unit</DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(unit.id)}
                             className="text-destructive"

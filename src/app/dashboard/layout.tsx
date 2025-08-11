@@ -99,7 +99,9 @@ export default function DashboardLayout({
             </SidebarMenuItem>
             {user.role === "super-admin" && (
               <>
-                <SidebarSeparator />
+                <SidebarMenuItem>
+                    <SidebarSeparator />
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild

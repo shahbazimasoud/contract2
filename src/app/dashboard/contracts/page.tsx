@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
-import PersianCalendar from "react-date-object/calendars/persian";
+import persian from "react-date-object/calendars/persian";
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 
 import { Button } from '@/components/ui/button';
@@ -110,6 +110,7 @@ export default function ContractsPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
+  const PersianCalendar = persian;
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
@@ -157,7 +158,7 @@ export default function ContractsPage() {
         attachments: [],
       });
     }
-  }, [editingContract, form]);
+  }, [editingContract, form, PersianCalendar]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {

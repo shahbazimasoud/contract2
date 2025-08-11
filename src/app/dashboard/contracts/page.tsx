@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -89,6 +89,7 @@ const contractSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   reminderEmails: z.array(reminderEmailSchema).min(1, "At least one reminder email is required."),
   reminders: z.array(reminderDaysSchema).min(1, "At least one reminder day is required."),
+  attachments: z.any().optional(),
 }).refine(data => {
     if (!data.startDate || !data.endDate) return false;
     const start = new Date(data.startDate.valueOf());
@@ -105,6 +106,7 @@ export default function ContractsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof contractSchema>>({
@@ -117,8 +119,17 @@ export default function ContractsPage() {
         unit: "",
         reminderEmails: [{email: ""}],
         reminders: [{days: 30}],
+        attachments: [],
     },
   });
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setAttachedFiles(Array.from(event.target.files));
+      form.setValue('attachments', Array.from(event.target.files));
+    }
+  };
+
 
   const { fields: emailFields, append: appendEmail, remove: removeEmail } = useFieldArray({
     control: form.control,
@@ -141,7 +152,7 @@ export default function ContractsPage() {
       startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
       endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
       status: 'active',
-      attachments: [],
+      attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
       reminders: values.reminders.map(r => r.days),
       reminderEmails: values.reminderEmails.map(e => e.email),
       createdBy: 'Super Admin', // In real app, get from user session
@@ -152,6 +163,7 @@ export default function ContractsPage() {
         description: `Contract for "${newContract.contractorName}" has been successfully created.`,
     });
     form.reset();
+    setAttachedFiles([]);
     setIsDialogOpen(false);
   };
 
@@ -196,7 +208,10 @@ export default function ContractsPage() {
                 </PageHeaderDescription>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) form.reset();
+                if (!isOpen) {
+                    form.reset();
+                    setAttachedFiles([]);
+                }
                 setIsDialogOpen(isOpen);
             }}>
               <DialogTrigger asChild>
@@ -213,7 +228,7 @@ export default function ContractsPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
                         <FormField
                             control={form.control}
                             name="contractorName"
@@ -346,6 +361,63 @@ export default function ContractsPage() {
                                 )}
                             />
                         </div>
+
+                         <div className="md:col-span-2 space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="attachments"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Attachments</FormLabel>
+                                    <FormControl>
+                                    <div className="relative">
+                                        <Button type="button" variant="outline" asChild>
+                                        <label htmlFor="file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
+                                            <Upload className="h-4 w-4"/>
+                                            <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
+                                        </label>
+                                        </Button>
+                                        <Input 
+                                            id="file-upload"
+                                            type="file" 
+                                            multiple 
+                                            onChange={handleFileChange}
+                                            className="sr-only"
+                                        />
+                                    </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            {attachedFiles.length > 0 && (
+                                <div className="space-y-2">
+                                <p className="text-sm font-medium">Selected files:</p>
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                    {attachedFiles.map((file, index) => (
+                                    <li key={index} className="flex items-center gap-2">
+                                        <Paperclip className="h-4 w-4" />
+                                        <span>{file.name}</span>
+                                        <Button 
+                                            type="button" 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-6 w-6 ml-auto"
+                                            onClick={() => {
+                                                const newFiles = attachedFiles.filter((_, i) => i !== index);
+                                                setAttachedFiles(newFiles);
+                                                form.setValue('attachments', newFiles);
+                                            }}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </li>
+                                    ))}
+                                </ul>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="md:col-span-2 space-y-4">
                            <div>
                              <FormLabel>Reminder Emails</FormLabel>
@@ -536,3 +608,4 @@ export default function ContractsPage() {
     </div>
   );
 }
+

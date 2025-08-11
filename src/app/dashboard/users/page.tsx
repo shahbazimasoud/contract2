@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, MoreHorizontal, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -75,12 +76,26 @@ const userSchema = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
 });
 
+const editUserSchema = userSchema.omit({ password: true });
+
+const changePasswordSchema = z.object({
+  newPassword: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>(mockUsers);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof userSchema>>({
+  const addUserForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: "",
@@ -91,7 +106,31 @@ export default function UsersPage() {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof userSchema>) => {
+  const editUserForm = useForm<z.infer<typeof editUserSchema>>({
+    resolver: zodResolver(editUserSchema),
+  });
+  
+  const changePasswordForm = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      newPassword: "",
+      confirmPassword: ""
+    }
+  });
+  
+  useEffect(() => {
+    if (editingUser && isEditUserDialogOpen) {
+      editUserForm.reset({
+        name: editingUser.name,
+        email: editingUser.email,
+        role: editingUser.role,
+        unit: editingUser.unit,
+      });
+    }
+  }, [editingUser, isEditUserDialogOpen, editUserForm]);
+
+
+  const onAddUserSubmit = (values: z.infer<typeof userSchema>) => {
     const newUser: User = {
       id: `U-${String(users.length + 1).padStart(3, '0')}`,
       ...values,
@@ -101,9 +140,46 @@ export default function UsersPage() {
         title: "User Created",
         description: `User ${newUser.name} has been successfully created.`,
     });
-    form.reset();
-    setIsDialogOpen(false);
+    addUserForm.reset();
+    setIsAddUserDialogOpen(false);
   };
+  
+  const onEditUserSubmit = (values: z.infer<typeof editUserSchema>) => {
+    if (!editingUser) return;
+    
+    setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...values } : u));
+    toast({
+      title: "User Updated",
+      description: `User ${values.name} has been successfully updated.`
+    });
+    setIsEditUserDialogOpen(false);
+    setEditingUser(null);
+  };
+  
+  const onChangePasswordSubmit = (values: z.infer<typeof changePasswordSchema>) => {
+    if (!editingUser) return;
+    
+    // In a real app, you'd make an API call here.
+    console.log(`Password for ${editingUser.name} changed to ${values.newPassword}`);
+    
+    toast({
+      title: "Password Changed",
+      description: `Password for ${editingUser.name} has been successfully changed.`
+    });
+    setIsChangePasswordDialogOpen(false);
+    setEditingUser(null);
+    changePasswordForm.reset();
+  }
+  
+  const openEditDialog = (user: User) => {
+    setEditingUser(user);
+    setIsEditUserDialogOpen(true);
+  }
+  
+  const openChangePasswordDialog = (user: User) => {
+    setEditingUser(user);
+    setIsChangePasswordDialogOpen(true);
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -115,7 +191,7 @@ export default function UsersPage() {
               Manage all users, their roles, and units.
             </PageHeaderDescription>
           </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
               <DialogTrigger asChild>
                   <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -135,10 +211,10 @@ export default function UsersPage() {
                         <TabsTrigger value="ad">From Active Directory</TabsTrigger>
                     </TabsList>
                     <TabsContent value="local">
-                         <Form {...form}>
-                          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                         <Form {...addUserForm}>
+                          <form onSubmit={addUserForm.handleSubmit(onAddUserSubmit)} className="space-y-4 py-4">
                             <FormField
-                              control={form.control}
+                              control={addUserForm.control}
                               name="name"
                               render={({ field }) => (
                                 <FormItem>
@@ -151,7 +227,7 @@ export default function UsersPage() {
                               )}
                             />
                             <FormField
-                              control={form.control}
+                              control={addUserForm.control}
                               name="email"
                               render={({ field }) => (
                                 <FormItem>
@@ -164,7 +240,7 @@ export default function UsersPage() {
                               )}
                             />
                             <FormField
-                              control={form.control}
+                              control={addUserForm.control}
                               name="password"
                               render={({ field }) => (
                                 <FormItem>
@@ -177,7 +253,7 @@ export default function UsersPage() {
                               )}
                             />
                              <FormField
-                              control={form.control}
+                              control={addUserForm.control}
                               name="role"
                               render={({ field }) => (
                                 <FormItem>
@@ -198,7 +274,7 @@ export default function UsersPage() {
                               )}
                             />
                             <FormField
-                              control={form.control}
+                              control={addUserForm.control}
                               name="unit"
                               render={({ field }) => (
                                 <FormItem>
@@ -274,8 +350,143 @@ export default function UsersPage() {
                   </Tabs>
               </DialogContent>
           </Dialog>
-        </div>
+      </div>
       </PageHeader>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update the details for {editingUser?.name}.</DialogDescription>
+          </DialogHeader>
+          <Form {...editUserForm}>
+            <form onSubmit={editUserForm.handleSubmit(onEditUserSubmit)} className="space-y-4 py-4">
+              <FormField
+                control={editUserForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editUserForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editUserForm.control}
+                name="unit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {mockUnits.map((unit) => (
+                          <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Change Password Dialog */}
+       <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>Set a new password for {editingUser?.name}.</DialogDescription>
+          </DialogHeader>
+          <Form {...changePasswordForm}>
+            <form onSubmit={changePasswordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-4 py-4">
+              <FormField
+                control={changePasswordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={changePasswordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm New Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Update Password</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -316,8 +527,8 @@ export default function UsersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit User</DropdownMenuItem>
-                          <DropdownMenuItem>Change Password</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit User</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">
                             Delete User
                           </DropdownMenuItem>
@@ -333,5 +544,4 @@ export default function UsersPage() {
       </Card>
     </div>
   );
-
-    
+}

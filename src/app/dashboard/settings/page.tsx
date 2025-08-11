@@ -26,6 +26,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "@/components/page-header"
+import { Switch } from "@/components/ui/switch"
 
 export default function SettingsPage() {
   return (
@@ -38,9 +39,10 @@ export default function SettingsPage() {
       </PageHeader>
 
       <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="mail">Mail Server</TabsTrigger>
+          <TabsTrigger value="ad">Active Directory</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         
@@ -122,6 +124,44 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter>
               <Button>Save & Test Connection</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ad">
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Directory</CardTitle>
+              <CardDescription>
+                Configure Active Directory integration for user and group synchronization.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+               <div className="flex items-center space-x-2">
+                <Switch id="ad-enabled" />
+                <Label htmlFor="ad-enabled">Enable Active Directory Integration</Label>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad-host">Server URL</Label>
+                <Input id="ad-host" placeholder="ldaps://ad.example.com" />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="ad-basedn">Base DN</Label>
+                <Input id="ad-basedn" placeholder="dc=example,dc=com" />
+                 <p className="text-sm text-muted-foreground">The starting point for directory searches.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad-user">Bind DN / Username</Label>
+                <Input id="ad-user" placeholder="cn=admin,dc=example,dc=com" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ad-pass">Bind Password</Label>
+                <Input id="ad-pass" type="password" />
+              </div>
+            </CardContent>
+            <CardFooter className="justify-between">
+              <Button>Save & Sync</Button>
+              <Button variant="outline">Test Connection</Button>
             </CardFooter>
           </Card>
         </TabsContent>

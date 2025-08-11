@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,12 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import {
   Form,
   FormControl,
@@ -116,105 +122,156 @@ export default function UsersPage() {
                     Add New User
                   </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
                       <DialogTitle>Add New User</DialogTitle>
                       <DialogDescription>
-                          Enter the details for the new user below.
+                          Create a local user or add one from Active Directory.
                       </DialogDescription>
                   </DialogHeader>
-                   <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="John Doe" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="john.doe@example.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="********" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name="role"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Role</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a role" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="super-admin">Super Admin</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="unit"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Unit</FormLabel>
-                               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a unit" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {mockUnits.map((unit) => (
-                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button type="button" variant="ghost">Cancel</Button>
-                            </DialogClose>
-                            <Button type="submit">Create User</Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
+                  <Tabs defaultValue="local" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="local">Local User</TabsTrigger>
+                        <TabsTrigger value="ad">From Active Directory</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="local">
+                         <Form {...form}>
+                          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                            <FormField
+                              control={form.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="John Doe" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Email</FormLabel>
+                                  <FormControl>
+                                    <Input type="email" placeholder="john.doe@example.com" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="password"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Password</FormLabel>
+                                  <FormControl>
+                                    <Input type="password" placeholder="********" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                             <FormField
+                              control={form.control}
+                              name="role"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Role</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select a role" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="admin">Admin</SelectItem>
+                                      <SelectItem value="super-admin">Super Admin</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="unit"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Unit</FormLabel>
+                                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select a unit" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {mockUnits.map((unit) => (
+                                        <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button" variant="ghost">Cancel</Button>
+                                </DialogClose>
+                                <Button type="submit">Create User</Button>
+                            </DialogFooter>
+                          </form>
+                        </Form>
+                    </TabsContent>
+                    <TabsContent value="ad">
+                      <div className="space-y-4 py-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                          <Input placeholder="Search for user in Active Directory..." className="pl-10" />
+                        </div>
+                        <div className="rounded-md border h-48 overflow-y-auto">
+                           {/* Search results would be displayed here */}
+                           <p className="p-4 text-sm text-center text-muted-foreground">No users found. Try another search.</p>
+                        </div>
+                        <div className="space-y-2">
+                           <Label>Assign to Unit</Label>
+                           <Select>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {mockUnits.map((unit) => (
+                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                           </Select>
+                        </div>
+                         <div className="space-y-2">
+                           <Label>Assign Role</Label>
+                           <Select>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="super-admin">Super Admin</SelectItem>
+                            </SelectContent>
+                           </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="ghost">Cancel</Button>
+                        </DialogClose>
+                        <Button type="button">Add Selected User</Button>
+                      </DialogFooter>
+                    </TabsContent>
+                  </Tabs>
               </DialogContent>
           </Dialog>
         </div>
@@ -276,4 +333,5 @@ export default function UsersPage() {
       </Card>
     </div>
   );
-}
+
+    

@@ -1,9 +1,46 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, FileText } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { format } from "date-fns"
 
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -21,6 +58,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
   CardContent,
@@ -29,15 +67,71 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
-import { contracts as mockContracts } from '@/lib/mock-data';
+import { contracts as mockContracts, units as mockUnits } from '@/lib/mock-data';
 import type { Contract } from '@/lib/types';
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 const ITEMS_PER_PAGE = 10;
+
+const contractSchema = z.object({
+  contractorName: z.string().min(1, "Contractor name is required"),
+  type: z.string().min(1, "Contract type is required"),
+  description: z.string().optional(),
+  startDate: z.date({ required_error: "Start date is required" }),
+  endDate: z.date({ required_error: "End date is required" }),
+  renewal: z.enum(['auto', 'manual']),
+  unit: z.string().min(1, "Unit is required"),
+  reminderEmails: z.string().refine((value) => {
+    if (!value) return true;
+    const emails = value.split(',').map(e => e.trim());
+    return emails.every(email => z.string().email().safeParse(email).success);
+  }, { message: "Please provide a valid, comma-separated list of emails." }),
+}).refine(data => data.endDate > data.startDate, {
+    message: "End date must be after start date",
+    path: ["endDate"],
+});
+
 
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>(mockContracts);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof contractSchema>>({
+    resolver: zodResolver(contractSchema),
+    defaultValues: {
+        contractorName: "",
+        type: "",
+        description: "",
+        renewal: "manual",
+        unit: "",
+        reminderEmails: "",
+    },
+  });
+
+  const onSubmit = (values: z.infer<typeof contractSchema>) => {
+    const newContract: Contract = {
+      id: `C-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(4, '0')}`,
+      ...values,
+      startDate: format(values.startDate, "yyyy-MM-dd"),
+      endDate: format(values.endDate, "yyyy-MM-dd"),
+      status: 'active',
+      attachments: [],
+      reminders: [30, 15, 7], // Default reminders
+      reminderEmails: values.reminderEmails ? values.reminderEmails.split(',').map(e => e.trim()) : [],
+      createdBy: 'Super Admin', // In real app, get from user session
+    };
+    setContracts([newContract, ...contracts]);
+    toast({
+        title: "Contract Created",
+        description: `Contract for "${newContract.contractorName}" has been successfully created.`,
+    });
+    form.reset();
+    setIsDialogOpen(false);
+  };
 
   const filteredContracts = useMemo(() => {
     return contracts.filter(
@@ -62,6 +156,11 @@ export default function ContractsPage() {
   
   const handleDelete = (id: string) => {
     setContracts(contracts.filter(c => c.id !== id));
+    toast({
+        title: "Contract Deleted",
+        description: `The contract has been successfully deleted.`,
+        variant: "destructive",
+    });
   }
 
   return (
@@ -74,10 +173,210 @@ export default function ContractsPage() {
                 Manage, view, and organize all your contracts.
                 </PageHeaderDescription>
             </div>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Contract
-            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Contract
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Add New Contract</DialogTitle>
+                    <DialogDescription>
+                        Fill out the form below to create a new contract.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                        <FormField
+                            control={form.control}
+                            name="contractorName"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Contractor Name</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Innovate Solutions Ltd." {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="type"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Contract Type</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Service Agreement" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="startDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Start Date</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="endDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>End Date</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="unit"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Unit</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Select an organizational unit" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {mockUnits.map((unit) => (
+                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="renewal"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Renewal Policy</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Select renewal policy" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="manual">Manual</SelectItem>
+                                    <SelectItem value="auto">Automatic</SelectItem>
+                                </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <div className="md:col-span-2">
+                            <FormField
+                                control={form.control}
+                                name="description"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Description</FormLabel>
+                                        <FormControl>
+                                            <Textarea placeholder="Briefly describe the contract..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                             <FormField
+                                control={form.control}
+                                name="reminderEmails"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Reminder Emails</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., manager@example.com, legal@example.com" {...field} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            A comma-separated list of email addresses for notifications.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <DialogFooter className="md:col-span-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="ghost">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Create Contract</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
         </div>
       </PageHeader>
 

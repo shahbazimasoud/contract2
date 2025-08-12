@@ -73,14 +73,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 // This is a mock user object. In a real app, you'd get this from your auth provider.
 // To test different roles, change this object.
-// Super Admin: { name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
-// Regular Admin: { name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
+// Super Admin: { id: "U-001", name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
+// Regular Admin: { id: "U-002", name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
 const currentUser: User = {
-  id: "U-001",
-  name: "Super Admin",
-  email: "admin@contractwise.com",
-  role: "super-admin",
-  unit: "System"
+  id: "U-002",
+  name: "John Doe",
+  email: "john.doe@contractwise.com",
+  role: "admin",
+  unit: "IT Department"
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -311,7 +311,7 @@ export default function ContractsPage() {
         contract.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [contracts, searchTerm]);
+  }, [contracts, searchTerm, currentUser]);
 
   const paginatedContracts = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

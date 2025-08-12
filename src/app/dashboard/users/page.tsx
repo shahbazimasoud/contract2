@@ -74,9 +74,10 @@ const userSchema = z.object({
   role: z.enum(['admin', 'super-admin']),
   unit: z.string().min(1, { message: "Unit is required" }),
   password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  authType: z.literal('local'),
 });
 
-const editUserSchema = userSchema.omit({ password: true });
+const editUserSchema = userSchema.omit({ password: true, authType: true });
 
 const changePasswordSchema = z.object({
   newPassword: z.string().min(8, { message: "Password must be at least 8 characters" }),
@@ -103,6 +104,7 @@ export default function UsersPage() {
       role: "admin",
       unit: "",
       password: "",
+      authType: 'local',
     },
   });
 
@@ -179,6 +181,15 @@ export default function UsersPage() {
   const openChangePasswordDialog = (user: User) => {
     setEditingUser(user);
     setIsChangePasswordDialogOpen(true);
+  }
+
+  const handleDelete = (userId: string) => {
+      setUsers(users.filter(u => u.id !== userId));
+      toast({
+          title: "User Deleted",
+          description: "The user has been successfully deleted.",
+          variant: "destructive"
+      });
   }
 
   return (
@@ -369,7 +380,7 @@ export default function UsersPage() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={editingUser?.authType === 'ad'} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -382,7 +393,7 @@ export default function UsersPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" {...field} disabled={editingUser?.authType === 'ad'}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -499,6 +510,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Auth Type</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>
@@ -511,6 +523,11 @@ export default function UsersPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                        <Badge variant={user.authType === 'ad' ? 'outline' : 'default'}>
+                            {user.authType.toUpperCase()}
+                        </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={user.role === 'super-admin' ? 'destructive' : 'secondary'}>
                         {user.role}
@@ -528,8 +545,10 @@ export default function UsersPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit User</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          {user.authType === 'local' && (
+                            <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-destructive">
                             Delete User
                           </DropdownMenuItem>
                         </DropdownMenuContent>

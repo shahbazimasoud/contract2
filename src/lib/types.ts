@@ -21,6 +21,7 @@ export type User = {
   email: string;
   role: 'super-admin' | 'admin';
   unit: string;
+  authType: 'local' | 'ad';
 };
 
 export type Unit = {

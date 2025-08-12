@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Phone, Send } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -769,7 +769,7 @@ export default function ContractsPage() {
                                      {contract.reminderPhones && contract.reminderPhones.length > 0 && (
                                         <Tooltip>
                                             <TooltipTrigger>
-                                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                                <Mail className="h-4 w-4 text-muted-foreground" />
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>SMS reminders active</p>
@@ -839,5 +839,7 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    
 
     

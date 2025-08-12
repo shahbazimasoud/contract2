@@ -72,6 +72,7 @@ import type { Contract, User } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 
 const AUTH_USER_KEY = 'current_user';
 const ITEMS_PER_PAGE = 10;
@@ -95,6 +96,7 @@ const contractSchema = z.object({
   startDate: z.any({ required_error: "Start date is required" }),
   endDate: z.any({ required_error: "End date is required" }),
   renewal: z.enum(['auto', 'manual']),
+  status: z.enum(['active', 'inactive']),
   unit: z.string().min(1, "Unit is required"),
   reminderEmails: z.array(reminderEmailSchema).min(1, "At least one reminder email is required."),
   reminderPhones: z.array(reminderPhoneSchema).optional(),
@@ -145,6 +147,7 @@ export default function ContractsPage() {
         reminderPhones: [],
         reminders: [{days: 30}],
         attachments: [],
+        status: "active",
     },
   });
 
@@ -163,6 +166,7 @@ export default function ContractsPage() {
         startDate: new DateObject({ year: sy, month: sm, day: sd, calendar: persian }),
         endDate: new DateObject({ year: ey, month: em, day: ed, calendar: persian }),
         renewal: editingContract.renewal,
+        status: editingContract.status,
         unit: editingContract.unit,
         reminderEmails: editingContract.reminderEmails.map(email => ({ email })),
         reminderPhones: editingContract.reminderPhones.map(phone => ({ phone })),
@@ -176,6 +180,7 @@ export default function ContractsPage() {
         type: "",
         description: "",
         renewal: "manual",
+        status: "active",
         unit: defaultUnit,
         reminderEmails: [{email: ""}],
         reminderPhones: [{phone: ""}],
@@ -288,7 +293,7 @@ export default function ContractsPage() {
         unit: values.unit,
         startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
         endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
-        status: 'active',
+        status: values.status,
         attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
@@ -515,6 +520,30 @@ export default function ContractsPage() {
                           )}
                       />
                   </div>
+
+                  <div className="md:col-span-2">
+                     <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                            <FormLabel>Contract Status</FormLabel>
+                            <FormDescription>
+                                An inactive contract will not send any reminders.
+                            </FormDescription>
+                            </div>
+                            <FormControl>
+                            <Switch
+                                checked={field.value === 'active'}
+                                onCheckedChange={(checked) => field.onChange(checked ? 'active' : 'inactive')}
+                            />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
+                  </div>
+
 
                     <div className="md:col-span-2 space-y-4">
                       <FormField
@@ -751,6 +780,7 @@ export default function ContractsPage() {
                 <TableRow>
                   <TableHead>Contractor</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Days Left</TableHead>
                   <TableHead>Unit</TableHead>
@@ -767,12 +797,17 @@ export default function ContractsPage() {
                     const daysLeftText = daysLeft < 0 ? 'Expired' : `${daysLeft} days`;
                     const daysLeftColor = daysLeft < 7 ? 'text-destructive' : daysLeft < 30 ? 'text-amber-600' : 'text-green-600';
                     return (
-                        <TableRow key={contract.id}>
+                        <TableRow key={contract.id} className={cn(contract.status === 'inactive' && 'opacity-50')}>
                         <TableCell className="font-medium">
                             <div>{contract.contractorName}</div>
                             <div className="text-xs text-muted-foreground">{contract.id}</div>
                         </TableCell>
                         <TableCell>{contract.type}</TableCell>
+                        <TableCell>
+                            <Badge variant={contract.status === 'active' ? 'secondary' : 'outline'}>
+                                {contract.status === 'active' ? 'Active' : 'Inactive'}
+                            </Badge>
+                        </TableCell>
                         <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
                         <TableCell className={cn("font-semibold", daysLeftColor)}>
                             {daysLeftText}
@@ -791,7 +826,7 @@ export default function ContractsPage() {
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
-                                    {contract.reminders.length > 0 && (
+                                    {contract.reminders.length > 0 && contract.status === 'active' && (
                                         <Tooltip>
                                             <TooltipTrigger>
                                                 <Bell className="h-4 w-4 text-muted-foreground" />
@@ -801,7 +836,7 @@ export default function ContractsPage() {
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
-                                     {contract.reminderPhones && contract.reminderPhones.length > 0 && (
+                                     {contract.reminderPhones && contract.reminderPhones.length > 0 && contract.status === 'active' && (
                                         <Tooltip>
                                             <TooltipTrigger>
                                                 <Mail className="h-4 w-4 text-muted-foreground" />
@@ -834,7 +869,7 @@ export default function ContractsPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={8} className="h-24 text-center">
                         <div className="flex flex-col items-center gap-2">
                            <FileText className="h-8 w-8 text-muted-foreground" />
                            <p className="font-semibold">No contracts found.</p>
@@ -874,3 +909,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

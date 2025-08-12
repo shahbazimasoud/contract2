@@ -1,4 +1,6 @@
+
 "use client"
+import React from "react";
 import {
   Card,
   CardContent,
@@ -7,34 +9,48 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "@/components/page-header"
-import { FileText, Clock, Users, CheckCircle, AlertTriangle } from "lucide-react"
+import { FileText, Clock, Users, CheckCircle, AlertTriangle, XCircle } from "lucide-react"
+import { contracts as mockContracts } from "@/lib/mock-data"
+
 
 export default function DashboardPage() {
+    const totalContracts = mockContracts.length;
+    const activeContracts = mockContracts.filter(c => c.status === 'active').length;
+    const inactiveContracts = mockContracts.filter(c => c.status === 'inactive').length;
+    const expiringSoon = mockContracts.filter(c => {
+        if (c.status === 'inactive') return false;
+        const endDate = new Date(c.endDate);
+        const today = new Date();
+        const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 30;
+    }).length;
+
+
   const stats = [
     {
       title: "Total Contracts",
-      value: "150",
+      value: totalContracts,
       icon: FileText,
-      description: "20 more than last month",
+      description: "All contracts in the system",
     },
     {
       title: "Active Contracts",
-      value: "132",
+      value: activeContracts,
       icon: CheckCircle,
-      description: "9 expiring this month",
+      description: `${expiringSoon} expiring this month`,
     },
     {
       title: "Expiring Soon",
-      value: "12",
+      value: expiringSoon,
       icon: AlertTriangle,
       description: "Within the next 30 days",
       className: "text-destructive"
     },
     {
-      title: "Total Users",
-      value: "45",
-      icon: Users,
-      description: "3 new users this week",
+      title: "Inactive Contracts",
+      value: inactiveContracts,
+      icon: XCircle,
+      description: "Expired or manually disabled",
     },
   ]
 
@@ -102,3 +118,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    

@@ -1,6 +1,18 @@
 
 import type { Contract, User, Unit, Task } from './types';
 
+// Avatars are embedded as SVG data URIs to be "local" to the application
+export const avatars = [
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzYzNkRGOCIvPjxwYXRoIGQ9Ik01MCAxNWwtOCAyMy0yNC0zIDcgMjUtMTggMTggMjYgMSA0IDI1IDQgLTI1IDI2IC0xIC0xOCAtMTggNyAtMjUgLTI0IDMgLTggLTIzeiIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iOTAiIGhlaWdodD0iOTAiIHg9IjUiIHk9IjUiIHJ4PSIxMCIgcng9IjEwIiBmaWxsPSIjNEM4QjU3Ii8+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiB4PSIyNSIgeT0iMjUiIHJ4PSI1IiByeT0iNSIgZmlsbD0iI0ZGRkZGRiIgdHJhbnNmb3JtPSJyb3RhdGUoNDUgNTAgNTApIi8+PC9zdmc+' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAgNUw5NSA5NWg5MEw1IDk1eiIgZmlsbD0iIzM0RDNBNCIvPjxwYXRoIGQ9Ik01MCAzMEw3NSA4MEgyNUw1MCAzMHoiIGZpbGw9IiNGRkZGRkYiLz48L3N2Zz4=' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iI0Y5NzMxNSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjI1IiBmaWxsPSIjRkZGRkZGIi8+PC9zdmc+' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCAwSDEwMFYxMDBIMHoiIGZpbGw9IiM4QjdERDgiLz48cGF0aCBkPSJNMjAgMjBIMzBWODBINjBWNzBIMzBWMzBIMzBWMjBaIiBmaWxsPSIjRkZGRkZGIi8+PHBhdGggZD0iTTgwIDgwSDcwVjIwSDQwVjMwSDcwVjgwWiIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAgMEM3Ny42MTQgMCAxMDAgMjIuMzg2IDEwMCA1MEE1MCA1MCAwIDExMCA1MFoiIGZpbGw9IiNFMTFERjEiLz48cGF0aCBkPSJNNTAgMTAwQzIyLjM4NiAxMDAgMCA3Ny42MTQgMCA1MEE1MCA1MCAwIDEwMCA1MFoiIGZpbGw9IiM0QzRBNkYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyMCIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCA1MEw1MCAwTDEwMCA1MEw1MCAxMDBaIiBmaWxsPSIjRUI3MDE0Ii8+PC9zdmc+' },
+    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzIzMkUyRiIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNzAiIHI9IjE1IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSIzMCIgcj0iMTUiIGZpbGw9IiNGRkYiLz48L3N2Zz4=' },
+];
+
 export const contracts: Contract[] = [
   {
     id: 'C-2024-0151',
@@ -77,16 +89,7 @@ export const contracts: Contract[] = [
   },
 ];
 
-export const avatars = [
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Garfield' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Tinkerbell' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Annie' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Loki' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Mimi' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Coco' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Dusty' },
-    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Misty' },
-];
+
 
 
 export const users: User[] = [

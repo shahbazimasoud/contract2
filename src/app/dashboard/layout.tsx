@@ -39,11 +39,11 @@ const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 // Super Admin: { id: "U-001", name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
 // Regular Admin: { id: "U-002", name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
 const user: User = {
-  id: "U-002",
-  name: "John Doe",
-  email: "john.doe@contractwise.com",
-  role: "admin",
-  unit: "IT Department"
+  id: "U-001",
+  name: "Super Admin",
+  email: "admin@contractwise.com",
+  role: "super-admin",
+  unit: "System"
 }
 
 export default function DashboardLayout({

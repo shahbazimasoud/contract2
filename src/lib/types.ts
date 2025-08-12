@@ -10,6 +10,7 @@ export type Contract = {
   attachments: { name: string; url: string }[];
   reminders: number[];
   reminderEmails: string[];
+  reminderPhones: string[];
   createdBy: string;
   unit: string;
 };

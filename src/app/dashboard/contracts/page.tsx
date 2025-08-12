@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Phone } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
+import PersianCalendar from "react-date-object/calendars/persian"
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 
 import { Button } from '@/components/ui/button';
@@ -76,6 +77,10 @@ const reminderEmailSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
 });
 
+const reminderPhoneSchema = z.object({
+  phone: z.string().min(10, { message: "Please enter a valid phone number." }),
+});
+
 const reminderDaysSchema = z.object({
   days: z.number().min(1, "Must be at least 1 day").max(365, "Cannot be more than 365 days"),
 });
@@ -89,6 +94,7 @@ const contractSchema = z.object({
   renewal: z.enum(['auto', 'manual']),
   unit: z.string().min(1, "Unit is required"),
   reminderEmails: z.array(reminderEmailSchema).min(1, "At least one reminder email is required."),
+  reminderPhones: z.array(reminderPhoneSchema).optional(),
   reminders: z.array(reminderDaysSchema).min(1, "At least one reminder day is required."),
   attachments: z.any().optional(),
 }).refine(data => {
@@ -120,6 +126,7 @@ export default function ContractsPage() {
         renewal: "manual",
         unit: "",
         reminderEmails: [{email: ""}],
+        reminderPhones: [],
         reminders: [{days: 30}],
         attachments: [],
     },
@@ -139,11 +146,10 @@ export default function ContractsPage() {
         renewal: editingContract.renewal,
         unit: editingContract.unit,
         reminderEmails: editingContract.reminderEmails.map(email => ({ email })),
+        reminderPhones: editingContract.reminderPhones.map(phone => ({ phone })),
         reminders: editingContract.reminders.map(days => ({ days })),
         attachments: [], // Cannot pre-fill file inputs
       });
-      // We cannot pre-fill the File objects, but we can show the existing attachments.
-      // For simplicity, we'll just clear the list for editing. A real app might handle this differently.
       setAttachedFiles([]);
     } else {
       form.reset({
@@ -153,6 +159,7 @@ export default function ContractsPage() {
         renewal: "manual",
         unit: "",
         reminderEmails: [{email: ""}],
+        reminderPhones: [],
         reminders: [{days: 30}],
         attachments: [],
       });
@@ -170,6 +177,11 @@ export default function ContractsPage() {
   const { fields: emailFields, append: appendEmail, remove: removeEmail } = useFieldArray({
     control: form.control,
     name: "reminderEmails"
+  });
+
+   const { fields: phoneFields, append: appendPhone, remove: removePhone } = useFieldArray({
+    control: form.control,
+    name: "reminderPhones"
   });
 
   const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
@@ -199,8 +211,7 @@ export default function ContractsPage() {
         endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
-        // Note: Attachment handling for updates can be complex. 
-        // Here we'll just replace them. A real app might merge them.
+        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
         attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) : editingContract.attachments,
       };
       setContracts(contracts.map(c => c.id === editingContract.id ? updatedContract : c));
@@ -223,6 +234,7 @@ export default function ContractsPage() {
         attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
+        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
         createdBy: 'Super Admin', // In real app, get from user session
       };
       setContracts([newContract, ...contracts]);
@@ -539,6 +551,45 @@ export default function ContractsPage() {
                         </Button>
                       </div>
                   </div>
+
+                  <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <FormLabel>Reminder Phone Numbers</FormLabel>
+                        <FormDescription className="mb-2">Phone numbers for SMS notifications.</FormDescription>
+                        {phoneFields.map((field, index) => (
+                          <FormField
+                            key={field.id}
+                            control={form.control}
+                            name={`reminderPhones.${index}.phone`}
+                            render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                      <FormControl>
+                                          <Input {...field} placeholder={`e.g., +15551234567`} />
+                                      </FormControl>
+                                      {phoneFields.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removePhone(index)}>
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                            )}
+                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => appendPhone({ phone: '' })}
+                        >
+                          Add Phone Number
+                        </Button>
+                      </div>
+                  </div>
+                  
                   <div className="md:col-span-2 space-y-4">
                       <div>
                         <FormLabel>Reminder Days</FormLabel>
@@ -654,7 +705,17 @@ export default function ContractsPage() {
                                                 <Bell className="h-4 w-4 text-muted-foreground" />
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Reminders are active</p>
+                                                <p>Email reminders active</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                     {contract.reminderPhones && contract.reminderPhones.length > 0 && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Phone className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>SMS reminders active</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     )}

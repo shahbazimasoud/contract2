@@ -48,8 +48,8 @@ export function Header({ user }: HeaderProps) {
             >
               <Avatar>
                 <AvatarImage
-                  src="https://placehold.co/100x100.png"
-                  alt="User avatar"
+                  src={user.avatar}
+                  alt={user.name}
                   data-ai-hint="person avatar"
                 />
                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>

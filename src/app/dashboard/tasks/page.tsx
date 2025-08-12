@@ -67,7 +67,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
 import type { Task, User, Comment } from '@/lib/types';
@@ -346,6 +346,10 @@ export default function TasksPage() {
             default:
                 return 'N/A';
         }
+    }
+
+    const getCommentAuthor = (authorId: string): User | undefined => {
+        return mockUsers.find(u => u.id === authorId);
     }
     
     if (!currentUser) {
@@ -643,9 +647,12 @@ export default function TasksPage() {
                     </SheetHeader>
                     <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
                         {(selectedTaskForComments?.comments || []).length > 0 ? (
-                            (selectedTaskForComments?.comments || []).map(comment => (
+                            (selectedTaskForComments?.comments || []).map(comment => {
+                                const author = getCommentAuthor(comment.authorId);
+                                return (
                                 <div key={comment.id} className="flex items-start gap-3">
                                     <Avatar className="h-8 w-8">
+                                        <AvatarImage src={author?.avatar} alt={author?.name} />
                                         <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
@@ -658,7 +665,7 @@ export default function TasksPage() {
                                         <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
                                     </div>
                                 </div>
-                            ))
+                            )})
                         ) : (
                             <div className="text-center text-muted-foreground py-10">
                                 <MessageSquare className="mx-auto h-12 w-12" />
@@ -737,6 +744,7 @@ export default function TasksPage() {
                                                             <Tooltip>
                                                                 <TooltipTrigger>
                                                                      <Avatar className="h-7 w-7">
+                                                                        <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
                                                                         <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
                                                                     </Avatar>
                                                                 </TooltipTrigger>

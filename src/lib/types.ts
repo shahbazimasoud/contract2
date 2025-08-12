@@ -32,6 +32,7 @@ export type User = {
   role: 'super-admin' | 'admin';
   unit: string;
   authType: 'local' | 'ad';
+  avatar?: string;
 };
 
 export type Unit = {

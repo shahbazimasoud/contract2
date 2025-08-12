@@ -77,13 +77,24 @@ export const contracts: Contract[] = [
   },
 ];
 
+export const avatars = [
+    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
+    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
+    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026706d' },
+    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026707d' },
+    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026708d' },
+    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026709d' },
+    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026710d' },
+    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026711d' },
+];
+
 
 export const users: User[] = [
-    { id: 'U-001', name: 'Super Admin', email: 'super@contractwise.com', role: 'super-admin', unit: 'System', authType: 'local' },
-    { id: 'U-002', name: 'John Doe', email: 'john.doe@contractwise.com', role: 'admin', unit: 'IT Department', authType: 'local' },
-    { id: 'U-003', name: 'Jane Smith', email: 'jane.smith@contractwise.com', role: 'admin', unit: 'Marketing', authType: 'ad' },
-    { id: 'U-004', name: 'Mike Ross', email: 'mike.ross@contractwise.com', role: 'admin', unit: 'Operations', authType: 'local' },
-    { id: 'U-005', name: 'Jessica Pearson', email: 'jessica.p@contractwise.com', role: 'admin', unit: 'Human Resources', authType: 'ad' },
+    { id: 'U-001', name: 'Super Admin', email: 'super@contractwise.com', role: 'super-admin', unit: 'System', authType: 'local', avatar: avatars[0].url },
+    { id: 'U-002', name: 'John Doe', email: 'john.doe@contractwise.com', role: 'admin', unit: 'IT Department', authType: 'local', avatar: avatars[1].url },
+    { id: 'U-003', name: 'Jane Smith', email: 'jane.smith@contractwise.com', role: 'admin', unit: 'Marketing', authType: 'ad', avatar: avatars[4].url },
+    { id: 'U-004', name: 'Mike Ross', email: 'mike.ross@contractwise.com', role: 'admin', unit: 'Operations', authType: 'local', avatar: avatars[2].url },
+    { id: 'U-005', name: 'Jessica Pearson', email: 'jessica.p@contractwise.com', role: 'admin', unit: 'Human Resources', authType: 'ad', avatar: avatars[5].url },
 ]
 
 export const units: Unit[] = [

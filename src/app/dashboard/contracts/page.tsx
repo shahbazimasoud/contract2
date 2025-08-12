@@ -79,7 +79,7 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
-import { contracts as mockContracts, units as mockUnits } from '@/lib/mock-data';
+import { contracts as mockContracts, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
 import type { Contract, User, Comment } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -419,6 +419,10 @@ export default function ContractsPage() {
     const end = new Date(endDate);
     return differenceInDays(end, today);
   };
+
+  const getCommentAuthor = (authorId: string): User | undefined => {
+    return mockUsers.find(u => u.id === authorId);
+  }
 
   if (!currentUser) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
@@ -832,9 +836,12 @@ export default function ContractsPage() {
             </SheetHeader>
             <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
                 {(selectedContractForComments?.comments || []).length > 0 ? (
-                    (selectedContractForComments?.comments || []).map(comment => (
+                    (selectedContractForComments?.comments || []).map(comment => {
+                       const author = getCommentAuthor(comment.authorId);
+                       return (
                         <div key={comment.id} className="flex items-start gap-3">
                             <Avatar className="h-8 w-8">
+                                <AvatarImage src={author?.avatar} alt={author?.name}/>
                                 <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -847,7 +854,8 @@ export default function ContractsPage() {
                                 <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
                             </div>
                         </div>
-                    ))
+                       )
+                    })
                 ) : (
                     <div className="text-center text-muted-foreground py-10">
                         <MessageSquare className="mx-auto h-12 w-12" />

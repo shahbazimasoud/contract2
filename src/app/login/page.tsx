@@ -1,5 +1,7 @@
+
 "use client";
 
+import * as React from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,21 +13,42 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+
 export default function LoginPage() {
   const router = useRouter();
+  
+  const [loginSplashProps, setLoginSplashProps] = React.useState({
+    welcomeText: "Welcome to ContractWise",
+    subText: "Your integrated solution for managing contracts efficiently and effectively.",
+    bgType: "image" as "gradient" | "image",
+    bgValue: "/login-splash.jpg", // Default image
+    gradientStart: "#3F51B5",
+    gradientEnd: "#2196F3",
+  });
+  
+  React.useEffect(() => {
+      const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
+      if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          setLoginSplashProps(prev => ({
+              ...prev,
+              welcomeText: settings.welcomeText || prev.welcomeText,
+              bgType: settings.bgType || prev.bgType,
+              gradientStart: settings.gradientStart || prev.gradientStart,
+              gradientEnd: settings.gradientEnd || prev.gradientEnd,
+          }));
+      }
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     router.push("/dashboard");
   };
 
-  // These would be fetched from super admin settings
-  const loginSplashProps = {
-    welcomeText: "Welcome to ContractWise",
-    subText: "Your integrated solution for managing contracts efficiently and effectively.",
-    bgType: "image" as "gradient" | "image",
-    bgValue: "/login-splash.jpg" // Or a gradient like "from-indigo-500,to-blue-500"
-  };
+  const backgroundStyle = loginSplashProps.bgType === 'gradient' 
+    ? { background: `linear-gradient(to bottom right, ${loginSplashProps.gradientStart}, ${loginSplashProps.gradientEnd})` }
+    : {};
 
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
@@ -73,8 +96,8 @@ export default function LoginPage() {
             </CardContent>
           </Card>
       </div>
-      <div className="hidden bg-muted lg:block relative">
-        {loginSplashProps.bgType === 'image' ? (
+      <div className="hidden bg-muted lg:block relative" style={backgroundStyle}>
+        {loginSplashProps.bgType === 'image' && (
           <Image
             src={loginSplashProps.bgValue}
             alt="Login splash image"
@@ -83,8 +106,6 @@ export default function LoginPage() {
             className="h-full w-full object-cover"
             data-ai-hint="office building"
           />
-        ) : (
-          <div className={`h-full w-full bg-gradient-to-br ${loginSplashProps.bgValue}`} />
         )}
         <div className="absolute inset-0 bg-primary/60" />
         <div className="absolute inset-0 flex items-center justify-center text-white text-center p-12">

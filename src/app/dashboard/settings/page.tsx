@@ -1,6 +1,7 @@
 
 "use client"
 
+import * as React from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -28,8 +29,41 @@ import {
 } from "@/components/ui/tabs"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from "@/components/page-header"
 import { Switch } from "@/components/ui/switch"
+import { useToast } from "@/hooks/use-toast"
+
+const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 
 export default function SettingsPage() {
+    const { toast } = useToast();
+
+    // State for Appearance Tab
+    const [welcomeText, setWelcomeText] = React.useState("Welcome to ContractWise");
+    const [bgType, setBgType] = React.useState<"gradient" | "image">("image");
+    const [gradientStart, setGradientStart] = React.useState("#3F51B5");
+    const [gradientEnd, setGradientEnd] = React.useState("#2196F3");
+    const [bgImage, setBgImage] = React.useState<File | null>(null);
+
+    React.useEffect(() => {
+        const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            setWelcomeText(settings.welcomeText || "Welcome to ContractWise");
+            setBgType(settings.bgType || "image");
+            setGradientStart(settings.gradientStart || "#3F51B5");
+            setGradientEnd(settings.gradientEnd || "#2196F3");
+        }
+    }, []);
+
+    const handleAppearanceSave = () => {
+        const settings = { welcomeText, bgType, gradientStart, gradientEnd };
+        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(settings));
+        toast({
+            title: "Settings Saved",
+            description: "Your appearance settings have been updated.",
+        });
+    };
+
+
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
@@ -59,12 +93,12 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="welcome-text">Login Page Welcome Text</Label>
-                <Textarea id="welcome-text" defaultValue="Welcome to ContractWise" />
+                <Textarea id="welcome-text" value={welcomeText} onChange={(e) => setWelcomeText(e.target.value)} />
                  <p className="text-sm text-muted-foreground">This text appears on the right side of the login screen.</p>
               </div>
               <div className="space-y-2">
                 <Label>Login Page Background</Label>
-                <Select defaultValue="gradient">
+                <Select value={bgType} onValueChange={(value: "gradient" | "image") => setBgType(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select background type" />
                   </SelectTrigger>
@@ -77,21 +111,21 @@ export default function SettingsPage() {
                <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="gradient-start">Gradient Start Color</Label>
-                    <Input id="gradient-start" type="color" defaultValue="#3F51B5" />
+                    <Input id="gradient-start" type="color" value={gradientStart} onChange={(e) => setGradientStart(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="gradient-end">Gradient End Color</Label>
-                    <Input id="gradient-end" type="color" defaultValue="#2196F3" />
+                    <Input id="gradient-end" type="color" value={gradientEnd} onChange={(e) => setGradientEnd(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
                  <Label htmlFor="bg-image">Background Image</Label>
-                 <Input id="bg-image" type="file" />
+                 <Input id="bg-image" type="file" disabled={bgType !== 'image'} onChange={(e) => setBgImage(e.target.files ? e.target.files[0] : null)} />
                  <p className="text-sm text-muted-foreground">Upload an image for the login screen background (if Image is selected).</p>
               </div>
             </CardContent>
             <CardFooter>
-              <Button>Save Changes</Button>
+              <Button onClick={handleAppearanceSave}>Save Changes</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -169,32 +203,33 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="sms">
-          <Card>
-            <CardHeader>
-              <CardTitle>SMS Panel</CardTitle>
-              <CardDescription>
-                Configure your SMS provider to send notifications.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="sms-api-url">API URL / Provider Name</Label>
-                <Input id="sms-api-url" placeholder="e.g., https://api.smsprovider.com/v1/send" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sms-apikey">API Key</Label>
-                <Input id="sms-apikey" type="password" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sms-sender">Sender Number</Label>
-                <Input id="sms-sender" placeholder="e.g., 10008000" />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Save SMS Settings</Button>
-            </CardFooter>
-          </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>SMS Panel</CardTitle>
+                    <CardDescription>
+                        Configure your SMS provider to send notifications.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="sms-api-url">API URL / Provider Name</Label>
+                        <Input id="sms-api-url" placeholder="e.g., https://api.smsprovider.com/v1/send" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="sms-apikey">API Key</Label>
+                        <Input id="sms-apikey" type="password" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="sms-sender">Sender Number</Label>
+                        <Input id="sms-sender" placeholder="e.g., 10008000" />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button>Save SMS Settings</Button>
+                </CardFooter>
+            </Card>
         </TabsContent>
+
 
         <TabsContent value="security">
           <Card>

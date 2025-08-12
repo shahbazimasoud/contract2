@@ -60,4 +60,5 @@ export type Task = {
     reminders: number[]; // Days before due date to send reminders
     assignedTo?: string; // User ID
     sharedWith?: string[]; // Array of User IDs
+    comments?: Comment[];
 };

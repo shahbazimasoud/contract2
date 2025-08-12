@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse } from 'date-fns';
+import { format, parse, formatDistanceToNow } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,14 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -62,7 +70,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
-import type { Task, User } from '@/lib/types';
+import type { Task, User, Comment } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -92,6 +100,11 @@ const taskSchema = z.object({
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
 });
 
+const commentSchema = z.object({
+    text: z.string().min(1, "Comment cannot be empty.").max(500, "Comment is too long."),
+});
+
+
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function TasksPage() {
@@ -101,6 +114,9 @@ export default function TasksPage() {
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
+
+    const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
+    const [selectedTaskForComments, setSelectedTaskForComments] = useState<Task | null>(null);
 
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
@@ -114,6 +130,11 @@ export default function TasksPage() {
             time: "09:00",
             reminders: [{ days: 1 }],
         },
+    });
+
+    const commentForm = useForm<z.infer<typeof commentSchema>>({
+        resolver: zodResolver(commentSchema),
+        defaultValues: { text: "" },
     });
     
     const selectedUnit = form.watch('unit');
@@ -183,6 +204,43 @@ export default function TasksPage() {
         form.reset();
     };
 
+    const handleOpenCommentsSheet = (task: Task) => {
+        setSelectedTaskForComments(task);
+        setIsCommentsSheetOpen(true);
+    };
+
+    const handleCloseCommentsSheet = () => {
+        setSelectedTaskForComments(null);
+        setIsCommentsSheetOpen(false);
+        commentForm.reset();
+    };
+
+     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
+        if (!currentUser || !selectedTaskForComments) return;
+
+        const newComment: Comment = {
+            id: `CMT-T-${Date.now()}`,
+            text: values.text,
+            author: currentUser.name,
+            authorId: currentUser.id,
+            createdAt: new Date().toISOString(),
+        };
+
+        const updatedTask = {
+            ...selectedTaskForComments,
+            comments: [...(selectedTaskForComments.comments || []), newComment],
+        };
+
+        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        setSelectedTaskForComments(updatedTask);
+        commentForm.reset();
+        toast({
+            title: "Comment Added",
+            description: "Your comment has been successfully posted.",
+        });
+    };
+
+
     const handleToggleStatus = (task: Task) => {
         const newStatus = task.status === 'pending' ? 'completed' : 'pending';
         const updatedTask = { ...task, status: newStatus };
@@ -211,7 +269,6 @@ export default function TasksPage() {
             unit: values.unit,
             assignedTo: values.assignedTo,
             sharedWith: values.sharedWith,
-            status: 'pending' as const,
             dueDate: values.dueDate.toISOString(),
             recurrence: {
                 type: values.recurrenceType,
@@ -226,6 +283,7 @@ export default function TasksPage() {
             const updatedTask: Task = {
                 ...editingTask,
                 ...taskData,
+                status: editingTask.status, // Preserve status on edit
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
             toast({
@@ -237,6 +295,8 @@ export default function TasksPage() {
                 id: `T-${Date.now()}`,
                 createdBy: currentUser.name,
                 ...taskData,
+                status: 'pending',
+                comments: [],
             };
             setTasks([newTask, ...tasks]);
             toast({
@@ -572,6 +632,64 @@ export default function TasksPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+             <Sheet open={isCommentsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseCommentsSheet()}>
+                <SheetContent className="flex flex-col">
+                    <SheetHeader>
+                        <SheetTitle>Comments for {selectedTaskForComments?.title}</SheetTitle>
+                        <SheetDescription>
+                            Task ID: {selectedTaskForComments?.id}
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
+                        {(selectedTaskForComments?.comments || []).length > 0 ? (
+                            (selectedTaskForComments?.comments || []).map(comment => (
+                                <div key={comment.id} className="flex items-start gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-sm">{comment.author}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center text-muted-foreground py-10">
+                                <MessageSquare className="mx-auto h-12 w-12" />
+                                <p className="mt-4">No comments yet.</p>
+                                <p>Be the first to add a comment.</p>
+                            </div>
+                        )}
+                    </div>
+                    <SheetFooter>
+                        <div className="w-full">
+                        <Form {...commentForm}>
+                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                               <FormField
+                                  control={commentForm.control}
+                                  name="text"
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                      <FormControl>
+                                        <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <Button type="submit">Post</Button>
+                            </form>
+                        </Form>
+                        </div>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
             
             <Card>
                 <CardHeader>
@@ -589,6 +707,7 @@ export default function TasksPage() {
                                     <TableHead>Next Due</TableHead>
                                     <TableHead>Recurrence</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Info</TableHead>
                                     <TableHead><span className="sr-only">Actions</span></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -650,11 +769,26 @@ export default function TasksPage() {
                                                 <Badge variant={task.status === 'pending' ? 'secondary' : 'outline'}>{task.status}</Badge>
                                             </TableCell>
                                             <TableCell>
+                                                <TooltipProvider>
+                                                    {(task.comments?.length || 0) > 0 && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Has comments</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </TooltipProvider>
+                                            </TableCell>
+                                            <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={() => handleOpenDialog(task)}>Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleOpenCommentsSheet(task)}>Comments</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive">Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -663,7 +797,7 @@ export default function TasksPage() {
                                     )})
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
+                                        <TableCell colSpan={8} className="h-24 text-center">
                                             <div className="flex flex-col items-center gap-2">
                                                 <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
                                                 <p className="font-semibold">No tasks found.</p>

@@ -112,6 +112,9 @@ export const tasks: Task[] = [
         reminders: [1, 0],
         assignedTo: 'U-002',
         sharedWith: [],
+        comments: [
+            { id: 'CMT-T001', text: 'Please ensure the off-site backup is also checked.', author: 'Super Admin', authorId: 'U-001', createdAt: '2024-07-29T11:00:00Z'}
+        ]
     },
     {
         id: 'T-002',
@@ -129,6 +132,7 @@ export const tasks: Task[] = [
         reminders: [2],
         assignedTo: 'U-003',
         sharedWith: [],
+        comments: []
     },
     {
         id: 'T-003',
@@ -145,6 +149,7 @@ export const tasks: Task[] = [
         reminders: [7],
         assignedTo: 'U-004',
         sharedWith: ['U-001'],
+        comments: []
     },
     {
         id: 'T-004',
@@ -160,6 +165,7 @@ export const tasks: Task[] = [
         },
         reminders: [],
         assignedTo: 'U-002',
-        sharedWith: ['U-001', 'U-004']
+        sharedWith: ['U-001', 'U-004'],
+        comments: []
     },
 ];

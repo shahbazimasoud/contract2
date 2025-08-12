@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'i.pravatar.cc',
+        hostname: 'api.dicebear.com',
         port: '',
         pathname: '/**',
       },

@@ -78,14 +78,14 @@ export const contracts: Contract[] = [
 ];
 
 export const avatars = [
-    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
-    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026706d' },
-    { gender: 'male', url: 'https://i.pravatar.cc/150?u=a042581f4e29026707d' },
-    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026708d' },
-    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026709d' },
-    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026710d' },
-    { gender: 'female', url: 'https://i.pravatar.cc/150?u=a042581f4e29026711d' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Garfield' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Tinkerbell' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Annie' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Loki' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Mimi' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Coco' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Dusty' },
+    { url: 'https://api.dicebear.com/8.x/shapes/svg?seed=Misty' },
 ];
 
 

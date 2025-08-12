@@ -159,17 +159,17 @@ export default function ProfilePage() {
                     <div className="md:col-span-2">
                         <Label>Choose Your Avatar</Label>
                         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 mt-2">
-                            {avatars.map((avatar) => (
+                            {avatars.map((avatar, index) => (
                                 <button key={avatar.url} onClick={() => setSelectedAvatar(avatar.url)} className={cn(
                                     "rounded-full ring-2 ring-transparent hover:ring-primary focus:ring-primary focus:outline-none transition-all",
                                     selectedAvatar === avatar.url && "ring-primary ring-offset-2"
                                 )}>
                                     <Image 
                                         src={avatar.url} 
-                                        alt={`Avatar ${avatar.gender}`}
+                                        alt={`Avatar ${index + 1}`}
                                         width={80}
                                         height={80}
-                                        className="rounded-full"
+                                        className="rounded-full bg-secondary p-2"
                                     />
                                 </button>
                             ))}

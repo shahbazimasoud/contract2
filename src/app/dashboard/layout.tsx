@@ -11,6 +11,7 @@ import {
   LogOut,
   PanelLeft,
   Settings,
+  User as UserIcon,
   Users,
 } from "lucide-react"
 
@@ -133,11 +134,24 @@ export default function DashboardLayout({
                 </SidebarMenuItem>
               </>
             )}
+            
+            <SidebarMenuItem>
+                <SidebarSeparator />
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+                <SidebarMenuButton
+                asChild
+                isActive={isActive("/dashboard/profile")}
+                >
+                <Link href="/dashboard/profile">
+                    <UserIcon />
+                    <span>Profile</span>
+                </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            
             {user.role === "super-admin" && (
-              <>
-                <SidebarMenuItem>
-                    <SidebarSeparator />
-                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -149,7 +163,6 @@ export default function DashboardLayout({
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </>
             )}
           </SidebarMenu>
         </SidebarContent>

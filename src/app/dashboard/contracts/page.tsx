@@ -938,6 +938,16 @@ export default function ContractsPage() {
                         <TableCell>
                             <TooltipProvider>
                                 <div className="flex items-center gap-2">
+                                    {(contract.comments?.length || 0) > 0 && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Has comments</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                     {contract.attachments.length > 0 && (
                                         <Tooltip>
                                             <TooltipTrigger>

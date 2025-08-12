@@ -110,6 +110,8 @@ export const tasks: Task[] = [
             time: '16:00',
         },
         reminders: [1, 0],
+        assignedTo: 'U-002',
+        sharedWith: [],
     },
     {
         id: 'T-002',
@@ -125,6 +127,8 @@ export const tasks: Task[] = [
             time: '10:00',
         },
         reminders: [2],
+        assignedTo: 'U-003',
+        sharedWith: [],
     },
     {
         id: 'T-003',
@@ -139,6 +143,8 @@ export const tasks: Task[] = [
             time: '11:00',
         },
         reminders: [7],
+        assignedTo: 'U-004',
+        sharedWith: ['U-001'],
     },
     {
         id: 'T-004',
@@ -153,5 +159,7 @@ export const tasks: Task[] = [
             time: '09:00',
         },
         reminders: [],
+        assignedTo: 'U-002',
+        sharedWith: ['U-001', 'U-004']
     },
 ];

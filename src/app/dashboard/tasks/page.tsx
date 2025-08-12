@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,14 +59,18 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
-import { tasks as mockTasks, units as mockUnits } from '@/lib/mock-data';
+import { tasks as mockTasks, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
 import type { Task, User } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+
 
 const AUTH_USER_KEY = 'current_user';
 
@@ -78,6 +82,8 @@ const taskSchema = z.object({
     title: z.string().min(1, "Title is required"),
     description: z.string().optional(),
     unit: z.string().min(1, "Unit is required"),
+    assignedTo: z.string().optional(),
+    sharedWith: z.array(z.string()).optional(),
     dueDate: z.date({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
     time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
@@ -94,6 +100,7 @@ export default function TasksPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const { toast } = useToast();
+    const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
 
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
@@ -101,11 +108,24 @@ export default function TasksPage() {
             title: "",
             description: "",
             unit: "",
+            assignedTo: "",
+            sharedWith: [],
             recurrenceType: "none",
             time: "09:00",
             reminders: [{ days: 1 }],
         },
     });
+    
+    const selectedUnit = form.watch('unit');
+
+    useEffect(() => {
+        if (selectedUnit) {
+            setUsersInUnit(mockUsers.filter(u => u.unit === selectedUnit));
+        } else {
+            setUsersInUnit([]);
+        }
+    }, [selectedUnit]);
+
 
      const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
         control: form.control,
@@ -128,6 +148,8 @@ export default function TasksPage() {
                 title: editingTask.title,
                 description: editingTask.description,
                 unit: editingTask.unit,
+                assignedTo: editingTask.assignedTo,
+                sharedWith: editingTask.sharedWith,
                 dueDate: new Date(editingTask.dueDate),
                 recurrenceType: editingTask.recurrence.type,
                 time: editingTask.recurrence.time,
@@ -140,6 +162,8 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
+                assignedTo: "",
+                sharedWith: [],
                 dueDate: new Date(),
                 recurrenceType: 'none',
                 time: "09:00",
@@ -185,6 +209,8 @@ export default function TasksPage() {
             title: values.title,
             description: values.description,
             unit: values.unit,
+            assignedTo: values.assignedTo,
+            sharedWith: values.sharedWith,
             status: 'pending' as const,
             dueDate: values.dueDate.toISOString(),
             recurrence: {
@@ -225,9 +251,22 @@ export default function TasksPage() {
 
     const filteredTasks = useMemo(() => {
         if (!currentUser) return [];
-        return currentUser.role === 'admin'
-            ? tasks.filter(t => t.unit === currentUser.unit)
-            : tasks;
+
+        if (currentUser.role === 'super-admin') {
+            return tasks;
+        }
+
+        return tasks.filter(task => {
+            const isAssigned = task.assignedTo === currentUser.id;
+            const isShared = task.sharedWith?.includes(currentUser.id);
+            const isCreator = mockUsers.find(u => u.name === task.createdBy)?.id === currentUser.id;
+            const inSameUnit = task.unit === currentUser.unit;
+            // Admins see all tasks in their unit
+            if (currentUser.role === 'admin') return inSameUnit;
+            // Regular users see tasks assigned to them or shared with them
+            return isAssigned || isShared || isCreator;
+        });
+
     }, [tasks, currentUser]);
 
     function formatRecurrence(task: Task): string {
@@ -318,6 +357,74 @@ export default function TasksPage() {
                                     </Select>
                                     <FormMessage />
                                 </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="assignedTo"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Assign to</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUnit}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {usersInUnit.map((user) => (
+                                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="sharedWith"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Share with</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className="w-full justify-start font-normal" disabled={!selectedUnit}>
+                                                    {field.value && field.value.length > 0
+                                                        ? `${field.value.length} user(s) selected`
+                                                        : "Select users to share with"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                 <Command>
+                                                    <CommandInput placeholder="Search users..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No users found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {usersInUnit.map((user) => (
+                                                                <CommandItem
+                                                                    key={user.id}
+                                                                    onSelect={() => {
+                                                                        const currentValue = field.value || [];
+                                                                        if (currentValue.includes(user.id)) {
+                                                                            field.onChange(currentValue.filter(id => id !== user.id));
+                                                                        } else {
+                                                                            field.onChange([...currentValue, user.id]);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Checkbox
+                                                                        className="mr-2"
+                                                                        checked={field.value?.includes(user.id)}
+                                                                    />
+                                                                    <span>{user.name}</span>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
                             />
                             <FormField
@@ -469,7 +576,7 @@ export default function TasksPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Task List</CardTitle>
-                    <CardDescription>A list of all tasks assigned to your units.</CardDescription>
+                    <CardDescription>A list of all tasks assigned to you or your units.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border">
@@ -478,7 +585,7 @@ export default function TasksPage() {
                                 <TableRow>
                                     <TableHead className="w-[40px]"></TableHead>
                                     <TableHead>Task</TableHead>
-                                    <TableHead>Unit</TableHead>
+                                    <TableHead>Assigned To</TableHead>
                                     <TableHead>Next Due</TableHead>
                                     <TableHead>Recurrence</TableHead>
                                     <TableHead>Status</TableHead>
@@ -487,7 +594,11 @@ export default function TasksPage() {
                             </TableHeader>
                             <TableBody>
                                 {filteredTasks.length > 0 ? (
-                                    filteredTasks.map((task) => (
+                                    filteredTasks.map((task) => {
+                                        const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+                                        const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
+
+                                        return (
                                         <TableRow key={task.id} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
                                             <TableCell>
                                                 <Checkbox
@@ -498,9 +609,41 @@ export default function TasksPage() {
                                             </TableCell>
                                             <TableCell className="font-medium">
                                                 <div>{task.title}</div>
-                                                <div className="text-xs text-muted-foreground">{task.description}</div>
+                                                <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
                                             </TableCell>
-                                            <TableCell>{task.unit}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    {assignedUser && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                     <Avatar className="h-7 w-7">
+                                                                        <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                                                                    </Avatar>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Assigned to {assignedUser.name}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+                                                    {sharedUsers.length > 0 && (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <div className="relative flex items-center">
+                                                                        <UsersIcon className="h-5 w-5 text-muted-foreground" />
+                                                                        <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
                                             <TableCell>{formatRecurrence(task)}</TableCell>
                                             <TableCell>
@@ -517,7 +660,7 @@ export default function TasksPage() {
                                                 </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    )})
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={7} className="h-24 text-center">

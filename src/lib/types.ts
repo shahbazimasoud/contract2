@@ -57,4 +57,5 @@ export type Task = {
     unit: string;
     dueDate: string; // ISO String
     recurrence: TaskRecurrence;
+    reminders: number[]; // Days before due date to send reminders
 };

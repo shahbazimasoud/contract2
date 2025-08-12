@@ -109,6 +109,7 @@ export const tasks: Task[] = [
             dayOfWeek: 5, // Friday
             time: '16:00',
         },
+        reminders: [1, 0],
     },
     {
         id: 'T-002',
@@ -123,6 +124,7 @@ export const tasks: Task[] = [
             dayOfMonth: 1,
             time: '10:00',
         },
+        reminders: [2],
     },
     {
         id: 'T-003',
@@ -136,6 +138,7 @@ export const tasks: Task[] = [
             type: 'none',
             time: '11:00',
         },
+        reminders: [7],
     },
     {
         id: 'T-004',
@@ -149,5 +152,6 @@ export const tasks: Task[] = [
             type: 'daily',
             time: '09:00',
         },
+        reminders: [],
     },
 ];

@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X } from 'lucide-react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
@@ -16,12 +16,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -70,15 +70,20 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 const AUTH_USER_KEY = 'current_user';
 
+const reminderDaysSchema = z.object({
+  days: z.number().min(0, "Cannot be negative").max(365, "Cannot be more than 365 days"),
+});
+
 const taskSchema = z.object({
     title: z.string().min(1, "Title is required"),
     description: z.string().optional(),
     unit: z.string().min(1, "Unit is required"),
-    dueDate: z.date({ required_error: "Due date is required" }),
+    dueDate: z.date({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
     time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     dayOfWeek: z.number().optional(),
     dayOfMonth: z.number().optional(),
+    reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
 });
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -98,7 +103,13 @@ export default function TasksPage() {
             unit: "",
             recurrenceType: "none",
             time: "09:00",
+            reminders: [{ days: 1 }],
         },
+    });
+
+     const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
+        control: form.control,
+        name: "reminders"
     });
     
     useEffect(() => {
@@ -122,6 +133,7 @@ export default function TasksPage() {
                 time: editingTask.recurrence.time,
                 dayOfWeek: editingTask.recurrence.dayOfWeek,
                 dayOfMonth: editingTask.recurrence.dayOfMonth,
+                reminders: editingTask.reminders.map(days => ({ days })),
             });
         } else {
             form.reset({
@@ -131,6 +143,7 @@ export default function TasksPage() {
                 dueDate: new Date(),
                 recurrenceType: 'none',
                 time: "09:00",
+                reminders: [{ days: 1 }],
             });
         }
     }, [editingTask, form, currentUser]);
@@ -180,6 +193,7 @@ export default function TasksPage() {
                 dayOfWeek: values.recurrenceType === 'weekly' ? values.dayOfWeek : undefined,
                 dayOfMonth: values.recurrenceType === 'monthly' ? values.dayOfMonth : undefined,
             },
+            reminders: values.reminders.map(r => r.days),
         };
         
         if (editingTask) {
@@ -329,31 +343,34 @@ export default function TasksPage() {
                                 )}
                             />
                             
-                            {recurrenceType === 'none' && (
-                                <FormField
-                                    control={form.control}
-                                    name="dueDate"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Date</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
+                            <FormField
+                                control={form.control}
+                                name="dueDate"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>
+                                            {recurrenceType === 'none' ? 'Date' : 'Start / Reference Date'}
+                                        </FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormDescription>
+                                            For recurring tasks, this is the first due date.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             
                             {recurrenceType === 'weekly' && (
                                 <FormField
@@ -363,7 +380,7 @@ export default function TasksPage() {
                                         <FormItem>
                                             <FormLabel>Day of Week</FormLabel>
                                             <Select onValueChange={(val) => field.onChange(parseInt(val))} value={String(field.value)}>
-                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
                                                 <SelectContent>
                                                     {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
                                                 </SelectContent>
@@ -381,7 +398,7 @@ export default function TasksPage() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Day of Month</FormLabel>
-                                            <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                            <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} placeholder="e.g., 15"/></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -399,6 +416,46 @@ export default function TasksPage() {
                                     </FormItem>
                                 )}
                             />
+
+                            <div className="space-y-4">
+                                <div>
+                                    <FormLabel>Task Reminders</FormLabel>
+                                    <FormDescription className="mb-2">Days before the due date to send a reminder. Enter 0 for on the same day.</FormDescription>
+                                    {reminderDayFields.map((field, index) => (
+                                    <FormField
+                                        key={field.id}
+                                        control={form.control}
+                                        name={`reminders.${index}.days`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <div className="flex items-center gap-2">
+                                                <FormControl>
+                                                    <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 3" />
+                                                </FormControl>
+                                                <span className="text-sm text-muted-foreground">days before</span>
+                                                {reminderDayFields.length > 1 && (
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
+                                                    <X className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    ))}
+                                    <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2"
+                                    onClick={() => appendReminderDay({ days: 1 })}
+                                    >
+                                    Add Reminder
+                                    </Button>
+                                </div>
+                            </div>
+
 
                             <DialogFooter>
                                 <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>

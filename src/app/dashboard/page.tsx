@@ -45,16 +45,23 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!currentUser) return;
 
-        // Determine which contracts and tasks to show based on role
-        const visibleContracts = currentUser.role === 'super-admin' 
-            ? mockContracts 
-            : mockContracts.filter(c => c.unit === currentUser.unit);
-        
-        const visibleTasks = currentUser.role === 'super-admin'
-            ? mockTasks
-            : mockTasks.filter(t => t.unit === currentUser.unit);
+        // Determine which items to show based on role
+        const isSuperAdmin = currentUser.role === 'super-admin';
 
-        const visibleUsers = currentUser.role === 'super-admin'
+        const visibleContracts = isSuperAdmin
+            ? mockContracts
+            : mockContracts.filter(c => c.unit === currentUser.unit);
+
+        const visibleTasks = isSuperAdmin
+            ? mockTasks
+            : mockTasks.filter(t => {
+                  const isAssigned = t.assignedTo === currentUser.id;
+                  const isShared = t.sharedWith?.includes(currentUser.id);
+                  const inSameUnit = t.unit === currentUser.unit;
+                  return isAssigned || isShared || inSameUnit;
+              });
+        
+        const visibleUsers = isSuperAdmin
             ? mockUsers
             : mockUsers.filter(u => u.unit === currentUser.unit);
 
@@ -78,7 +85,7 @@ export default function DashboardPage() {
             { title: "Total Tasks", value: totalTasks, icon: ClipboardCheck, description: `${pendingTasks} pending` },
         ];
         
-        if (currentUser.role === 'super-admin') {
+        if (isSuperAdmin) {
             baseStats.push({ title: "Total Users", value: totalUsers, icon: Users, description: "Across all units" });
         } else {
              baseStats.push({ title: "Users in Unit", value: totalUsers, icon: Users, description: `In ${currentUser.unit}` });
@@ -133,10 +140,10 @@ export default function DashboardPage() {
 
         setActivities(allActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 5));
 
-        // Set My Tasks
+        // Set My Tasks (tasks specifically assigned to me)
         setMyTasks(mockTasks.filter(t => t.assignedTo === currentUser.id && t.status === 'pending').slice(0, 5));
 
-        // Set Expiring Contracts
+        // Set Expiring Contracts (already filtered by unit for non-super-admins)
         setExpiringContracts(visibleContracts.filter(c => {
              if (c.status === 'inactive') return false;
             const endDate = new Date(c.endDate);

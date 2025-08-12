@@ -39,10 +39,11 @@ export default function SettingsPage() {
       </PageHeader>
 
       <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="mail">Mail Server</TabsTrigger>
           <TabsTrigger value="ad">Active Directory</TabsTrigger>
+          <TabsTrigger value="sms">SMS Panel</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         
@@ -162,6 +163,43 @@ export default function SettingsPage() {
             <CardFooter className="justify-between">
               <Button>Save & Sync</Button>
               <Button variant="outline">Test Connection</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sms">
+          <Card>
+            <CardHeader>
+              <CardTitle>SMS Panel</CardTitle>
+              <CardDescription>
+                Configure your SMS provider to send notifications.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="sms-provider">SMS Provider</Label>
+                <Select defaultValue="provider1">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="provider1">Kavenegar</SelectItem>
+                    <SelectItem value="provider2">MeliPayamak</SelectItem>
+                    <SelectItem value="provider3">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sms-apikey">API Key</Label>
+                <Input id="sms-apikey" type="password" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sms-sender">Sender Number</Label>
+                <Input id="sms-sender" placeholder="e.g., 10008000" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button>Save SMS Settings</Button>
             </CardFooter>
           </Card>
         </TabsContent>

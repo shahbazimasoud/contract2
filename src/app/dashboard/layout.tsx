@@ -3,6 +3,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   Building,
   FileText,
@@ -30,6 +31,8 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { usePathname } from "next/navigation"
 
+const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+
 // This is a mock user object. In a real app, you'd get this from your auth provider.
 const user = {
   name: "Super Admin",
@@ -44,13 +47,28 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const isActive = (path: string) => pathname === path
+  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        if (settings.logo) {
+            setLogoUrl(settings.logo);
+        }
+    }
+  }, []);
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader className="p-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Building className="w-8 h-8 text-primary" />
+            {logoUrl ? (
+                <Image src={logoUrl} alt="Company Logo" width={32} height={32} className="w-8 h-8" />
+            ) : (
+                <Building className="w-8 h-8 text-primary" />
+            )}
             <span className="text-xl font-semibold font-headline">ContractWise</span>
           </Link>
         </SidebarHeader>

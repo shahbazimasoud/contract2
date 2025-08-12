@@ -42,6 +42,8 @@ export default function SettingsPage() {
     const [gradientStart, setGradientStart] = React.useState("#3F51B5");
     const [gradientEnd, setGradientEnd] = React.useState("#2196F3");
     const [bgImage, setBgImage] = React.useState<File | null>(null);
+    const [logo, setLogo] = React.useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
@@ -51,16 +53,52 @@ export default function SettingsPage() {
             setBgType(settings.bgType || "image");
             setGradientStart(settings.gradientStart || "#3F51B5");
             setGradientEnd(settings.gradientEnd || "#2196F3");
+            if (settings.logo) {
+                setLogoPreview(settings.logo);
+            }
         }
     }, []);
 
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setLogo(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setLogoPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleAppearanceSave = () => {
-        const settings = { welcomeText, bgType, gradientStart, gradientEnd };
-        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(settings));
-        toast({
-            title: "Settings Saved",
-            description: "Your appearance settings have been updated.",
-        });
+        const reader = new FileReader();
+        const saveSettings = (logoDataUrl: string | null) => {
+            const settings = { 
+                welcomeText, 
+                bgType, 
+                gradientStart, 
+                gradientEnd,
+                logo: logoDataUrl,
+             };
+            localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(settings));
+            toast({
+                title: "Settings Saved",
+                description: "Your appearance settings have been updated.",
+            });
+             // Force a reload of the page to update the sidebar logo
+            window.location.reload();
+        }
+
+        if (logo) {
+             reader.onloadend = () => {
+                saveSettings(reader.result as string);
+            };
+            reader.readAsDataURL(logo);
+        } else {
+             const savedSettings = JSON.parse(localStorage.getItem(APPEARANCE_SETTINGS_KEY) || "{}");
+             saveSettings(savedSettings.logo || null);
+        }
     };
 
 
@@ -91,6 +129,12 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+               <div className="space-y-2">
+                <Label htmlFor="logo">Application Logo</Label>
+                <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} />
+                {logoPreview && <img src={logoPreview} alt="Logo Preview" className="h-16 w-16 mt-2 rounded-md object-contain" />}
+                <p className="text-sm text-muted-foreground">Upload your company logo (Recommended: square, max 512x512px).</p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="welcome-text">Login Page Welcome Text</Label>
                 <Textarea id="welcome-text" value={welcomeText} onChange={(e) => setWelcomeText(e.target.value)} />
@@ -211,9 +255,9 @@ export default function SettingsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="sms-api-url">API URL / Provider Name</Label>
-                        <Input id="sms-api-url" placeholder="e.g., https://api.smsprovider.com/v1/send" />
+                     <div className="space-y-2">
+                        <Label htmlFor="sms-api-url">Provider Name / API URL</Label>
+                        <Input id="sms-api-url" placeholder="e.g., KavehNegar or https://api.smsprovider.com/v1/send" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="sms-apikey">API Key</Label>

@@ -25,6 +25,7 @@ export default function LoginPage() {
     bgValue: "/login-splash.jpg", // Default image
     gradientStart: "#3F51B5",
     gradientEnd: "#2196F3",
+    logo: null as string | null,
   });
   
   React.useEffect(() => {
@@ -37,6 +38,7 @@ export default function LoginPage() {
               bgType: settings.bgType || prev.bgType,
               gradientStart: settings.gradientStart || prev.gradientStart,
               gradientEnd: settings.gradientEnd || prev.gradientEnd,
+              logo: settings.logo || null,
           }));
       }
   }, []);
@@ -56,7 +58,11 @@ export default function LoginPage() {
         <Card className="mx-auto w-full max-w-md shadow-2xl">
             <CardHeader className="space-y-1 text-center">
               <div className="flex justify-center mb-4">
-                <Building className="h-10 w-10 text-primary" />
+                 {loginSplashProps.logo ? (
+                    <Image src={loginSplashProps.logo} alt="Company Logo" width={40} height={40} className="h-10 w-10" />
+                 ) : (
+                    <Building className="h-10 w-10 text-primary" />
+                 )}
               </div>
               <CardTitle className="text-3xl font-bold font-headline">ContractWise</CardTitle>
               <CardDescription>

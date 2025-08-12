@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -177,17 +178,8 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="sms-provider">SMS Provider</Label>
-                <Select defaultValue="provider1">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="provider1">Kavenegar</SelectItem>
-                    <SelectItem value="provider2">MeliPayamak</SelectItem>
-                    <SelectItem value="provider3">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="sms-api-url">API URL / Provider Name</Label>
+                <Input id="sms-api-url" placeholder="e.g., https://api.smsprovider.com/v1/send" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sms-apikey">API Key</Label>

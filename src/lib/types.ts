@@ -1,3 +1,11 @@
+export type Comment = {
+  id: string;
+  text: string;
+  author: string;
+  authorId: string;
+  createdAt: string;
+};
+
 export type Contract = {
   id: string;
   contractorName: string;
@@ -13,6 +21,7 @@ export type Contract = {
   reminderPhones: string[];
   createdBy: string;
   unit: string;
+  comments?: Comment[];
 };
 
 export type User = {

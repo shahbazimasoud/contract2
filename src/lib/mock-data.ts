@@ -16,6 +16,10 @@ export const contracts: Contract[] = [
     reminderPhones: ['+15551234567'],
     createdBy: 'John Doe',
     unit: 'IT Department',
+    comments: [
+        { id: 'CMT-001', text: 'Initial draft reviewed by legal. Waiting for their final approval.', author: 'John Doe', authorId: 'U-002', createdAt: '2024-01-05T10:00:00Z' },
+        { id: 'CMT-002', text: 'Legal approved. Sent to Innovate Solutions for signing.', author: 'John Doe', authorId: 'U-002', createdAt: '2024-01-10T14:30:00Z' },
+    ]
   },
   {
     id: 'C-2023-0098',
@@ -32,6 +36,7 @@ export const contracts: Contract[] = [
     reminderPhones: [],
     createdBy: 'Jane Smith',
     unit: 'Marketing',
+    comments: []
   },
   {
     id: 'C-2024-0012',
@@ -48,6 +53,9 @@ export const contracts: Contract[] = [
     reminderPhones: ['+15559876543'],
     createdBy: 'Mike Ross',
     unit: 'Operations',
+    comments: [
+         { id: 'CMT-003', text: 'Phase 1 is complete. Phase 2 starts next Monday.', author: 'Mike Ross', authorId: 'U-004', createdAt: '2024-06-20T09:00:00Z' },
+    ]
   },
     {
     id: 'C-2022-0200',
@@ -64,6 +72,7 @@ export const contracts: Contract[] = [
     reminderPhones: [],
     createdBy: 'Jessica Pearson',
     unit: 'Human Resources',
+    comments: []
   },
 ];
 

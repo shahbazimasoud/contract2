@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import PersianCalendar from "react-date-object/calendars/persian"
@@ -25,6 +25,16 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -55,6 +65,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -66,9 +77,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { contracts as mockContracts, units as mockUnits } from '@/lib/mock-data';
-import type { Contract, User } from '@/lib/types';
+import type { Contract, User, Comment } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -112,6 +124,10 @@ const contractSchema = z.object({
     path: ["endDate"],
 });
 
+const commentSchema = z.object({
+    text: z.string().min(1, "Comment cannot be empty.").max(500, "Comment is too long."),
+});
+
 
 export default function ContractsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -134,6 +150,10 @@ export default function ContractsPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
+  
+  const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
+  const [selectedContractForComments, setSelectedContractForComments] = useState<Contract | null>(null);
+  const [newComment, setNewComment] = useState("");
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
@@ -150,6 +170,12 @@ export default function ContractsPage() {
         status: "active",
     },
   });
+
+  const commentForm = useForm<z.infer<typeof commentSchema>>({
+    resolver: zodResolver(commentSchema),
+    defaultValues: { text: "" },
+  });
+
 
   useEffect(() => {
     if (!currentUser) return;
@@ -225,6 +251,42 @@ export default function ContractsPage() {
     setAttachedFiles([]);
   }
 
+    const handleOpenCommentsSheet = (contract: Contract) => {
+        setSelectedContractForComments(contract);
+        setIsCommentsSheetOpen(true);
+    };
+
+    const handleCloseCommentsSheet = () => {
+        setSelectedContractForComments(null);
+        setIsCommentsSheetOpen(false);
+        commentForm.reset();
+    };
+
+    const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
+        if (!currentUser || !selectedContractForComments) return;
+
+        const newComment: Comment = {
+            id: `CMT-${Date.now()}`,
+            text: values.text,
+            author: currentUser.name,
+            authorId: currentUser.id,
+            createdAt: new Date().toISOString(),
+        };
+
+        const updatedContract = {
+            ...selectedContractForComments,
+            comments: [...(selectedContractForComments.comments || []), newComment],
+        };
+
+        setContracts(contracts.map(c => c.id === updatedContract.id ? updatedContract : c));
+        setSelectedContractForComments(updatedContract);
+        commentForm.reset();
+        toast({
+            title: "Comment Added",
+            description: "Your comment has been successfully posted.",
+        });
+    };
+
   const handleTestEmail = () => {
     const emails = form.getValues('reminderEmails');
     const firstValidEmail = emails.find(e => e.email && !form.getFieldState(`reminderEmails.${emails.indexOf(e)}.email`).invalid)?.email;
@@ -299,6 +361,7 @@ export default function ContractsPage() {
         reminderEmails: values.reminderEmails.map(e => e.email),
         reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
         createdBy: currentUser.name,
+        comments: [],
       };
       setContracts([newContract, ...contracts]);
       toast({
@@ -758,6 +821,65 @@ export default function ContractsPage() {
           </Form>
         </DialogContent>
       </Dialog>
+      
+      <Sheet open={isCommentsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseCommentsSheet()}>
+        <SheetContent className="flex flex-col">
+            <SheetHeader>
+                <SheetTitle>Comments for {selectedContractForComments?.contractorName}</SheetTitle>
+                <SheetDescription>
+                    Contract ID: {selectedContractForComments?.id}
+                </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
+                {(selectedContractForComments?.comments || []).length > 0 ? (
+                    (selectedContractForComments?.comments || []).map(comment => (
+                        <div key={comment.id} className="flex items-start gap-3">
+                            <Avatar className="h-8 w-8">
+                                <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                    <p className="font-semibold text-sm">{comment.author}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                    </p>
+                                </div>
+                                <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center text-muted-foreground py-10">
+                        <MessageSquare className="mx-auto h-12 w-12" />
+                        <p className="mt-4">No comments yet.</p>
+                        <p>Be the first to add a comment.</p>
+                    </div>
+                )}
+            </div>
+            <SheetFooter>
+                <div className="w-full">
+                <Form {...commentForm}>
+                    <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                       <FormField
+                          control={commentForm.control}
+                          name="text"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <Button type="submit">Post</Button>
+                    </form>
+                </Form>
+                </div>
+            </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
 
       <Card>
         <CardHeader>
@@ -860,6 +982,8 @@ export default function ContractsPage() {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenCommentsSheet(contract)}>Comments</DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>
@@ -909,5 +1033,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-    

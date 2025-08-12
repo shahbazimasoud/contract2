@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Phone } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Phone, Send } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -200,6 +200,43 @@ export default function ContractsPage() {
     form.reset();
     setAttachedFiles([]);
   }
+
+  const handleTestEmail = () => {
+    const emails = form.getValues('reminderEmails');
+    const firstValidEmail = emails.find(e => e.email && !form.getFieldState(`reminderEmails.${emails.indexOf(e)}.email`).invalid)?.email;
+
+    if (firstValidEmail) {
+        toast({
+            title: "Test Email Sent",
+            description: `A test notification has been sent to ${firstValidEmail}.`,
+        });
+    } else {
+        toast({
+            title: "No Valid Email",
+            description: "Please enter at least one valid email address to send a test.",
+            variant: "destructive",
+        });
+    }
+  };
+
+  const handleTestSms = () => {
+    const phones = form.getValues('reminderPhones');
+    const firstValidPhone = phones?.find(p => p.phone && !form.getFieldState(`reminderPhones.${phones.indexOf(p)}.phone`).invalid)?.phone;
+    
+    if (firstValidPhone) {
+        toast({
+            title: "Test SMS Sent",
+            description: `A test SMS has been sent to ${firstValidPhone}.`,
+        });
+    } else {
+        toast({
+            title: "No Valid Phone Number",
+            description: "Please enter at least one valid phone number to send a test.",
+            variant: "destructive",
+        });
+    }
+  };
+
 
   const onSubmit = (values: z.infer<typeof contractSchema>) => {
     if (editingContract) {
@@ -540,15 +577,25 @@ export default function ContractsPage() {
                             )}
                           />
                         ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => appendEmail({ email: '' })}
-                        >
-                          Add Email
-                        </Button>
+                        <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => appendEmail({ email: '' })}
+                            >
+                              Add Email
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={handleTestEmail}
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              Send Test
+                            </Button>
+                        </div>
                       </div>
                   </div>
 
@@ -578,15 +625,25 @@ export default function ContractsPage() {
                             )}
                           />
                         ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => appendPhone({ phone: '' })}
-                        >
-                          Add Phone Number
-                        </Button>
+                         <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => appendPhone({ phone: '' })}
+                            >
+                              Add Phone Number
+                            </Button>
+                             <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={handleTestSms}
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              Send Test
+                            </Button>
+                        </div>
                       </div>
                   </div>
                   
@@ -782,3 +839,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

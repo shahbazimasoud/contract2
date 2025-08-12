@@ -66,10 +66,22 @@ import {
 } from '@/components/ui/card';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { contracts as mockContracts, units as mockUnits } from '@/lib/mock-data';
-import type { Contract } from '@/lib/types';
+import type { Contract, User } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// This is a mock user object. In a real app, you'd get this from your auth provider.
+// To test different roles, change this object.
+// Super Admin: { name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
+// Regular Admin: { name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
+const currentUser: User = {
+  id: "U-001",
+  name: "Super Admin",
+  email: "admin@contractwise.com",
+  role: "super-admin",
+  unit: "System"
+};
 
 const ITEMS_PER_PAGE = 10;
 
@@ -124,7 +136,7 @@ export default function ContractsPage() {
         type: "",
         description: "",
         renewal: "manual",
-        unit: "",
+        unit: currentUser.role === 'admin' ? currentUser.unit : "",
         reminderEmails: [{email: ""}],
         reminderPhones: [],
         reminders: [{days: 30}],
@@ -157,7 +169,7 @@ export default function ContractsPage() {
         type: "",
         description: "",
         renewal: "manual",
-        unit: "",
+        unit: currentUser.role === 'admin' ? currentUser.unit : "",
         reminderEmails: [{email: ""}],
         reminderPhones: [],
         reminders: [{days: 30}],
@@ -272,7 +284,7 @@ export default function ContractsPage() {
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
         reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
-        createdBy: 'Super Admin', // In real app, get from user session
+        createdBy: currentUser.name,
       };
       setContracts([newContract, ...contracts]);
       toast({
@@ -285,7 +297,15 @@ export default function ContractsPage() {
   };
 
   const filteredContracts = useMemo(() => {
-    return contracts.filter(
+    const baseContracts = currentUser.role === 'admin' 
+        ? contracts.filter(c => c.unit === currentUser.unit)
+        : contracts;
+        
+    if (!searchTerm) {
+        return baseContracts;
+    }
+
+    return baseContracts.filter(
       (contract) =>
         contract.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -428,7 +448,7 @@ export default function ContractsPage() {
                       render={({ field }) => (
                       <FormItem>
                           <FormLabel>Unit</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={currentUser.role === 'admin'}>
                           <FormControl>
                               <SelectTrigger>
                               <SelectValue placeholder="Select an organizational unit" />
@@ -839,7 +859,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-    
-
-    

@@ -30,14 +30,20 @@ import {
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { usePathname } from "next/navigation"
+import type { User } from '@/lib/types';
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 
 // This is a mock user object. In a real app, you'd get this from your auth provider.
-const user = {
+// To test different roles, change this object.
+// Super Admin: { name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
+// Regular Admin: { name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
+const user: User = {
+  id: "U-001",
   name: "Super Admin",
   email: "admin@contractwise.com",
-  role: "super-admin", // 'super-admin' or 'admin'
+  role: "super-admin",
+  unit: "System"
 }
 
 export default function DashboardLayout({

@@ -1,3 +1,4 @@
+
 export type Comment = {
   id: string;
   text: string;
@@ -38,3 +39,22 @@ export type Unit = {
     name: string;
     userCount: number;
 }
+
+export type TaskRecurrence = {
+    type: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+    time: string; // HH:mm
+    dayOfWeek?: number; // 0 (Sun) to 6 (Sat)
+    dayOfMonth?: number; // 1 to 31
+};
+
+
+export type Task = {
+    id: string;
+    title: string;
+    description?: string;
+    status: 'pending' | 'completed';
+    createdBy: string;
+    unit: string;
+    dueDate: string; // ISO String
+    recurrence: TaskRecurrence;
+};

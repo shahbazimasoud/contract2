@@ -13,6 +13,7 @@ import {
   Settings,
   User as UserIcon,
   Users,
+  ClipboardCheck,
 } from "lucide-react"
 
 import {
@@ -105,6 +106,17 @@ export default function DashboardLayout({
                 <Link href="/dashboard/contracts">
                   <FileText />
                   <span>Contracts</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith("/dashboard/tasks")}
+              >
+                <Link href="/dashboard/tasks">
+                  <ClipboardCheck />
+                  <span>Tasks</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

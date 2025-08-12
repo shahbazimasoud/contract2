@@ -1,4 +1,5 @@
-import type { Contract, User, Unit } from './types';
+
+import type { Contract, User, Unit, Task } from './types';
 
 export const contracts: Contract[] = [
   {
@@ -92,3 +93,61 @@ export const units: Unit[] = [
     { id: 'UNIT-04', name: 'Human Resources', userCount: 4 },
     { id: 'UNIT-05', name: 'Finance', userCount: 6 },
 ]
+
+
+export const tasks: Task[] = [
+    {
+        id: 'T-001',
+        title: 'Weekly IT Backup Check',
+        description: 'Verify server backups and check logs for errors.',
+        status: 'pending',
+        createdBy: 'John Doe',
+        unit: 'IT Department',
+        dueDate: new Date(new Date().setDate(new Date().getDate() + (5 - new Date().getDay() + 7) % 7)).toISOString(), // Next Friday
+        recurrence: {
+            type: 'weekly',
+            dayOfWeek: 5, // Friday
+            time: '16:00',
+        },
+    },
+    {
+        id: 'T-002',
+        title: 'Submit Monthly Marketing Report',
+        description: 'Compile and submit the marketing performance report for the previous month.',
+        status: 'pending',
+        createdBy: 'Jane Smith',
+        unit: 'Marketing',
+        dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(), // 1st of next month
+        recurrence: {
+            type: 'monthly',
+            dayOfMonth: 1,
+            time: '10:00',
+        },
+    },
+    {
+        id: 'T-003',
+        title: 'Quarterly Fire Drill',
+        description: 'Coordinate and execute the quarterly office fire drill.',
+        status: 'pending',
+        createdBy: 'Mike Ross',
+        unit: 'Operations',
+        dueDate: '2024-09-15T11:00:00Z',
+        recurrence: {
+            type: 'none',
+            time: '11:00',
+        },
+    },
+    {
+        id: 'T-004',
+        title: 'Daily Stand-up Meeting',
+        description: 'Team stand-up to discuss progress and blockers.',
+        status: 'completed',
+        createdBy: 'Super Admin',
+        unit: 'IT Department',
+        dueDate: new Date().toISOString(),
+        recurrence: {
+            type: 'daily',
+            time: '09:00',
+        },
+    },
+];

@@ -11,12 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { users as mockUsers } from "@/lib/mock-data";
+import { useToast } from "@/hooks/use-toast";
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+const AUTH_USER_KEY = 'current_user';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [email, setEmail] = React.useState("");
   
   const [loginSplashProps, setLoginSplashProps] = React.useState({
     welcomeText: "Welcome to ContractWise",
@@ -41,11 +46,31 @@ export default function LoginPage() {
               logo: settings.logo || null,
           }));
       }
+      
+      // Clear any existing user session on login page load
+      localStorage.removeItem(AUTH_USER_KEY);
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/dashboard");
+    const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (user) {
+        // NOTE: In a real app, you would validate the password here.
+        // For this demo, we'll just accept any password.
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+        toast({
+            title: "Login Successful",
+            description: `Welcome back, ${user.name}!`,
+        });
+        router.push("/dashboard");
+    } else {
+        toast({
+            title: "Login Failed",
+            description: "No user found with that email address.",
+            variant: "destructive",
+        });
+    }
   };
 
   const backgroundStyle = loginSplashProps.bgType === 'gradient' 
@@ -75,7 +100,15 @@ export default function LoginPage() {
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input id="email" type="email" placeholder="admin@example.com" required className="pl-10" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="admin@example.com" 
+                      required 
+                      className="pl-10"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -100,6 +133,9 @@ export default function LoginPage() {
                 </Button>
               </form>
             </CardContent>
+             <CardFooter className="text-center text-sm text-muted-foreground justify-center">
+                <p>Use `super@contractwise.com` or `john.doe@contractwise.com`</p>
+             </CardFooter>
           </Card>
       </div>
       <div className="hidden bg-muted lg:block relative" style={backgroundStyle}>

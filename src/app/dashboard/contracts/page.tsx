@@ -11,6 +11,8 @@ import DatePicker, { DateObject } from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian";
 import PersianCalendar from "react-date-object/calendars/persian"
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
+import { useRouter } from "next/navigation";
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -71,18 +73,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-// This is a mock user object. In a real app, you'd get this from your auth provider.
-// To test different roles, change this object.
-// Super Admin: { id: "U-001", name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
-// Regular Admin: { id: "U-002", name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
-const currentUser: User = {
-  id: "U-001",
-  name: "Super Admin",
-  email: "admin@contractwise.com",
-  role: "super-admin",
-  unit: "System"
-};
-
+const AUTH_USER_KEY = 'current_user';
 const ITEMS_PER_PAGE = 10;
 
 const reminderEmailSchema = z.object({
@@ -121,6 +112,19 @@ const contractSchema = z.object({
 
 
 export default function ContractsPage() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    } else {
+       router.push("/login");
+    }
+  }, [router]);
+
+
   const [contracts, setContracts] = useState<Contract[]>(mockContracts);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,7 +140,7 @@ export default function ContractsPage() {
         type: "",
         description: "",
         renewal: "manual",
-        unit: currentUser.role === 'admin' ? currentUser.unit : "",
+        unit: "",
         reminderEmails: [{email: ""}],
         reminderPhones: [],
         reminders: [{days: 30}],
@@ -145,6 +149,9 @@ export default function ContractsPage() {
   });
 
   useEffect(() => {
+    if (!currentUser) return;
+    const defaultUnit = currentUser.role === 'admin' ? currentUser.unit : "";
+
     if (editingContract) {
       const [sy, sm, sd] = editingContract.startDate.split('-').map(Number);
       const [ey, em, ed] = editingContract.endDate.split('-').map(Number);
@@ -169,14 +176,14 @@ export default function ContractsPage() {
         type: "",
         description: "",
         renewal: "manual",
-        unit: currentUser.role === 'admin' ? currentUser.unit : "",
+        unit: defaultUnit,
         reminderEmails: [{email: ""}],
-        reminderPhones: [],
+        reminderPhones: [{phone: ""}],
         reminders: [{days: 30}],
         attachments: [],
       });
     }
-  }, [editingContract, form]);
+  }, [editingContract, form, currentUser]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -251,6 +258,8 @@ export default function ContractsPage() {
 
 
   const onSubmit = (values: z.infer<typeof contractSchema>) => {
+    if(!currentUser) return;
+    
     if (editingContract) {
       // Update existing contract
       const updatedContract: Contract = {
@@ -297,6 +306,8 @@ export default function ContractsPage() {
   };
 
   const filteredContracts = useMemo(() => {
+    if (!currentUser) return [];
+
     const baseContracts = currentUser.role === 'admin' 
         ? contracts.filter(c => c.unit === currentUser.unit)
         : contracts;
@@ -340,6 +351,10 @@ export default function ContractsPage() {
     const end = new Date(endDate);
     return differenceInDays(end, today);
   };
+
+  if (!currentUser) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

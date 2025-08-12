@@ -1,7 +1,9 @@
+
 "use client"
 
 import Link from "next/link"
 import { Building, LogOut, PanelLeft, Settings, User } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   DropdownMenu,
@@ -17,12 +19,21 @@ import { SidebarTrigger, useSidebar } from "./ui/sidebar"
 import { ModeToggle } from "./mode-toggle"
 import type { User as UserType } from "@/lib/types"
 
+const AUTH_USER_KEY = 'current_user';
+
 interface HeaderProps {
   user: UserType
 }
 
 export function Header({ user }: HeaderProps) {
     const { isMobile } = useSidebar();
+    const router = useRouter();
+
+    const handleLogout = () => {
+        localStorage.removeItem(AUTH_USER_KEY);
+        router.push('/login');
+    }
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       {isMobile && <SidebarTrigger />}
@@ -51,12 +62,14 @@ export function Header({ user }: HeaderProps) {
               <p className="text-xs text-muted-foreground font-normal">{user.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </DropdownMenuItem>
+            {user.role === 'super-admin' && (
+                <DropdownMenuItem asChild>
+                <Link href="/dashboard/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                </Link>
+                </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link href="#">
                 <User className="mr-2 h-4 w-4" />
@@ -64,11 +77,9 @@ export function Header({ user }: HeaderProps) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/login">
+            <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Logout</span>
-              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

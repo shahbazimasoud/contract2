@@ -29,22 +29,12 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import type { User } from '@/lib/types';
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+const AUTH_USER_KEY = 'current_user';
 
-// This is a mock user object. In a real app, you'd get this from your auth provider.
-// To test different roles, change this object.
-// Super Admin: { id: "U-001", name: "Super Admin", email: "admin@contractwise.com", role: "super-admin", unit: "System" }
-// Regular Admin: { id: "U-002", name: "John Doe", email: "john.doe@contractwise.com", role: "admin", unit: "IT Department" }
-const user: User = {
-  id: "U-001",
-  name: "Super Admin",
-  email: "admin@contractwise.com",
-  role: "super-admin",
-  unit: "System"
-}
 
 export default function DashboardLayout({
   children,
@@ -52,8 +42,10 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter();
   const isActive = (path: string) => pathname === path
   const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+  const [user, setUser] = React.useState<User | null>(null);
 
   React.useEffect(() => {
     const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
@@ -63,7 +55,23 @@ export default function DashboardLayout({
             setLogoUrl(settings.logo);
         }
     }
-  }, []);
+
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    if (storedUser) {
+        setUser(JSON.parse(storedUser));
+    } else {
+        router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_USER_KEY);
+    router.push('/login');
+  }
+
+  if (!user) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
 
   return (
     <SidebarProvider>
@@ -148,11 +156,9 @@ export default function DashboardLayout({
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <Link href="/login">
+              <SidebarMenuButton onClick={handleLogout}>
                   <LogOut />
                   Logout
-                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

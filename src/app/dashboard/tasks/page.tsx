@@ -226,12 +226,9 @@ export default function TasksPage() {
     
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
 
-    const currentActiveBoardId = useMemo(() => {
-        if (activeBoardId && visibleBoards.some(b => b.id === activeBoardId)) {
-            return activeBoardId;
-        }
-        return visibleBoards[0]?.id || null;
-    }, [activeBoardId, visibleBoards]);
+    const currentActiveBoardId = activeBoardId && visibleBoards.some(b => b.id === activeBoardId)
+      ? activeBoardId
+      : visibleBoards[0]?.id || null;
 
 
     useEffect(() => {

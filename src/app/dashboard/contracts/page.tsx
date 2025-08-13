@@ -2,13 +2,13 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye, ArrowUpDown, Trash2, Filter } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, formatDistanceToNow } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
-import persian from "react-date-object/calendars/persian";
+import persian from "react-date-object/calendars/persian"
 import PersianCalendar from "react-date-object/calendars/persian"
 import { format as formatPersian, differenceInDays } from "date-fns-jalali";
 import { useRouter } from "next/navigation";
@@ -87,10 +87,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 const AUTH_USER_KEY = 'current_user';
 const ITEMS_PER_PAGE = 10;
+
+type SortableField = 'contractorName' | 'endDate' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 const reminderEmailSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -159,6 +163,12 @@ export default function ContractsPage() {
   
   const [isVersionViewOpen, setIsVersionViewOpen] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<ContractVersion | null>(null);
+  const [sorting, setSorting] = useState<{ field: SortableField, direction: SortDirection }>({ field: 'endDate', direction: 'asc' });
+
+  const [filters, setFilters] = useState({
+    status: 'all',
+    renewal: 'all',
+  });
 
 
   const form = useForm<z.infer<typeof contractSchema>>({
@@ -399,25 +409,70 @@ export default function ContractsPage() {
 
     handleCloseDialog();
   };
+  
+    const handleFilterChange = (filterType: 'status' | 'renewal', value: string) => {
+      setFilters(prev => ({ ...prev, [filterType]: value }));
+      setCurrentPage(1);
+    };
+
+    const handleSort = (field: SortableField) => {
+        const newDirection = sorting.field === field && sorting.direction === 'asc' ? 'desc' : 'asc';
+        setSorting({ field, direction: newDirection });
+    };
+
+    const clearFilters = () => {
+        setFilters({ status: 'all', renewal: 'all' });
+        setSearchTerm('');
+        setCurrentPage(1);
+    }
 
   const filteredContracts = useMemo(() => {
     if (!currentUser) return [];
 
-    const baseContracts = currentUser.role === 'admin' 
+    let baseContracts = currentUser.role === 'admin' 
         ? contracts.filter(c => c.unit === currentUser.unit)
         : contracts;
         
-    if (!searchTerm) {
-        return baseContracts;
+    // Apply text search
+    if (searchTerm) {
+        baseContracts = baseContracts.filter(
+            (contract) =>
+                contract.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                contract.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                contract.type.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+    
+    // Apply status filter
+    if (filters.status !== 'all') {
+        baseContracts = baseContracts.filter(c => c.status === filters.status);
     }
 
-    return baseContracts.filter(
-      (contract) =>
-        contract.contractorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contract.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contract.type.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [contracts, searchTerm, currentUser]);
+    // Apply renewal filter
+    if (filters.renewal !== 'all') {
+        baseContracts = baseContracts.filter(c => c.renewal === filters.renewal);
+    }
+    
+    // Apply sorting
+    baseContracts.sort((a, b) => {
+        const field = sorting.field;
+        const direction = sorting.direction === 'asc' ? 1 : -1;
+
+        const valA = a[field];
+        const valB = b[field];
+
+        if (field === 'endDate') {
+            return (new Date(valA).getTime() - new Date(valB).getTime()) * direction;
+        }
+
+        if (valA < valB) return -1 * direction;
+        if (valA > valB) return 1 * direction;
+        return 0;
+    });
+
+
+    return baseContracts;
+  }, [contracts, searchTerm, currentUser, filters, sorting]);
 
   const paginatedContracts = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1035,27 +1090,94 @@ export default function ContractsPage() {
 
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-center">
-                 <CardTitle>Contract List</CardTitle>
-                <div className="w-full max-w-sm">
-                    <Input
-                        placeholder="Search by contractor, ID, or type..."
-                        value={searchTerm}
-                        onChange={handleSearch}
-                    />
+            <div className="flex justify-between items-start pb-4">
+                 <div>
+                    <CardTitle>Contract List</CardTitle>
+                    <CardDescription>A list of all contracts in your system.</CardDescription>
                 </div>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline">
+                            <Filter className="mr-2 h-4 w-4" />
+                            Filter & Sort
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="grid gap-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Filters</h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Refine the contracts shown in the list.
+                                </p>
+                            </div>
+                            <div className="grid gap-2">
+                                <div className="grid grid-cols-3 items-center gap-4">
+                                    <label htmlFor="filter-status">Status</label>
+                                    <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
+                                        <SelectTrigger id="filter-status" className="col-span-2 h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="active">Active</SelectItem>
+                                            <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-3 items-center gap-4">
+                                    <label htmlFor="filter-renewal">Renewal</label>
+                                     <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
+                                        <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="auto">Automatic</SelectItem>
+                                            <SelectItem value="manual">Manual</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
+                                <Trash2 className="mr-2 h-4 w-4"/>
+                                Clear Filters
+                            </Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
             </div>
-            <CardDescription>A list of all contracts in your system.</CardDescription>
+            <div className="w-full max-w-sm">
+                <Input
+                    placeholder="Search by contractor, ID, or type..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                />
+            </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Contractor</TableHead>
+                  <TableHead>
+                    <Button variant="ghost" onClick={() => handleSort('contractorName')}>
+                        Contractor
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>End Date</TableHead>
+                  <TableHead>
+                     <Button variant="ghost" onClick={() => handleSort('status')}>
+                        Status
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                     <Button variant="ghost" onClick={() => handleSort('endDate')}>
+                        End Date
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
                   <TableHead>Days Left</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Info</TableHead>
@@ -1175,7 +1297,7 @@ export default function ContractsPage() {
                         <div className="flex flex-col items-center gap-2">
                            <FileText className="h-8 w-8 text-muted-foreground" />
                            <p className="font-semibold">No contracts found.</p>
-                           <p className="text-muted-foreground text-sm">Try adjusting your search or add a new contract.</p>
+                           <p className="text-muted-foreground text-sm">Try adjusting your filters or add a new contract.</p>
                         </div>
                     </TableCell>
                   </TableRow>
@@ -1211,5 +1333,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-    

@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds } from 'date-fns';
+import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
 import * as ics from 'ics';
 
 
@@ -84,6 +84,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 
 
 const AUTH_USER_KEY = 'current_user';
+type SortableTaskField = 'title' | 'dueDate' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 const reminderDaysSchema = z.object({
   days: z.number().min(0, "Cannot be negative").max(365, "Cannot be more than 365 days"),
@@ -122,6 +124,11 @@ export default function TasksPage() {
     const [selectedTaskForComments, setSelectedTaskForComments] = useState<Task | null>(null);
 
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    
+    // Filtering and Sorting State
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({ status: 'all', unit: 'all' });
+    const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
 
     const form = useForm<z.infer<typeof taskSchema>>({
@@ -393,28 +400,62 @@ export default function TasksPage() {
             URL.revokeObjectURL(url);
         });
     }
+    
+    const handleSort = (field: SortableTaskField) => {
+        const newDirection = sorting.field === field && sorting.direction === 'asc' ? 'desc' : 'asc';
+        setSorting({ field, direction: newDirection });
+    };
 
     const recurrenceType = form.watch('recurrenceType');
 
     const filteredTasks = useMemo(() => {
         if (!currentUser) return [];
 
-        if (currentUser.role === 'super-admin') {
-            return tasks;
-        }
+        let baseTasks = tasks;
 
-        return tasks.filter(task => {
-            const isAssigned = task.assignedTo === currentUser.id;
-            const isShared = task.sharedWith?.includes(currentUser.id);
-            const isCreator = mockUsers.find(u => u.name === task.createdBy)?.id === currentUser.id;
-            const inSameUnit = task.unit === currentUser.unit;
-            // Admins see all tasks in their unit
-            if (currentUser.role === 'admin') return inSameUnit;
-            // Regular users see tasks assigned to them or shared with them
-            return isAssigned || isShared || isCreator;
+        // Apply global role-based filter first
+        if (currentUser.role !== 'super-admin') {
+           baseTasks = tasks.filter(task => {
+                const isAssigned = task.assignedTo === currentUser.id;
+                const isShared = task.sharedWith?.includes(currentUser.id);
+                const isCreator = mockUsers.find(u => u.name === task.createdBy)?.id === currentUser.id;
+                const inSameUnit = task.unit === currentUser.unit;
+                // Admins see all tasks in their unit
+                if (currentUser.role === 'admin') return inSameUnit;
+                // Regular users see tasks assigned to them or shared with them
+                return isAssigned || isShared || isCreator;
+            });
+        }
+        
+        // Apply search and filters
+        baseTasks = baseTasks.filter(task => {
+            const searchMatch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
+            const statusMatch = filters.status === 'all' || task.status === filters.status;
+            const unitMatch = filters.unit === 'all' || task.unit === filters.unit;
+            return searchMatch && statusMatch && unitMatch;
+        });
+        
+         // Apply sorting
+        baseTasks.sort((a, b) => {
+            const field = sorting.field;
+            const direction = sorting.direction === 'asc' ? 1 : -1;
+
+            const valA = a[field];
+            const valB = b[field];
+
+            if (field === 'dueDate') {
+                return (parseISO(valA).getTime() - parseISO(valB).getTime()) * direction;
+            }
+
+            if (valA < valB) return -1 * direction;
+            if (valA > valB) return 1 * direction;
+            return 0;
         });
 
-    }, [tasks, currentUser]);
+
+        return baseTasks;
+
+    }, [tasks, currentUser, searchTerm, filters, sorting]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -814,6 +855,37 @@ export default function TasksPage() {
                 <CardHeader>
                     <CardTitle>Task List</CardTitle>
                     <CardDescription>A list of all tasks assigned to you or your units.</CardDescription>
+                     <div className="flex items-center gap-2 pt-4">
+                        <Input
+                            placeholder="Search tasks by title..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="max-w-sm"
+                        />
+                        <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Filter by status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {currentUser.role === 'super-admin' && (
+                             <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Filter by unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Units</SelectItem>
+                                    {mockUnits.map(unit => (
+                                        <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border">
@@ -828,11 +900,26 @@ export default function TasksPage() {
                                         />
                                     </TableHead>
                                     <TableHead className="w-[60px] text-center border-r">Done</TableHead>
-                                    <TableHead>Task</TableHead>
+                                    <TableHead>
+                                         <Button variant="ghost" onClick={() => handleSort('title')}>
+                                            Task
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead>Assigned To</TableHead>
-                                    <TableHead>Next Due</TableHead>
+                                    <TableHead>
+                                        <Button variant="ghost" onClick={() => handleSort('dueDate')}>
+                                            Next Due
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead>Recurrence</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>
+                                         <Button variant="ghost" onClick={() => handleSort('status')}>
+                                            Status
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </TableHead>
                                     <TableHead>Info</TableHead>
                                     <TableHead><span className="sr-only">Actions</span></TableHead>
                                 </TableRow>
@@ -950,7 +1037,7 @@ export default function TasksPage() {
                                             <div className="flex flex-col items-center gap-2">
                                                 <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
                                                 <p className="font-semibold">No tasks found.</p>
-                                                <p className="text-muted-foreground text-sm">Create a new task to get started.</p>
+                                                <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task.</p>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -964,8 +1051,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    
-    
-
-    

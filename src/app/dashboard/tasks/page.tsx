@@ -827,7 +827,7 @@ export default function TasksPage() {
                                             aria-label="Select all rows"
                                         />
                                     </TableHead>
-                                    <TableHead className="w-[40px]"></TableHead>
+                                    <TableHead className="w-[40px] px-2"></TableHead>
                                     <TableHead>Task</TableHead>
                                     <TableHead>Assigned To</TableHead>
                                     <TableHead>Next Due</TableHead>
@@ -852,11 +852,12 @@ export default function TasksPage() {
                                                     aria-label={`Select row for task "${task.title}"`}
                                                 />
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="px-2">
                                                 <Checkbox
                                                     checked={task.status === 'completed'}
                                                     onCheckedChange={() => handleToggleStatus(task)}
                                                     aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                                                    className="rounded-full h-5 w-5"
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">
@@ -964,4 +965,5 @@ export default function TasksPage() {
     );
 }
 
+    
     

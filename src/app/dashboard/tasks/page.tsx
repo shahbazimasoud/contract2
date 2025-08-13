@@ -140,7 +140,6 @@ export default function TasksPage() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
-    const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
@@ -224,12 +223,16 @@ export default function TasksPage() {
             board.sharedWith?.some(s => s.userId === currentUser.id)
         );
     }, [boards, currentUser]);
+    
+    const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (visibleBoards.length > 0 && !activeBoardId) {
-            setActiveBoardId(visibleBoards[0].id);
+    const currentActiveBoardId = useMemo(() => {
+        if (activeBoardId && visibleBoards.some(b => b.id === activeBoardId)) {
+            return activeBoardId;
         }
-    }, [visibleBoards, activeBoardId]);
+        return visibleBoards[0]?.id || null;
+    }, [activeBoardId, visibleBoards]);
+
 
     useEffect(() => {
         if (!currentUser) return;
@@ -343,8 +346,8 @@ export default function TasksPage() {
     };
 
     const handleDeleteBoard = () => {
-        if (!activeBoardId || !currentUser) return;
-        const boardToDelete = boards.find(b => b.id === activeBoardId);
+        if (!currentActiveBoardId || !currentUser) return;
+        const boardToDelete = boards.find(b => b.id === currentActiveBoardId);
 
         if (boardToDelete?.ownerId !== currentUser.id) {
             toast({ title: "Permission Denied", description: "Only the board owner can delete it.", variant: "destructive" });
@@ -352,8 +355,8 @@ export default function TasksPage() {
         }
         
         // Filter out the board and its associated tasks
-        const remainingBoards = boards.filter(b => b.id !== activeBoardId);
-        const remainingTasks = tasks.filter(t => t.boardId !== activeBoardId);
+        const remainingBoards = boards.filter(b => b.id !== currentActiveBoardId);
+        const remainingTasks = tasks.filter(t => t.boardId !== currentActiveBoardId);
 
         setBoards(remainingBoards);
         setTasks(remainingTasks);
@@ -456,7 +459,7 @@ export default function TasksPage() {
     }
 
     const onTaskSubmit = (values: z.infer<typeof taskSchema>) => {
-        if (!currentUser || !activeBoardId) return;
+        if (!currentUser || !currentActiveBoardId) return;
 
         const taskData = {
             title: values.title,
@@ -490,7 +493,7 @@ export default function TasksPage() {
         } else {
             const newTask: Task = {
                 id: `T-${Date.now()}`,
-                boardId: activeBoardId,
+                boardId: currentActiveBoardId,
                 createdBy: currentUser.name,
                 ...taskData,
                 status: 'pending',
@@ -601,7 +604,7 @@ export default function TasksPage() {
         return Array.from(tagSet).sort();
     }, [tasks]);
 
-    const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
+    const activeBoard = useMemo(() => boards.find(b => b.id === currentActiveBoardId), [boards, currentActiveBoardId]);
 
     const userPermissions = useMemo(() => {
         if (!currentUser || !activeBoard) return 'none';
@@ -612,9 +615,9 @@ export default function TasksPage() {
 
 
     const filteredTasks = useMemo(() => {
-        if (!currentUser || !activeBoardId) return [];
+        if (!currentUser || !currentActiveBoardId) return [];
 
-        let baseTasks = tasks.filter(task => task.boardId === activeBoardId);
+        let baseTasks = tasks.filter(task => task.boardId === currentActiveBoardId);
         
         // 3. Apply search and filters
         baseTasks = baseTasks.filter(task => {
@@ -653,7 +656,7 @@ export default function TasksPage() {
 
         return baseTasks;
 
-    }, [tasks, currentUser, searchTerm, filters, sorting, activeBoardId]);
+    }, [tasks, currentUser, searchTerm, filters, sorting, currentActiveBoardId]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -829,7 +832,7 @@ export default function TasksPage() {
              </Dialog>
 
 
-            <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
+            <Tabs value={currentActiveBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
                 <div className="flex items-center gap-2 mb-2">
                     <TabsList className="rounded-lg p-1.5">
                         {visibleBoards.map(board => (

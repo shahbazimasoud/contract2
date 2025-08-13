@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -120,6 +120,9 @@ export default function TasksPage() {
 
     const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
     const [selectedTaskForComments, setSelectedTaskForComments] = useState<Task | null>(null);
+
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+
 
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
@@ -310,6 +313,52 @@ export default function TasksPage() {
         handleCloseDialog();
     };
 
+    const handleBulkExport = () => {
+        const tasksToExport = tasks.filter(task => selectedTaskIds.includes(task.id));
+        if (tasksToExport.length === 0) {
+            toast({
+                title: "No Tasks Selected",
+                description: "Please select tasks to export.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const events: ics.EventAttributes[] = tasksToExport.map(task => {
+            const dueDate = new Date(task.dueDate);
+            const [hours, minutes] = task.recurrence.time.split(':').map(Number);
+            const startDate = setSeconds(setMinutes(setHours(dueDate, hours), minutes), 0);
+            return {
+                title: task.title,
+                description: task.description,
+                start: [startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate(), startDate.getHours(), startDate.getMinutes()],
+                duration: { hours: 1 },
+            };
+        });
+
+        ics.createEvents(events, (error, value) => {
+             if (error) {
+                console.error(error);
+                toast({
+                    title: "Error Creating Calendar File",
+                    description: "There was a problem generating the .ics file.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `ContractWise_Tasks_Export.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            setSelectedTaskIds([]); // Deselect tasks after export
+        });
+    };
+
     const handleAddToCalendar = (task: Task) => {
         const dueDate = new Date(task.dueDate);
         const [hours, minutes] = task.recurrence.time.split(':').map(Number);
@@ -367,6 +416,23 @@ export default function TasksPage() {
 
     }, [tasks, currentUser]);
 
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedTaskIds(filteredTasks.map(task => task.id));
+        } else {
+            setSelectedTaskIds([]);
+        }
+    };
+    
+    const handleSelectRow = (taskId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedTaskIds(prev => [...prev, taskId]);
+        } else {
+            setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
+        }
+    };
+
+
     function formatRecurrence(task: Task): string {
         const { recurrence } = task;
         const time = format(parse(recurrence.time, 'HH:mm', new Date()), 'h:mm a');
@@ -402,10 +468,18 @@ export default function TasksPage() {
                         <PageHeaderHeading>Tasks & Reminders</PageHeaderHeading>
                         <PageHeaderDescription>Manage your recurring and one-time tasks.</PageHeaderDescription>
                     </div>
-                    <Button onClick={() => handleOpenDialog(null)}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add New Task
-                    </Button>
+                     <div className="flex items-center gap-2">
+                        {selectedTaskIds.length > 0 && (
+                             <Button onClick={handleBulkExport} variant="outline">
+                                <Download className="mr-2 h-4 w-4" />
+                                Export Selected to Calendar ({selectedTaskIds.length})
+                            </Button>
+                        )}
+                        <Button onClick={() => handleOpenDialog(null)}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add New Task
+                        </Button>
+                    </div>
                 </div>
             </PageHeader>
 
@@ -746,6 +820,13 @@ export default function TasksPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-[50px]">
+                                         <Checkbox
+                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                            checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                                            aria-label="Select all rows"
+                                        />
+                                    </TableHead>
                                     <TableHead className="w-[40px]"></TableHead>
                                     <TableHead>Task</TableHead>
                                     <TableHead>Assigned To</TableHead>
@@ -763,7 +844,14 @@ export default function TasksPage() {
                                         const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
 
                                         return (
-                                        <TableRow key={task.id} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
+                                        <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
+                                             <TableCell>
+                                                <Checkbox
+                                                    onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                                                    checked={selectedTaskIds.includes(task.id)}
+                                                    aria-label={`Select row for task "${task.title}"`}
+                                                />
+                                            </TableCell>
                                             <TableCell>
                                                 <Checkbox
                                                     checked={task.status === 'completed'}
@@ -857,7 +945,7 @@ export default function TasksPage() {
                                     )})
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={9} className="h-24 text-center">
                                             <div className="flex flex-col items-center gap-2">
                                                 <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
                                                 <p className="font-semibold">No tasks found.</p>
@@ -875,3 +963,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

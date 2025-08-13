@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -84,6 +84,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -132,6 +143,7 @@ export default function TasksPage() {
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
+    const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
 
@@ -232,6 +244,20 @@ export default function TasksPage() {
         }
     }, [editingTask, form, currentUser]);
 
+    useEffect(() => {
+        if (editingBoard) {
+            boardForm.reset({
+                name: editingBoard.name,
+                color: editingBoard.color,
+            });
+        } else {
+            boardForm.reset({
+                name: "",
+                color: defaultColors[0],
+            });
+        }
+    }, [editingBoard, boardForm]);
+
     const handleOpenTaskDialog = (task: Task | null) => {
         setEditingTask(task);
         setIsTaskDialogOpen(true);
@@ -242,21 +268,67 @@ export default function TasksPage() {
         setIsTaskDialogOpen(false);
         form.reset();
     };
+
+    const handleOpenBoardDialog = (board: TaskBoard | null) => {
+        setEditingBoard(board);
+        setIsBoardDialogOpen(true);
+    }
+
+    const handleCloseBoardDialog = () => {
+        setEditingBoard(null);
+        setIsBoardDialogOpen(false);
+        boardForm.reset();
+    }
     
     const onBoardSubmit = (values: z.infer<typeof boardSchema>) => {
-      const newBoard: TaskBoard = {
-        id: `TB-${Date.now()}`,
-        name: values.name,
-        color: values.color,
-      };
-      setBoards(prev => [...prev, newBoard]);
-      setActiveBoardId(newBoard.id);
-      toast({
-        title: "Board Created",
-        description: `Board "${newBoard.name}" has been created.`
-      });
-      setIsBoardDialogOpen(false);
-      boardForm.reset({ name: "", color: defaultColors[0] });
+      if (editingBoard) {
+        const updatedBoard = { ...editingBoard, ...values };
+        setBoards(boards.map(b => b.id === editingBoard.id ? updatedBoard : b));
+        toast({
+            title: "Board Updated",
+            description: `Board "${updatedBoard.name}" has been updated.`
+        });
+      } else {
+         const newBoard: TaskBoard = {
+            id: `TB-${Date.now()}`,
+            name: values.name,
+            color: values.color,
+        };
+        setBoards(prev => [...prev, newBoard]);
+        setActiveBoardId(newBoard.id);
+        toast({
+            title: "Board Created",
+            description: `Board "${newBoard.name}" has been created.`
+        });
+      }
+      handleCloseBoardDialog();
+    };
+
+    const handleDeleteBoard = () => {
+        if (!activeBoardId || boards.length <= 1) {
+            toast({
+                title: "Cannot Delete Board",
+                description: "You cannot delete the last board.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const boardToDelete = boards.find(b => b.id === activeBoardId);
+        
+        // Filter out the board and its associated tasks
+        const remainingBoards = boards.filter(b => b.id !== activeBoardId);
+        const remainingTasks = tasks.filter(t => t.boardId !== activeBoardId);
+
+        setBoards(remainingBoards);
+        setTasks(remainingTasks);
+        setActiveBoardId(remainingBoards[0].id); // Switch to the first remaining board
+
+        toast({
+            title: "Board Deleted",
+            description: `Board "${boardToDelete?.name}" and all its tasks have been deleted.`,
+            variant: "destructive",
+        });
     };
 
 
@@ -558,7 +630,7 @@ export default function TasksPage() {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <PageHeader>
+            <PageHeader className="pb-4">
                 <div className="flex items-center justify-between">
                     <div>
                         <PageHeaderHeading>Tasks & Reminders</PageHeaderHeading>
@@ -567,66 +639,103 @@ export default function TasksPage() {
                 </div>
             </PageHeader>
             
+             <Dialog open={isBoardDialogOpen} onOpenChange={handleCloseBoardDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingBoard ? 'Edit Board' : 'Create New Board'}</DialogTitle>
+                        <DialogDescription>{editingBoard ? 'Update the name and color of this board.' : 'Create a new list to organize your tasks.'}</DialogDescription>
+                    </DialogHeader>
+                    <Form {...boardForm}>
+                        <form onSubmit={boardForm.handleSubmit(onBoardSubmit)} className="space-y-4">
+                                <FormField
+                                control={boardForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Board Name</FormLabel>
+                                        <FormControl><Input placeholder="e.g., Project Phoenix" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                                <FormField
+                                control={boardForm.control}
+                                name="color"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Board Color</FormLabel>
+                                        <div className="flex items-center gap-2">
+                                            {defaultColors.map(color => (
+                                                <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color ? 'border-primary' : 'border-transparent')}>
+                                                    <div className="h-full w-full rounded-full" style={{backgroundColor: color}} />
+                                                </button>
+                                            ))}
+                                            <Input type="color" {...field} className="w-16 h-10 p-1" />
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                                <Button type="submit">{editingBoard ? 'Save Changes' : 'Create Board'}</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
             <Tabs value={activeBoardId} onValueChange={setActiveBoardId} className="w-full">
-                <div className="flex items-center gap-2 mb-4">
-                    <TabsList>
+                <div className="flex items-center gap-2 mb-2">
+                    <TabsList className="rounded-lg">
                         {boards.map(board => (
-                            <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white">
+                            <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white rounded-md">
                                 {board.name}
                             </TabsTrigger>
                         ))}
                     </TabsList>
-                    <Dialog open={isBoardDialogOpen} onOpenChange={setIsBoardDialogOpen}>
-                        <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon"><PlusCircle className="h-5 w-5" /></Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Create New Board</DialogTitle>
-                                <DialogDescription>Create a new list to organize your tasks.</DialogDescription>
-                            </DialogHeader>
-                            <Form {...boardForm}>
-                                <form onSubmit={boardForm.handleSubmit(onBoardSubmit)} className="space-y-4">
-                                     <FormField
-                                        control={boardForm.control}
-                                        name="name"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Board Name</FormLabel>
-                                                <FormControl><Input placeholder="e.g., Project Phoenix" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                     <FormField
-                                        control={boardForm.control}
-                                        name="color"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Board Color</FormLabel>
-                                                <div className="flex items-center gap-2">
-                                                    {defaultColors.map(color => (
-                                                        <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color ? 'border-primary' : 'border-transparent')}>
-                                                            <div className="h-full w-full rounded-full" style={{backgroundColor: color}} />
-                                                        </button>
-                                                    ))}
-                                                    <Input type="color" {...field} className="w-16 h-10 p-1" />
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                                        <Button type="submit">Create Board</Button>
-                                    </DialogFooter>
-                                </form>
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenBoardDialog(null)}><PlusCircle className="h-5 w-5" /></Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon"><Settings className="h-5 w-5" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                            <DropdownMenuLabel>Board Actions</DropdownMenuLabel>
+                             <DropdownMenuItem onClick={() => {
+                                const board = boards.find(b => b.id === activeBoardId);
+                                if (board) handleOpenBoardDialog(board);
+                            }}>
+                                <Edit className="mr-2 h-4 w-4"/>
+                                Edit Current Board
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                     <Trash2 className="mr-2 h-4 w-4"/>
+                                     Delete Current Board
+                                   </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the board
+                                        and all tasks associated with it.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteBoard}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                 </div>
 
-                <TabsContent value={activeBoardId || ''}>
+                <TabsContent value={activeBoardId || ''} className="mt-0">
                     <Card>
                         <CardHeader>
                             <div className="flex items-center justify-between">

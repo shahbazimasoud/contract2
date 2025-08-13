@@ -934,7 +934,13 @@ export default function ContractsPage() {
                         </TableCell>
                         <TableCell>{contract.type}</TableCell>
                         <TableCell>
-                            <Badge variant={contract.status === 'active' ? 'secondary' : 'outline'}>
+                            <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}
+                                className={cn(
+                                    contract.status === 'active' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700' 
+                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                                )}
+                            >
                                 {contract.status === 'active' ? 'Active' : 'Inactive'}
                             </Badge>
                         </TableCell>

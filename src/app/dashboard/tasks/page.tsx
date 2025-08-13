@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -97,6 +97,7 @@ const taskSchema = z.object({
     unit: z.string().min(1, "Unit is required"),
     assignedTo: z.string().optional(),
     sharedWith: z.array(z.string()).optional(),
+    tags: z.string().optional(),
     dueDate: z.date({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
     time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
@@ -127,7 +128,7 @@ export default function TasksPage() {
     
     // Filtering and Sorting State
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ status: 'all', unit: 'all' });
+    const [filters, setFilters] = useState({ status: 'all', unit: 'all', tags: [] as string[] });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
 
@@ -139,6 +140,7 @@ export default function TasksPage() {
             unit: "",
             assignedTo: "",
             sharedWith: [],
+            tags: "",
             recurrenceType: "none",
             time: "09:00",
             reminders: [{ days: 1 }],
@@ -184,6 +186,7 @@ export default function TasksPage() {
                 unit: editingTask.unit,
                 assignedTo: editingTask.assignedTo,
                 sharedWith: editingTask.sharedWith,
+                tags: editingTask.tags?.join(', '),
                 dueDate: new Date(editingTask.dueDate),
                 recurrenceType: editingTask.recurrence.type,
                 time: editingTask.recurrence.time,
@@ -198,6 +201,7 @@ export default function TasksPage() {
                 unit: defaultUnit,
                 assignedTo: "",
                 sharedWith: [],
+                tags: "",
                 dueDate: new Date(),
                 recurrenceType: 'none',
                 time: "09:00",
@@ -282,6 +286,7 @@ export default function TasksPage() {
             unit: values.unit,
             assignedTo: values.assignedTo,
             sharedWith: values.sharedWith,
+            tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
             dueDate: values.dueDate.toISOString(),
             recurrence: {
                 type: values.recurrenceType,
@@ -408,6 +413,14 @@ export default function TasksPage() {
 
     const recurrenceType = form.watch('recurrenceType');
 
+    const allTags = useMemo(() => {
+        const tagSet = new Set<string>();
+        tasks.forEach(task => {
+            task.tags?.forEach(tag => tagSet.add(tag));
+        });
+        return Array.from(tagSet).sort();
+    }, [tasks]);
+
     const filteredTasks = useMemo(() => {
         if (!currentUser) return [];
 
@@ -432,7 +445,8 @@ export default function TasksPage() {
             const searchMatch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
             const statusMatch = filters.status === 'all' || task.status === filters.status;
             const unitMatch = filters.unit === 'all' || task.unit === filters.unit;
-            return searchMatch && statusMatch && unitMatch;
+            const tagsMatch = filters.tags.length === 0 || filters.tags.every(tag => task.tags?.includes(tag));
+            return searchMatch && statusMatch && unitMatch && tagsMatch;
         });
         
          // Apply sorting
@@ -541,6 +555,20 @@ export default function TasksPage() {
                                     <FormItem>
                                         <FormLabel>Title</FormLabel>
                                         <FormControl><Input placeholder="e.g., Weekly Backup Check" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="tags"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Tags</FormLabel>
+                                        <FormControl><Input placeholder="e.g., reporting, critical, finance" {...field} /></FormControl>
+                                        <FormDescription>
+                                            Enter tags separated by commas.
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -855,7 +883,7 @@ export default function TasksPage() {
                 <CardHeader>
                     <CardTitle>Task List</CardTitle>
                     <CardDescription>A list of all tasks assigned to you or your units.</CardDescription>
-                     <div className="flex items-center gap-2 pt-4">
+                     <div className="flex flex-wrap items-center gap-2 pt-4">
                         <Input
                             placeholder="Search tasks by title..."
                             value={searchTerm}
@@ -885,6 +913,43 @@ export default function TasksPage() {
                                 </SelectContent>
                             </Select>
                         )}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full sm:w-auto">
+                                    <Tag className="mr-2 h-4 w-4" />
+                                    Filter by Tags
+                                    {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-0">
+                                <Command>
+                                    <CommandInput placeholder="Filter tags..." />
+                                    <CommandList>
+                                        <CommandEmpty>No tags found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {allTags.map((tag) => (
+                                                <CommandItem
+                                                    key={tag}
+                                                    onSelect={() => {
+                                                        const newTags = filters.tags.includes(tag)
+                                                            ? filters.tags.filter(t => t !== tag)
+                                                            : [...filters.tags, tag];
+                                                        setFilters(prev => ({ ...prev, tags: newTags }));
+                                                    }}
+                                                >
+                                                    <Checkbox
+                                                        className="mr-2"
+                                                        checked={filters.tags.includes(tag)}
+                                                    />
+                                                    <span>{tag}</span>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -950,6 +1015,11 @@ export default function TasksPage() {
                                             <TableCell className="font-medium">
                                                 <div>{task.title}</div>
                                                 <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
+                                                {task.tags && task.tags.length > 0 && (
+                                                    <div className="mt-1 flex flex-wrap gap-1">
+                                                        {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">

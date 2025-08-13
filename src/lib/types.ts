@@ -81,4 +81,5 @@ export type Task = {
     assignedTo?: string; // User ID
     sharedWith?: string[]; // Array of User IDs
     comments?: Comment[];
+    tags?: string[]; // New field for tags
 };

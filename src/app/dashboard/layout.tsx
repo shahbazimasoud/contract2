@@ -58,9 +58,12 @@ function CustomSidebarTrigger() {
 
 export default function DashboardLayout({
   children,
+  params,
 }: {
   children: React.ReactNode
+  params: any
 }) {
+  React.use(params);
   const pathname = usePathname()
   const router = useRouter();
   const isActive = (path: string) => pathname === path

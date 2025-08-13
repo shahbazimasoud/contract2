@@ -1081,17 +1081,23 @@ export default function ContractsPage() {
         </Dialog>
 
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <CardTitle>Contract List</CardTitle>
-                <CardDescription>A list of all contracts in your system.</CardDescription>
+        <CardHeader>
+             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                 <div>
+                    <CardTitle>Contract List</CardTitle>
+                    <CardDescription>A list of all contracts in your system.</CardDescription>
+                 </div>
+                 <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Contract
+                 </Button>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-4">
                  <Input
                     placeholder="Search by contractor, ID, or type..."
                     value={searchTerm}
                     onChange={handleSearch}
-                    className="w-full sm:w-auto"
+                    className="w-full sm:max-w-xs"
                 />
                 <Popover>
                     <PopoverTrigger asChild>
@@ -1143,10 +1149,6 @@ export default function ContractsPage() {
                         </div>
                     </PopoverContent>
                 </Popover>
-                 <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Contract
-                </Button>
             </div>
         </CardHeader>
         <CardContent>
@@ -1176,7 +1178,7 @@ export default function ContractsPage() {
                   <TableHead className="w-[10%]">Days Left</TableHead>
                   <TableHead className="w-[10%]">Unit</TableHead>
                   <TableHead className="w-[10%]">Info</TableHead>
-                  <TableHead className="w-[5%]">
+                  <TableHead className="w-[5%] text-right">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -1267,7 +1269,7 @@ export default function ContractsPage() {
                                 </div>
                             </TooltipProvider>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button aria-haspopup="true" size="icon" variant="ghost">

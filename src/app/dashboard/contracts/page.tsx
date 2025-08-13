@@ -1106,6 +1106,16 @@ export default function ContractsPage() {
                                             </TooltipContent>
                                         </Tooltip>
                                     )}
+                                     {(contract.versions?.length || 0) > 0 && (
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <History className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Has version history</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
                                     {contract.attachments.length > 0 && (
                                         <Tooltip>
                                             <TooltipTrigger>
@@ -1201,3 +1211,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

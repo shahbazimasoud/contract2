@@ -26,7 +26,7 @@ interface HeaderProps {
 }
 
 export function Header({ user }: HeaderProps) {
-    const { isMobile } = useSidebar();
+    const { toggleSidebar, isMobile } = useSidebar();
     const router = useRouter();
 
     const handleLogout = () => {
@@ -37,6 +37,12 @@ export function Header({ user }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-4">
+         {isMobile && (
+          <Button onClick={toggleSidebar} variant="ghost" size="icon">
+            <PanelLeft className="h-6 w-6" />
+            <span className="sr-only">Toggle Sidebar</span>
+          </Button>
+        )}
       </div>
       <div className="flex items-center gap-4">
           <ModeToggle />

@@ -36,13 +36,16 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { usePathname, useRouter } from "next/navigation"
 import type { User } from '@/lib/types';
+import { cn } from "@/lib/utils"
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
 
 
 function CustomSidebarTrigger() {
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile } = useSidebar();
+
+  if (isMobile) return null;
 
   return (
     <Button variant="ghost" className="w-full justify-start" onClick={toggleSidebar}>

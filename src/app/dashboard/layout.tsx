@@ -91,7 +91,7 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/dashboard")}>
+              <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip="Dashboard">
                 <Link href="/dashboard">
                   <Home />
                   <span>Dashboard</span>
@@ -102,6 +102,7 @@ export default function DashboardLayout({
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith("/dashboard/contracts")}
+                tooltip="Contracts"
               >
                 <Link href="/dashboard/contracts">
                   <FileText />
@@ -113,6 +114,7 @@ export default function DashboardLayout({
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith("/dashboard/tasks")}
+                 tooltip="Tasks"
               >
                 <Link href="/dashboard/tasks">
                   <ClipboardCheck />
@@ -126,6 +128,7 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith("/dashboard/users")}
+                    tooltip="Users"
                   >
                     <Link href="/dashboard/users">
                       <Users />
@@ -137,6 +140,7 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith("/dashboard/units")}
+                    tooltip="Units"
                   >
                     <Link href="/dashboard/units">
                       <Building />
@@ -155,6 +159,7 @@ export default function DashboardLayout({
                 <SidebarMenuButton
                 asChild
                 isActive={isActive("/dashboard/profile")}
+                tooltip="Profile"
                 >
                 <Link href="/dashboard/profile">
                     <UserIcon />
@@ -168,6 +173,7 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={isActive("/dashboard/settings")}
+                    tooltip="Settings"
                   >
                     <Link href="/dashboard/settings">
                       <Settings />
@@ -181,9 +187,9 @@ export default function DashboardLayout({
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout}>
+              <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
                   <LogOut />
-                  Logout
+                  <span>Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

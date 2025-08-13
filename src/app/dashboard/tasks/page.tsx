@@ -833,8 +833,20 @@ export default function TasksPage() {
                 <div className="flex items-center gap-2 mb-2">
                     <TabsList className="rounded-lg p-1.5">
                         {visibleBoards.map(board => (
-                            <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm font-medium">
-                                {board.name}
+                             <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm font-medium flex items-center gap-2">
+                                <span>{board.name}</span>
+                                {board.sharedWith && board.sharedWith.length > 0 && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                               <UsersIcon className="h-4 w-4" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Shared with {board.sharedWith.length} user(s)</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
                             </TabsTrigger>
                         ))}
                     </TabsList>

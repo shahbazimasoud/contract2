@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Sheet,
@@ -72,8 +74,8 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
-import { tasks as mockTasks, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
-import type { Task, User, Comment } from '@/lib/types';
+import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards } from '@/lib/mock-data';
+import type { Task, User, Comment, TaskBoard } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -81,6 +83,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -110,13 +113,24 @@ const commentSchema = z.object({
     text: z.string().min(1, "Comment cannot be empty.").max(500, "Comment is too long."),
 });
 
+const boardSchema = z.object({
+  name: z.string().min(1, "Board name is required"),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Invalid hex color"),
+});
+
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
+
 
 export default function TasksPage() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
+    const [activeBoardId, setActiveBoardId] = useState<string>(mockTaskBoards[0]?.id);
+
+    const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+    const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
@@ -152,6 +166,14 @@ export default function TasksPage() {
         defaultValues: { text: "" },
     });
     
+    const boardForm = useForm<z.infer<typeof boardSchema>>({
+      resolver: zodResolver(boardSchema),
+      defaultValues: {
+        name: "",
+        color: defaultColors[0],
+      }
+    });
+
     const selectedUnit = form.watch('unit');
 
     useEffect(() => {
@@ -210,16 +232,33 @@ export default function TasksPage() {
         }
     }, [editingTask, form, currentUser]);
 
-    const handleOpenDialog = (task: Task | null) => {
+    const handleOpenTaskDialog = (task: Task | null) => {
         setEditingTask(task);
-        setIsDialogOpen(true);
+        setIsTaskDialogOpen(true);
     };
 
-    const handleCloseDialog = () => {
+    const handleCloseTaskDialog = () => {
         setEditingTask(null);
-        setIsDialogOpen(false);
+        setIsTaskDialogOpen(false);
         form.reset();
     };
+    
+    const onBoardSubmit = (values: z.infer<typeof boardSchema>) => {
+      const newBoard: TaskBoard = {
+        id: `TB-${Date.now()}`,
+        name: values.name,
+        color: values.color,
+      };
+      setBoards(prev => [...prev, newBoard]);
+      setActiveBoardId(newBoard.id);
+      toast({
+        title: "Board Created",
+        description: `Board "${newBoard.name}" has been created.`
+      });
+      setIsBoardDialogOpen(false);
+      boardForm.reset({ name: "", color: defaultColors[0] });
+    };
+
 
     const handleOpenCommentsSheet = (task: Task) => {
         setSelectedTaskForComments(task);
@@ -277,8 +316,8 @@ export default function TasksPage() {
       });
     }
 
-    const onSubmit = (values: z.infer<typeof taskSchema>) => {
-        if (!currentUser) return;
+    const onTaskSubmit = (values: z.infer<typeof taskSchema>) => {
+        if (!currentUser || !activeBoardId) return;
 
         const taskData = {
             title: values.title,
@@ -311,6 +350,7 @@ export default function TasksPage() {
         } else {
             const newTask: Task = {
                 id: `T-${Date.now()}`,
+                boardId: activeBoardId,
                 createdBy: currentUser.name,
                 ...taskData,
                 status: 'pending',
@@ -322,7 +362,7 @@ export default function TasksPage() {
                 description: `Task "${newTask.title}" has been created.`,
             });
         }
-        handleCloseDialog();
+        handleCloseTaskDialog();
     };
 
     const handleBulkExport = () => {
@@ -424,11 +464,12 @@ export default function TasksPage() {
     const filteredTasks = useMemo(() => {
         if (!currentUser) return [];
 
-        let baseTasks = tasks;
+        // 1. Filter by active board
+        let baseTasks = tasks.filter(task => task.boardId === activeBoardId);
 
-        // Apply global role-based filter first
+        // 2. Apply global role-based filter
         if (currentUser.role !== 'super-admin') {
-           baseTasks = tasks.filter(task => {
+           baseTasks = baseTasks.filter(task => {
                 const isAssigned = task.assignedTo === currentUser.id;
                 const isShared = task.sharedWith?.includes(currentUser.id);
                 const isCreator = mockUsers.find(u => u.name === task.createdBy)?.id === currentUser.id;
@@ -440,7 +481,7 @@ export default function TasksPage() {
             });
         }
         
-        // Apply search and filters
+        // 3. Apply search and filters
         baseTasks = baseTasks.filter(task => {
             const searchMatch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
             const statusMatch = filters.status === 'all' || task.status === filters.status;
@@ -449,7 +490,7 @@ export default function TasksPage() {
             return searchMatch && statusMatch && unitMatch && tagsMatch;
         });
         
-         // Apply sorting
+         // 4. Apply sorting
         baseTasks.sort((a, b) => {
             const field = sorting.field;
             const direction = sorting.direction === 'asc' ? 1 : -1;
@@ -469,7 +510,7 @@ export default function TasksPage() {
 
         return baseTasks;
 
-    }, [tasks, currentUser, searchTerm, filters, sorting]);
+    }, [tasks, currentUser, searchTerm, filters, sorting, activeBoardId]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -523,22 +564,326 @@ export default function TasksPage() {
                         <PageHeaderHeading>Tasks & Reminders</PageHeaderHeading>
                         <PageHeaderDescription>Manage your recurring and one-time tasks.</PageHeaderDescription>
                     </div>
-                     <div className="flex items-center gap-2">
-                        {selectedTaskIds.length > 0 && (
-                             <Button onClick={handleBulkExport} variant="outline">
-                                <Download className="mr-2 h-4 w-4" />
-                                Export Selected to Calendar ({selectedTaskIds.length})
-                            </Button>
-                        )}
-                        <Button onClick={() => handleOpenDialog(null)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add New Task
-                        </Button>
-                    </div>
                 </div>
             </PageHeader>
+            
+            <Tabs value={activeBoardId} onValueChange={setActiveBoardId} className="w-full">
+                <div className="flex items-center gap-2 mb-4">
+                    <TabsList>
+                        {boards.map(board => (
+                            <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white">
+                                {board.name}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                    <Dialog open={isBoardDialogOpen} onOpenChange={setIsBoardDialogOpen}>
+                        <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon"><PlusCircle className="h-5 w-5" /></Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Board</DialogTitle>
+                                <DialogDescription>Create a new list to organize your tasks.</DialogDescription>
+                            </DialogHeader>
+                            <Form {...boardForm}>
+                                <form onSubmit={boardForm.handleSubmit(onBoardSubmit)} className="space-y-4">
+                                     <FormField
+                                        control={boardForm.control}
+                                        name="name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Board Name</FormLabel>
+                                                <FormControl><Input placeholder="e.g., Project Phoenix" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                     <FormField
+                                        control={boardForm.control}
+                                        name="color"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Board Color</FormLabel>
+                                                <div className="flex items-center gap-2">
+                                                    {defaultColors.map(color => (
+                                                        <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color ? 'border-primary' : 'border-transparent')}>
+                                                            <div className="h-full w-full rounded-full" style={{backgroundColor: color}} />
+                                                        </button>
+                                                    ))}
+                                                    <Input type="color" {...field} className="w-16 h-10 p-1" />
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                                        <Button type="submit">Create Board</Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
 
-            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
+                <TabsContent value={activeBoardId || ''}>
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Task List</CardTitle>
+                                 <div className="flex items-center gap-2">
+                                    {selectedTaskIds.length > 0 && (
+                                        <Button onClick={handleBulkExport} variant="outline">
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Export Selected ({selectedTaskIds.length})
+                                        </Button>
+                                    )}
+                                    <Button onClick={() => handleOpenTaskDialog(null)}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add New Task
+                                    </Button>
+                                </div>
+                            </div>
+                            <CardDescription>A list of all tasks in this board.</CardDescription>
+                            <div className="flex flex-wrap items-center gap-2 pt-4">
+                                <Input
+                                    placeholder="Search tasks by title..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="max-w-sm"
+                                />
+                                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Filter by status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {currentUser.role === 'super-admin' && (
+                                    <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Filter by unit" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Units</SelectItem>
+                                            {mockUnits.map(unit => (
+                                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full sm:w-auto">
+                                            <Tag className="mr-2 h-4 w-4" />
+                                            Filter by Tags
+                                            {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Filter tags..." />
+                                            <CommandList>
+                                                <CommandEmpty>No tags found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {allTags.map((tag) => (
+                                                        <CommandItem
+                                                            key={tag}
+                                                            onSelect={() => {
+                                                                const newTags = filters.tags.includes(tag)
+                                                                    ? filters.tags.filter(t => t !== tag)
+                                                                    : [...filters.tags, tag];
+                                                                setFilters(prev => ({ ...prev, tags: newTags }));
+                                                            }}
+                                                        >
+                                                            <Checkbox
+                                                                className="mr-2"
+                                                                checked={filters.tags.includes(tag)}
+                                                            />
+                                                            <span>{tag}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[50px]">
+                                                <Checkbox
+                                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                                    checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                                                    aria-label="Select all rows"
+                                                />
+                                            </TableHead>
+                                            <TableHead className="w-[60px] text-center border-r">Done</TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('title')}>
+                                                    Task
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>Assigned To</TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('dueDate')}>
+                                                    Next Due
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>Recurrence</TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('status')}>
+                                                    Status
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>Info</TableHead>
+                                            <TableHead><span className="sr-only">Actions</span></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredTasks.length > 0 ? (
+                                            filteredTasks.map((task) => {
+                                                const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+                                                const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
+
+                                                return (
+                                                <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
+                                                    <TableCell>
+                                                        <Checkbox
+                                                            onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                                                            checked={selectedTaskIds.includes(task.id)}
+                                                            aria-label={`Select row for task "${task.title}"`}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-2 text-center border-r">
+                                                        <Checkbox
+                                                            checked={task.status === 'completed'}
+                                                            onCheckedChange={() => handleToggleStatus(task)}
+                                                            aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                                                            className="rounded-full h-5 w-5 mx-auto"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">
+                                                        <div>{task.title}</div>
+                                                        <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
+                                                        {task.tags && task.tags.length > 0 && (
+                                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                                {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            {assignedUser && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <Avatar className="h-7 w-7">
+                                                                                <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
+                                                                                <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                                                                            </Avatar>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Assigned to {assignedUser.name}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                            {sharedUsers.length > 0 && (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <div className="relative flex items-center">
+                                                                                <UsersIcon className="h-5 w-5 text-muted-foreground" />
+                                                                                <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
+                                                    <TableCell>{formatRecurrence(task)}</TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            variant={'outline'}
+                                                            className={cn(
+                                                                task.status === 'pending'
+                                                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
+                                                                    : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
+                                                            )}
+                                                        >
+                                                            {task.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <TooltipProvider>
+                                                            {(task.comments?.length || 0) > 0 && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Has comments</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                        </TooltipProvider>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>Edit</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleOpenCommentsSheet(task)}>Comments</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                                                                    <CalendarPlus className="mr-2 h-4 w-4" />
+                                                                    Add to Calendar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive">Delete</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )})
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={9} className="h-24 text-center">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
+                                                        <p className="font-semibold">No tasks found.</p>
+                                                        <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
+
+            <Dialog open={isTaskDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseTaskDialog()}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
@@ -547,7 +892,7 @@ export default function TasksPage() {
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
+                        <form onSubmit={form.handleSubmit(onTaskSubmit)} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
                             <FormField
                                 control={form.control}
                                 name="title"
@@ -878,246 +1223,6 @@ export default function TasksPage() {
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Task List</CardTitle>
-                    <CardDescription>A list of all tasks assigned to you or your units.</CardDescription>
-                     <div className="flex flex-wrap items-center gap-2 pt-4">
-                        <Input
-                            placeholder="Search tasks by title..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="max-w-sm"
-                        />
-                        <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Filter by status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {currentUser.role === 'super-admin' && (
-                             <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Filter by unit" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Units</SelectItem>
-                                    {mockUnits.map(unit => (
-                                        <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full sm:w-auto">
-                                    <Tag className="mr-2 h-4 w-4" />
-                                    Filter by Tags
-                                    {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 p-0">
-                                <Command>
-                                    <CommandInput placeholder="Filter tags..." />
-                                    <CommandList>
-                                        <CommandEmpty>No tags found.</CommandEmpty>
-                                        <CommandGroup>
-                                            {allTags.map((tag) => (
-                                                <CommandItem
-                                                    key={tag}
-                                                    onSelect={() => {
-                                                        const newTags = filters.tags.includes(tag)
-                                                            ? filters.tags.filter(t => t !== tag)
-                                                            : [...filters.tags, tag];
-                                                        setFilters(prev => ({ ...prev, tags: newTags }));
-                                                    }}
-                                                >
-                                                    <Checkbox
-                                                        className="mr-2"
-                                                        checked={filters.tags.includes(tag)}
-                                                    />
-                                                    <span>{tag}</span>
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
-
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[50px]">
-                                         <Checkbox
-                                            onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                            checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
-                                            aria-label="Select all rows"
-                                        />
-                                    </TableHead>
-                                    <TableHead className="w-[60px] text-center border-r">Done</TableHead>
-                                    <TableHead>
-                                         <Button variant="ghost" onClick={() => handleSort('title')}>
-                                            Task
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>Assigned To</TableHead>
-                                    <TableHead>
-                                        <Button variant="ghost" onClick={() => handleSort('dueDate')}>
-                                            Next Due
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>Recurrence</TableHead>
-                                    <TableHead>
-                                         <Button variant="ghost" onClick={() => handleSort('status')}>
-                                            Status
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </TableHead>
-                                    <TableHead>Info</TableHead>
-                                    <TableHead><span className="sr-only">Actions</span></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredTasks.length > 0 ? (
-                                    filteredTasks.map((task) => {
-                                        const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
-                                        const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
-
-                                        return (
-                                        <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
-                                             <TableCell>
-                                                <Checkbox
-                                                    onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
-                                                    checked={selectedTaskIds.includes(task.id)}
-                                                    aria-label={`Select row for task "${task.title}"`}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="px-2 text-center border-r">
-                                                <Checkbox
-                                                    checked={task.status === 'completed'}
-                                                    onCheckedChange={() => handleToggleStatus(task)}
-                                                    aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
-                                                    className="rounded-full h-5 w-5 mx-auto"
-                                                />
-                                            </TableCell>
-                                            <TableCell className="font-medium">
-                                                <div>{task.title}</div>
-                                                <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
-                                                {task.tags && task.tags.length > 0 && (
-                                                    <div className="mt-1 flex flex-wrap gap-1">
-                                                        {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    {assignedUser && (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger>
-                                                                     <Avatar className="h-7 w-7">
-                                                                        <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
-                                                                        <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
-                                                                    </Avatar>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>Assigned to {assignedUser.name}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )}
-                                                    {sharedUsers.length > 0 && (
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger>
-                                                                    <div className="relative flex items-center">
-                                                                        <UsersIcon className="h-5 w-5 text-muted-foreground" />
-                                                                        <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
-                                                                    </div>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
-                                            <TableCell>{formatRecurrence(task)}</TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={'outline'}
-                                                    className={cn(
-                                                        task.status === 'pending'
-                                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
-                                                            : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
-                                                    )}
-                                                >
-                                                    {task.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <TooltipProvider>
-                                                    {(task.comments?.length || 0) > 0 && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger>
-                                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Has comments</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                </TooltipProvider>
-                                            </TableCell>
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem onClick={() => handleOpenDialog(task)}>Edit</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleOpenCommentsSheet(task)}>Comments</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
-                                                            <CalendarPlus className="mr-2 h-4 w-4" />
-                                                            Add to Calendar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive">Delete</DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </TableRow>
-                                    )})
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
-                                            <div className="flex flex-col items-center gap-2">
-                                                <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
-                                                <p className="font-semibold">No tasks found.</p>
-                                                <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task.</p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
         </div>
     );
 }

@@ -1,4 +1,5 @@
 
+
 export type Comment = {
   id: string;
   text: string;
@@ -70,6 +71,7 @@ export type TaskRecurrence = {
 
 export type Task = {
     id: string;
+    boardId: string; // New field to link to a board
     title: string;
     description?: string;
     status: 'pending' | 'completed';
@@ -81,5 +83,11 @@ export type Task = {
     assignedTo?: string; // User ID
     sharedWith?: string[]; // Array of User IDs
     comments?: Comment[];
-    tags?: string[]; // New field for tags
+    tags?: string[];
 };
+
+export type TaskBoard = {
+    id: string;
+    name: string;
+    color: string; // Hex color code
+}

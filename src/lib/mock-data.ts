@@ -1,5 +1,5 @@
 
-import type { Contract, User, Unit, Task } from './types';
+import type { Contract, User, Unit, Task, TaskBoard } from './types';
 
 export const avatars = [
     {
@@ -225,10 +225,17 @@ export const units: Unit[] = [
     { id: 'UNIT-05', name: 'Finance', userCount: 6 },
 ]
 
+export const taskBoards: TaskBoard[] = [
+    { id: 'TB-001', name: 'کارهای سازمانی', color: '#3b82f6' },
+    { id: 'TB-002', name: 'پروژه آلفا', color: '#ef4444' },
+    { id: 'TB-003', name: 'عملیات روزانه', color: '#10b981' },
+];
+
 
 export const tasks: Task[] = [
     {
         id: 'T-001',
+        boardId: 'TB-003',
         title: 'Weekly IT Backup Check',
         description: 'Verify server backups and check logs for errors.',
         status: 'pending',
@@ -250,6 +257,7 @@ export const tasks: Task[] = [
     },
     {
         id: 'T-002',
+        boardId: 'TB-002',
         title: 'Submit Monthly Marketing Report',
         description: 'Compile and submit the marketing performance report for the previous month.',
         status: 'pending',
@@ -269,6 +277,7 @@ export const tasks: Task[] = [
     },
     {
         id: 'T-003',
+        boardId: 'TB-001',
         title: 'Quarterly Fire Drill',
         description: 'Coordinate and execute the quarterly office fire drill.',
         status: 'pending',
@@ -287,6 +296,7 @@ export const tasks: Task[] = [
     },
     {
         id: 'T-004',
+        boardId: 'TB-003',
         title: 'Daily Stand-up Meeting',
         description: 'Team stand-up to discuss progress and blockers.',
         status: 'completed',
@@ -303,4 +313,24 @@ export const tasks: Task[] = [
         tags: ['meeting', 'daily'],
         comments: []
     },
+     {
+        id: 'T-005',
+        boardId: 'TB-002',
+        title: 'Design new campaign visuals',
+        description: 'Create mockups for the upcoming "Summer Sale" campaign.',
+        status: 'pending',
+        createdBy: 'Jane Smith',
+        unit: 'Marketing',
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
+        recurrence: {
+            type: 'none',
+            time: '17:00',
+        },
+        reminders: [3],
+        assignedTo: 'U-003',
+        sharedWith: [],
+        tags: ['design', 'marketing', 'creative'],
+        comments: []
+    }
 ];
+

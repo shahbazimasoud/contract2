@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -827,7 +827,7 @@ export default function TasksPage() {
                                             aria-label="Select all rows"
                                         />
                                     </TableHead>
-                                    <TableHead className="w-[40px] px-2"></TableHead>
+                                    <TableHead className="w-[60px] text-center border-r">Done</TableHead>
                                     <TableHead>Task</TableHead>
                                     <TableHead>Assigned To</TableHead>
                                     <TableHead>Next Due</TableHead>
@@ -852,12 +852,12 @@ export default function TasksPage() {
                                                     aria-label={`Select row for task "${task.title}"`}
                                                 />
                                             </TableCell>
-                                            <TableCell className="px-2">
+                                            <TableCell className="px-2 text-center border-r">
                                                 <Checkbox
                                                     checked={task.status === 'completed'}
                                                     onCheckedChange={() => handleToggleStatus(task)}
                                                     aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
-                                                    className="rounded-full h-5 w-5"
+                                                    className="rounded-full h-5 w-5 mx-auto"
                                                 />
                                             </TableCell>
                                             <TableCell className="font-medium">
@@ -966,4 +966,6 @@ export default function TasksPage() {
 }
 
     
+    
+
     

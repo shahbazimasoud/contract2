@@ -1,33 +1,76 @@
 
 import type { Contract, User, Unit, Task } from './types';
 
-// Avatars are embedded as SVG data URIs to be "local" to the application
 export const avatars = [
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzYzNkRGOCIvPjxwYXRoIGQ9Ik01MCAxNWwtOCAyMy0yNC0zIDcgMjUtMTggMTggMjYgMSA0IDI1IDQgLTI1IDI2IC0xIC0xOCAtMTggNyAtMjUgLTI0IDMgLTggLTIzeiIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iOTAiIGhlaWdodD0iOTAiIHg9IjUiIHk9IjUiIHJ4PSIxNSIgcnk9IjE1IiBmaWxsPSIjNEM4QjU3Ii8+PHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiB4PSIyNSIgeT0iMjUiIHJ4PSI1IiByeT0iNSIgZmlsbD0iI0ZGRkZGRiIgdHJhbnNmb3JtPSJyb3RhdGUoNDUgNTAgNTApIi8+PC9zdmc+' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAgNUw5NSA5NWgtOTB6IiBmaWxsPSIjMzREM0E0Ii8+PHBhdGggZD0iTTUwIDMwTDc1IDgwSDI1eiIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iI0Y5NzMxNSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjI1IiBmaWxsPSIjRkZGRkZGIi8+PC9zdmc+' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCAwSDEwMFYxMDBIMHoiIGZpbGw9IiM4QjdERDgiLz48cGF0aCBkPSJNMjAgMjBIMzBWODBINjBWNzBIMzBWMzBIMzBWMjBaIiBmaWxsPSIjRkZGRkZGIi8+PHBhdGggZD0iTTgwIDgwSDcwVjIwSDQwVjMwSDcwVjgwWiIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAgMEM3Ny42MTQgMCAxMDAgMjIuMzg2IDEwMCA1MEE1MCA1MCAwIDExMCA1MFoiIGZpbGw9IiNFMTFERjEiLz48cGF0aCBkPSJNNTAgMTAwQzIyLjM4NiAxMDAgMCA3Ny42MTQgMCA1MEE1MCA1MCAwIDEwMCA1MFoiIGZpbGw9IiM0QzRBNkYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyMCIgZmlsbD0iI0ZGRkZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCA1MEw1MCAwTDEwMCA1MEw1MCAxMDBaIiBmaWxsPSIjRUI3MDE0Ii8+PC9zdmc+' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzIzMkUyRiIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iNzAiIHI9IjE1IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSIzMCIgcj0iMTUiIGZpbGw9IiNGRkYiLz48L3N2Zz4=' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAsNUwxNSw5NUg4NVoiIGZpbGw9IiM4NEU0RTMiLz48cGF0aCBkPSJNNTAsMjBMMzAsODVINDdaIiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMzAsNUw3MCw1TDEwMCwzNUw4MCw5NUwyMCw5NUwwLDM1WiIgZmlsbD0iI0E1OUQFNSIvPjxwYXRoIGQ9Ik0zNSwxMEwyNSw5MEwxMiwzNUwzNSwxMFpNNTAsMTBMMTAsOTBMMjUsMTBaTTY1LDEwTDc1LDkwTDg4LDM1TDY1LDEwWiIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzEwQjk4MSIvPjxwYXRoIGQ9Ik0yNSw1MEg3NSIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjgiLz48cGF0aCBkPSJNNTAsMjVWNzUiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI4Ii8+PHBhdGggZD0iTTM1Ljg4LDM1Ljg4TDY0LjE0LDY0LjE0IiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iOCIvPjxwYXRoIGQ9Ik0zNS44OCw2NC4xNEw2NC4xNCwzNS44OCIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjgiLz48L3N2Zz4=' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB4PSI1IiB5PSI1IiB3aWR0aD0iOTAiIGhlaWdodD0iOTAiIHJ4PSIzMCIgcnk9IjMwIiBmaWxsPSIjRjQ3MjQzIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iOCIgZmlsbD0iI0ZGRiIvPjxjaXJjbGUgY3g9IjY1IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiNGRkYiLz48cGF0aCBkPSJNMzAgNjVDMzUgNTAsNjUgNTAsNzAgNjUiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJ0cmFuc3BhcmVudCIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMTAsMTBMMzUsMTBMMTAsMzVMMzUsMzVMMTAsNjBMMzUsNjBMMTAsODVMMzUsODVNNjUsMTBMODEwLDEwTDY1LDM1TDkwLDM1TDY1LDYwTDkwLDYwTDY1LDg1TDkwLDg1IiBmaWxsPSJub25lIiBzdHJva2U9IiM2RDZFODIiIHN0cm9rZS13aWR0aD0iOCIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMiw1MEExLDEgMCAwLDEgOTgsNTAiIGZpbGw9IiM4QjVDRDAiLz48cGF0aCBkPSJNNTAsMkExLDEgMCAwLDEgNTAsOTgiIGZpbGw9IiM4QjVDRDAiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyNSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzJCNEY2OCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjM1IiBmaWxsPSJ0cmFuc3BhcmVudCIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxOCIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMzUsMjBMMjAsMzVMMzUsNTBMMjAsNjVMNTAsOTVMODAsNjVMNjUsNTBMODAsMzVMMzUsMjBaIiBmaWxsPSIjRjA1MDdBIi8+PC9zdmc+' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzI2QzZEYiIvPjxwb2x5Z29uIHBvaW50cz0iNTAsMTUgNjEsNDAgODgsNDAgNjgsNjAgNzksODUgNTAsNzAgMjEsODUgMzIsNjAgMTIsNDAgMzksNDAiIGZpbGw9IiNGRkYiLz48L3N2Zz4=' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzZDNUJBMyIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iMjUiIHI9IjE1IiBmaWxsPSIjRkZGIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI3NSIgcj0iMTUiIGZpbGw9IiNGRkYiLz48cmVjdCB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHg9IjM1IiB5PSIzNSIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzdFNTdDMiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjM1IiBmaWxsPSJ0cmFuc3BhcmVudCIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjYiIHN0cm9rZS1kYXNoYXJyYXk9IjEyLDYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxMCIgZmlsbD0iI0ZGRiIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMTAsMjVMMzAsMjVMMzAsMTBMMTAsMjVaTTEwLDc1TDcwLDc1TDcwLDkwTDEwLDc1WiIgZmlsbD0iI0Y5QTgwMCIvPjxwYXRoIGQ9Ik0zMCw1MEw1MCw1MEw1MCwzNUwzMCw1MFpNNTAsMTBMOTAsMTBMOTAsMjVMNTAsMTBaIiBmaWxsPSIjMkM5NkY2Ii8+PC9zdmc+' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzAwODk3QiIvPjxwb2x5Z29uIHBvaW50cz0iMTAsMzAgOTAsMzAgNTAsODUiIGZpbGw9IiNGRkYiLz48cG9seWdvbiBwb2ludHM9IjEwLDcwIDkwLDcwIDUwLDE1IiBmaWxsPSIjRkZGIiBmaWxsLW9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAsNUw5NSw1MEw1MCw5NUw1LDUwWiIgZmlsbD0iI0U1MzkzNSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjI1IiBmaWxsPSJ0cmFuc3BhcmVudCIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjUiLz48L3N2Zz4=' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0NSIgZmlsbD0iIzM5NDk3QiIvPjxyZWN0IHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgeD0iMzAiIHk9IjMwIiBmaWxsPSIjRkZGIi8+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiB4PSIzMCIgeT0iMzAiIGZpbGw9IiNGRkYiIHRyYW5zZm9ybT0icm90YXRlKDQ1IDUwIDUwKSIgZmlsbC1vcGFjaXR5PSIwLjUiLz48L3N2Zz4=' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB4PSI1IiB5PSI1IiB3aWR0aD0iOTAiIGhlaWdodD0iOTAiIHJ4PSIzMCIgcnk9IjMwIiBmaWxsPSIjRjQ3MjQzIi8+PGNpcmNsZSBjeD0iMzUiIGN5PSIzNSIgcj0iOCIgZmlsbD0iI0ZGRiIvPjxjaXJjbGUgY3g9IjY1IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiNGRkYiLz48cGF0aCBkPSJNMzAgNjVDMzUgNTAsNjUgNTAsNzAgNjUiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJ0cmFuc3BhcmVudCIvPjwvc3ZnPg==' },
-    { url: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMjAsMjBMMTAsNTBMMjAsODBIMzBMMjAsNTBIMzBaTTgwLDgwTDkwLDUwTDgwLDIwSDcwTDgwLDUwSDcwWiIgZmlsbD0iI0ZGQzA1QiIvPjxwYXRoIGQ9Ik01MCw4MEwzMCwxMEg3MFoiIGZpbGw9IiMyMThFRUMiLz48L3N2Zz4=' }
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M30,30 h40 v40 h-40z' fill='%23FFD700' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='25' fill='%2387CEEB' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,15 20,85 80,85' fill='%2398FB98' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='25' y='25' width='50' height='50' transform='rotate(45 50 50)' fill='%23FFB6C1' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20,50 a30,30 0 1,1 60,0 a30,30 0 1,1 -60,0' fill='%23DDA0DD' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,20 60,40 80,45 65,60 70,80 50,70 30,80 35,60 20,45 40,40' fill='%23F0E68C' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='20' y='35' width='60' height='30' rx='15' fill='%23B0C4DE' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50,20 L80,80 L20,80 Z' fill='%23FFA07A' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M25,25 h50 v50 h-50z' fill='none' stroke='%2320B2AA' stroke-width='4' stroke-dasharray='10,5'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='50' cy='50' rx='30' ry='15' fill='%237FFFD4' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20,20 L80,80 M20,80 L80,20' stroke='%23DC143C' stroke-width='4'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50,10 C20,40 20,60 50,90 C80,60 80,40 50,10' fill='%23C71585' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='10,50 50,10 90,50 50,90' fill='%2332CD32' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='20' y='20' width='60' height='60' rx='10' fill='none' stroke='%234682B4' stroke-width='3'/><circle cx='50' cy='50' r='15' fill='%234682B4'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20,80 C40,20 60,20 80,80' stroke='%23FF4500' stroke-width='4' fill='none'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='15' y='15' width='70' height='70' fill='%23FF69B4' stroke='black' stroke-width='2'/><rect x='25' y='25' width='50' height='50' fill='%23FFC0CB'/></svg>`,
+    },
+     {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='none' stroke='%231E90FF' stroke-width='3'/><circle cx='50' cy='50' r='15' fill='none' stroke='%231E90FF' stroke-width='3'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50,10 L90,90 L10,90 Z' fill='%23DAA520' stroke='black' stroke-width='2'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M15,15 L85,85 M15,85 L85,15' stroke='%235F9EA0' stroke-width='5' stroke-linecap='round'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M50,20 C10,40 10,60 50,80 C90,60 90,40 50,20' fill='none' stroke='%23D2691E' stroke-width='3'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M20,20 h60 v60 h-60z' fill='%236495ED' stroke='black' stroke-width='2' transform='rotate(15 50 50)'/></svg>`,
+    },
+    {
+        url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='30' cy='70' r='20' fill='%23DC143C'/><circle cx='70' cy='70' r='20' fill='%23DC143C'/><path d='M50,20 Q40,50 30,70' stroke='black' stroke-width='3' fill='none'/><path d='M50,20 Q60,50 70,70' stroke='black' stroke-width='3' fill='none'/></svg>`,
+    },
+    {
+       url: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='white' stroke='black' stroke-width='2'/><circle cx='40' cy='40' r='5' fill='black'/><circle cx='60' cy='40' r='5' fill='black'/><path d='M40,60 Q50,70 60,60' stroke='black' stroke-width='3' fill='none'/></svg>`
+    },
 ];
 
 export const contracts: Contract[] = [
@@ -45,6 +88,42 @@ export const contracts: Contract[] = [
     reminderEmails: ['legal@company.com', 'manager@company.com'],
     reminderPhones: ['+15551234567'],
     createdBy: 'John Doe',
+    versions: [
+      {
+        versionNumber: 1,
+        createdAt: '2023-12-10T10:00:00Z',
+        createdBy: 'U-002', // John Doe
+        contractorName: 'Innovate Solutions Ltd. (v1)',
+        type: 'Service Agreement',
+        description: 'Initial draft of the annual software maintenance and support agreement.',
+        startDate: '2024-01-01',
+        endDate: '2024-12-31',
+        renewal: 'manual',
+        status: 'inactive',
+        attachments: [{ name: 'initial_draft.pdf', url: '#' }],
+        reminders: [60],
+        reminderEmails: ['legal@company.com'],
+        reminderPhones: [],
+        unit: 'IT Department',
+      },
+      {
+        versionNumber: 2,
+        createdAt: '2023-12-20T14:30:00Z',
+        createdBy: 'U-002', // John Doe
+        contractorName: 'Innovate Solutions Ltd. (v2)',
+        type: 'Service Agreement',
+        description: 'Reviewed version with minor changes from legal team.',
+        startDate: '2024-01-01',
+        endDate: '2024-12-31',
+        renewal: 'manual',
+        status: 'inactive',
+        attachments: [{ name: 'reviewed_draft.pdf', url: '#' }],
+        reminders: [30, 15],
+        reminderEmails: ['legal@company.com', 'manager@company.com'],
+        reminderPhones: [],
+        unit: 'IT Department',
+      }
+    ],
     unit: 'IT Department',
     comments: [
         { id: 'CMT-001', text: 'Initial draft reviewed by legal. Waiting for their final approval.', author: 'John Doe', authorId: 'U-002', createdAt: '2024-01-05T10:00:00Z' },
@@ -64,6 +143,25 @@ export const contracts: Contract[] = [
     reminders: [10],
     reminderEmails: ['marketing@company.com'],
     reminderPhones: [],
+    versions: [
+      {
+        versionNumber: 1,
+        createdAt: '2023-09-01T09:00:00Z',
+        createdBy: 'U-003', // Jane Smith
+        contractorName: 'Creative Designs Co. (v1)',
+        type: 'Marketing Campaign Proposal',
+        description: 'Initial proposal for Q4 holiday marketing campaign.',
+        startDate: '2023-10-15',
+        endDate: '2024-01-15', // Shorter initial duration
+        renewal: 'manual',
+        status: 'inactive',
+        attachments: [{ name: 'campaign_proposal.pdf', url: '#' }],
+        reminders: [],
+        reminderEmails: ['marketing@company.com'],
+        reminderPhones: [],
+        unit: 'Marketing',
+      }
+    ],
     createdBy: 'Jane Smith',
     unit: 'Marketing',
     comments: []
@@ -82,6 +180,7 @@ export const contracts: Contract[] = [
     reminderEmails: ['facilities@company.com'],
     reminderPhones: ['+15559876543'],
     createdBy: 'Mike Ross',
+    versions: [], // No historical versions for this one yet
     unit: 'Operations',
     comments: [
          { id: 'CMT-003', text: 'Phase 1 is complete. Phase 2 starts next Monday.', author: 'Mike Ross', authorId: 'U-004', createdAt: '2024-06-20T09:00:00Z' },
@@ -98,8 +197,9 @@ export const contracts: Contract[] = [
     status: 'inactive',
     attachments: [],
     reminders: [],
-    reminderEmails: [],
-    reminderPhones: [],
+    reminderEmails: ['hr@company.com'],
+    reminderPhones: ['+15551112222'],
+    versions: [], // No historical versions for this one yet
     createdBy: 'Jessica Pearson',
     unit: 'Human Resources',
     comments: []

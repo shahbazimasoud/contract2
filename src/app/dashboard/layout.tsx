@@ -14,6 +14,8 @@ import {
   User as UserIcon,
   Users,
   ClipboardCheck,
+  PanelLeftClose,
+  PanelRightClose
 } from "lucide-react"
 
 import {
@@ -28,6 +30,7 @@ import {
   SidebarTrigger,
   SidebarInset,
   SidebarSeparator,
+  useSidebar
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
@@ -36,6 +39,18 @@ import type { User } from '@/lib/types';
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
+
+
+function CustomSidebarTrigger() {
+  const { state, toggleSidebar } = useSidebar();
+
+  return (
+    <Button variant="ghost" className="w-full justify-start" onClick={toggleSidebar}>
+      {state === 'expanded' ? <PanelLeftClose /> : <PanelLeft />}
+      <span className="group-data-[collapsible=icon]:hidden">Collapse</span>
+    </Button>
+  );
+}
 
 
 export default function DashboardLayout({
@@ -85,7 +100,7 @@ export default function DashboardLayout({
             ) : (
                 <Building className="w-8 h-8 text-primary" />
             )}
-            <span className="text-xl font-semibold font-headline">ContractWise</span>
+            <span className="text-xl font-semibold font-headline group-data-[collapsible=icon]:hidden">ContractWise</span>
           </Link>
         </SidebarHeader>
         <SidebarContent>
@@ -94,7 +109,7 @@ export default function DashboardLayout({
               <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip="Dashboard">
                 <Link href="/dashboard">
                   <Home />
-                  <span>Dashboard</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Dashboard</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -106,7 +121,7 @@ export default function DashboardLayout({
               >
                 <Link href="/dashboard/contracts">
                   <FileText />
-                  <span>Contracts</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Contracts</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -118,7 +133,7 @@ export default function DashboardLayout({
               >
                 <Link href="/dashboard/tasks">
                   <ClipboardCheck />
-                  <span>Tasks</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Tasks</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -132,7 +147,7 @@ export default function DashboardLayout({
                   >
                     <Link href="/dashboard/users">
                       <Users />
-                      <span>Users</span>
+                      <span className="group-data-[collapsible=icon]:hidden">Users</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -144,7 +159,7 @@ export default function DashboardLayout({
                   >
                     <Link href="/dashboard/units">
                       <Building />
-                      <span>Units</span>
+                      <span className="group-data-[collapsible=icon]:hidden">Units</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -163,7 +178,7 @@ export default function DashboardLayout({
                 >
                 <Link href="/dashboard/profile">
                     <UserIcon />
-                    <span>Profile</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Profile</span>
                 </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
@@ -177,7 +192,7 @@ export default function DashboardLayout({
                   >
                     <Link href="/dashboard/settings">
                       <Settings />
-                      <span>Settings</span>
+                      <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -185,11 +200,14 @@ export default function DashboardLayout({
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarMenu>
+           <SidebarMenu>
+             <SidebarMenuItem>
+               <CustomSidebarTrigger />
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
                   <LogOut />
-                  <span>Logout</span>
+                  <span className="group-data-[collapsible=icon]:hidden">Logout</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

@@ -513,18 +513,10 @@ export default function ContractsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
-        <div className="flex items-center justify-between">
-            <div>
-                <PageHeaderHeading>Contracts</PageHeaderHeading>
-                <PageHeaderDescription>
-                Manage, view, and organize all your contracts.
-                </PageHeaderDescription>
-            </div>
-            <Button onClick={() => handleOpenDialog(null)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Contract
-            </Button>
-        </div>
+        <PageHeaderHeading>Contracts</PageHeaderHeading>
+        <PageHeaderDescription>
+          Manage, view, and organize all your contracts.
+        </PageHeaderDescription>
       </PageHeader>
       
       <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
@@ -1089,70 +1081,74 @@ export default function ContractsPage() {
         </Dialog>
 
       <Card>
-        <CardHeader className="space-y-4">
+        <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <CardTitle>Contract List</CardTitle>
                     <CardDescription>A list of all contracts in your system.</CardDescription>
                 </div>
-            </div>
-             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                 <Input
-                    placeholder="Search by contractor, ID, or type..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    className="w-full sm:w-auto"
-                />
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            <Filter className="mr-2 h-4 w-4" />
-                            Filter & Sort
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                        <div className="grid gap-4">
-                            <div className="space-y-2">
-                                <h4 className="font-medium leading-none">Filters</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Refine the contracts shown in the list.
-                                </p>
-                            </div>
-                            <div className="grid gap-2">
-                                <div className="grid grid-cols-3 items-center gap-4">
-                                    <label htmlFor="filter-status">Status</label>
-                                    <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
-                                        <SelectTrigger id="filter-status" className="col-span-2 h-8">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All</SelectItem>
-                                            <SelectItem value="active">Active</SelectItem>
-                                            <SelectItem value="inactive">Inactive</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid grid-cols-3 items-center gap-4">
-                                    <label htmlFor="filter-renewal">Renewal</label>
-                                    <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
-                                        <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All</SelectItem>
-                                            <SelectItem value="auto">Automatic</SelectItem>
-                                            <SelectItem value="manual">Manual</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
-                                <Trash2 className="mr-2 h-4 w-4"/>
-                                Clear Filters
+                <div className="flex items-center gap-2">
+                     <Input
+                        placeholder="Search by contractor, ID, or type..."
+                        value={searchTerm}
+                        onChange={handleSearch}
+                        className="w-full sm:w-auto"
+                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full sm:w-auto">
+                                <Filter className="mr-2 h-4 w-4" />
+                                Filter & Sort
                             </Button>
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Filters</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Refine the contracts shown in the list.
+                                    </p>
+                                </div>
+                                <div className="grid gap-2">
+                                    <div className="grid grid-cols-3 items-center gap-4">
+                                        <label htmlFor="filter-status">Status</label>
+                                        <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
+                                            <SelectTrigger id="filter-status" className="col-span-2 h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="active">Active</SelectItem>
+                                                <SelectItem value="inactive">Inactive</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid grid-cols-3 items-center gap-4">
+                                        <label htmlFor="filter-renewal">Renewal</label>
+                                        <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
+                                            <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="auto">Automatic</SelectItem>
+                                                <SelectItem value="manual">Manual</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
+                                    <Trash2 className="mr-2 h-4 w-4"/>
+                                    Clear Filters
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                     <Button onClick={() => handleOpenDialog(null)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Contract
+                    </Button>
+                </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -1160,29 +1156,29 @@ export default function ContractsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>
+                  <TableHead className="w-[25%]">
                     <Button variant="ghost" onClick={() => handleSort('contractorName')}>
                         Contractor
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[15%]">Type</TableHead>
+                  <TableHead className="w-[10%]">
                      <Button variant="ghost" onClick={() => handleSort('status')}>
                         Status
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="w-[15%]">
                      <Button variant="ghost" onClick={() => handleSort('endDate')}>
                         End Date
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                   </TableHead>
-                  <TableHead>Days Left</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Info</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[10%]">Days Left</TableHead>
+                  <TableHead className="w-[10%]">Unit</TableHead>
+                  <TableHead className="w-[10%]">Info</TableHead>
+                  <TableHead className="w-[5%]">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -1196,13 +1192,14 @@ export default function ContractsPage() {
                     return (
                         <TableRow key={contract.id} className={cn(contract.status === 'inactive' && 'opacity-50')}>
                         <TableCell className="font-medium">
-                            <div>{contract.contractorName}</div>
+                            <div className="truncate font-semibold">{contract.contractorName}</div>
                             <div className="text-xs text-muted-foreground">{contract.id}</div>
                         </TableCell>
                         <TableCell>{contract.type}</TableCell>
                         <TableCell>
                             <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}
                                 className={cn(
+                                    'w-20 justify-center',
                                     contract.status === 'active' 
                                     ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700' 
                                     : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
@@ -1218,7 +1215,7 @@ export default function ContractsPage() {
                         <TableCell>{contract.unit}</TableCell>
                         <TableCell>
                             <TooltipProvider>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
                                     {(contract.comments?.length || 0) > 0 && (
                                         <Tooltip>
                                             <TooltipTrigger>
@@ -1334,3 +1331,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

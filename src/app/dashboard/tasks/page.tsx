@@ -856,7 +856,7 @@ export default function TasksPage() {
                     <Button variant="ghost" size="icon" onClick={() => handleOpenBoardDialog(null)}><PlusCircle className="h-5 w-5" /></Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={!activeBoard}><Settings className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" disabled={!currentActiveBoardId}><Settings className="h-5 w-5" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
                             <DropdownMenuLabel>Board Actions</DropdownMenuLabel>

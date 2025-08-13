@@ -226,9 +226,30 @@ export const units: Unit[] = [
 ]
 
 export const taskBoards: TaskBoard[] = [
-    { id: 'TB-001', name: 'کارهای سازمانی', color: '#3b82f6' },
-    { id: 'TB-002', name: 'پروژه آلفا', color: '#ef4444' },
-    { id: 'TB-003', name: 'عملیات روزانه', color: '#10b981' },
+    { 
+      id: 'TB-001', 
+      name: 'کارهای سازمانی', 
+      color: '#3b82f6',
+      ownerId: 'U-001', // Super Admin
+      sharedWith: [
+        { userId: 'U-002', role: 'editor' },
+        { userId: 'U-003', role: 'viewer' },
+      ]
+    },
+    { 
+      id: 'TB-002', 
+      name: 'پروژه آلفا', 
+      color: '#ef4444',
+      ownerId: 'U-003', // Jane Smith
+      sharedWith: []
+    },
+    { 
+      id: 'TB-003', 
+      name: 'عملیات روزانه', 
+      color: '#10b981',
+      ownerId: 'U-002', // John Doe
+      sharedWith: []
+    },
 ];
 
 
@@ -251,6 +272,7 @@ export const tasks: Task[] = [
         assignedTo: 'U-002',
         sharedWith: [],
         tags: ['technical', 'backup', 'critical'],
+        priority: 'critical',
         comments: [
             { id: 'CMT-T001', text: 'Please ensure the off-site backup is also checked.', author: 'Super Admin', authorId: 'U-001', createdAt: '2024-07-29T11:00:00Z'}
         ]
@@ -272,6 +294,7 @@ export const tasks: Task[] = [
         reminders: [2],
         assignedTo: 'U-003',
         tags: ['reporting', 'marketing'],
+        priority: 'high',
         sharedWith: [],
         comments: []
     },
@@ -292,6 +315,7 @@ export const tasks: Task[] = [
         assignedTo: 'U-004',
         sharedWith: ['U-001'],
         tags: ['safety', 'operations'],
+        priority: 'medium',
         comments: []
     },
     {
@@ -311,6 +335,7 @@ export const tasks: Task[] = [
         assignedTo: 'U-002',
         sharedWith: ['U-001', 'U-004'],
         tags: ['meeting', 'daily'],
+        priority: 'low',
         comments: []
     },
      {
@@ -330,6 +355,7 @@ export const tasks: Task[] = [
         assignedTo: 'U-003',
         sharedWith: [],
         tags: ['design', 'marketing', 'creative'],
+        priority: 'high',
         comments: []
     }
 ];

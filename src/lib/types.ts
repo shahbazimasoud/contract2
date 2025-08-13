@@ -84,10 +84,20 @@ export type Task = {
     sharedWith?: string[]; // Array of User IDs
     comments?: Comment[];
     tags?: string[];
+    priority?: 'low' | 'medium' | 'high' | 'critical';
 };
+
+export type BoardPermissionRole = 'viewer' | 'editor';
+
+export type BoardShare = {
+    userId: string;
+    role: BoardPermissionRole;
+}
 
 export type TaskBoard = {
     id: string;
     name: string;
     color: string; // Hex color code
+    ownerId: string; // User ID of the creator/owner
+    sharedWith?: BoardShare[];
 }

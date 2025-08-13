@@ -1090,12 +1090,9 @@ export default function ContractsPage() {
 
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-start pb-4">
-                 <div>
-                    <CardTitle>Contract List</CardTitle>
-                    <CardDescription>A list of all contracts in your system.</CardDescription>
-                </div>
-                 <Popover>
+            <div className="flex items-center justify-between gap-4">
+                <CardTitle>Contract List</CardTitle>
+                <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="outline">
                             <Filter className="mr-2 h-4 w-4" />
@@ -1146,7 +1143,8 @@ export default function ContractsPage() {
                     </PopoverContent>
                 </Popover>
             </div>
-            <div className="w-full max-w-sm">
+            <CardDescription>A list of all contracts in your system.</CardDescription>
+             <div className="w-full max-w-sm pt-4">
                 <Input
                     placeholder="Search by contractor, ID, or type..."
                     value={searchTerm}

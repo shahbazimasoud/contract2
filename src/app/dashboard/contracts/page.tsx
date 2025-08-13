@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -80,11 +80,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { contracts as mockContracts, units as mockUnits, users as mockUsers } from '@/lib/mock-data';
-import type { Contract, User, Comment } from '@/lib/types';
+import type { Contract, User, Comment, ContractVersion } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 const AUTH_USER_KEY = 'current_user';
 const ITEMS_PER_PAGE = 10;
@@ -151,9 +154,12 @@ export default function ContractsPage() {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const { toast } = useToast();
   
-  const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
-  const [selectedContractForComments, setSelectedContractForComments] = useState<Contract | null>(null);
-  const [newComment, setNewComment] = useState("");
+  const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+  const [selectedContractForDetails, setSelectedContractForDetails] = useState<Contract | null>(null);
+  
+  const [isVersionViewOpen, setIsVersionViewOpen] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<ContractVersion | null>(null);
+
 
   const form = useForm<z.infer<typeof contractSchema>>({
     resolver: zodResolver(contractSchema),
@@ -251,19 +257,19 @@ export default function ContractsPage() {
     setAttachedFiles([]);
   }
 
-    const handleOpenCommentsSheet = (contract: Contract) => {
-        setSelectedContractForComments(contract);
-        setIsCommentsSheetOpen(true);
+    const handleOpenDetailsSheet = (contract: Contract) => {
+        setSelectedContractForDetails(contract);
+        setIsDetailsSheetOpen(true);
     };
 
-    const handleCloseCommentsSheet = () => {
-        setSelectedContractForComments(null);
-        setIsCommentsSheetOpen(false);
+    const handleCloseDetailsSheet = () => {
+        setSelectedContractForDetails(null);
+        setIsDetailsSheetOpen(false);
         commentForm.reset();
     };
 
     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
-        if (!currentUser || !selectedContractForComments) return;
+        if (!currentUser || !selectedContractForDetails) return;
 
         const newComment: Comment = {
             id: `CMT-${Date.now()}`,
@@ -274,12 +280,12 @@ export default function ContractsPage() {
         };
 
         const updatedContract = {
-            ...selectedContractForComments,
-            comments: [...(selectedContractForComments.comments || []), newComment],
+            ...selectedContractForDetails,
+            comments: [...(selectedContractForDetails.comments || []), newComment],
         };
 
         setContracts(contracts.map(c => c.id === updatedContract.id ? updatedContract : c));
-        setSelectedContractForComments(updatedContract);
+        setSelectedContractForDetails(updatedContract);
         commentForm.reset();
         toast({
             title: "Comment Added",
@@ -328,6 +334,25 @@ export default function ContractsPage() {
     if(!currentUser) return;
     
     if (editingContract) {
+       // Create a version snapshot before updating
+       const currentVersion: ContractVersion = {
+          versionNumber: (editingContract.versions?.length || 0) + 1,
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser.id,
+          contractorName: editingContract.contractorName,
+          type: editingContract.type,
+          description: editingContract.description,
+          startDate: editingContract.startDate,
+          endDate: editingContract.endDate,
+          renewal: editingContract.renewal,
+          status: editingContract.status,
+          attachments: editingContract.attachments,
+          reminders: editingContract.reminders,
+          reminderEmails: editingContract.reminderEmails,
+          reminderPhones: editingContract.reminderPhones,
+          unit: editingContract.unit,
+       };
+
       // Update existing contract
       const updatedContract: Contract = {
         ...editingContract,
@@ -338,11 +363,12 @@ export default function ContractsPage() {
         reminderEmails: values.reminderEmails.map(e => e.email),
         reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
         attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) : editingContract.attachments,
+        versions: [...(editingContract.versions || []), currentVersion],
       };
       setContracts(contracts.map(c => c.id === editingContract.id ? updatedContract : c));
       toast({
         title: "Contract Updated",
-        description: `Contract for "${updatedContract.contractorName}" has been successfully updated.`,
+        description: `Contract for "${updatedContract.contractorName}" has been successfully updated. A new version has been saved.`,
       });
     } else {
       // Create new contract
@@ -362,6 +388,7 @@ export default function ContractsPage() {
         reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
         createdBy: currentUser.name,
         comments: [],
+        versions: [],
       };
       setContracts([newContract, ...contracts]);
       toast({
@@ -420,8 +447,8 @@ export default function ContractsPage() {
     return differenceInDays(end, today);
   };
 
-  const getCommentAuthor = (authorId: string): User | undefined => {
-    return mockUsers.find(u => u.id === authorId);
+  const getCreator = (creatorId: string): User | undefined => {
+    return mockUsers.find(u => u.id === creatorId);
   }
 
   if (!currentUser) {
@@ -826,68 +853,185 @@ export default function ContractsPage() {
         </DialogContent>
       </Dialog>
       
-      <Sheet open={isCommentsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseCommentsSheet()}>
-        <SheetContent className="flex flex-col">
+      <Sheet open={isDetailsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDetailsSheet()}>
+        <SheetContent className="flex flex-col sm:max-w-lg">
             <SheetHeader>
-                <SheetTitle>Comments for {selectedContractForComments?.contractorName}</SheetTitle>
+                <SheetTitle>Details for {selectedContractForDetails?.contractorName}</SheetTitle>
                 <SheetDescription>
-                    Contract ID: {selectedContractForComments?.id}
+                    Contract ID: {selectedContractForDetails?.id}
                 </SheetDescription>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
-                {(selectedContractForComments?.comments || []).length > 0 ? (
-                    (selectedContractForComments?.comments || []).map(comment => {
-                       const author = getCommentAuthor(comment.authorId);
-                       return (
-                        <div key={comment.id} className="flex items-start gap-3">
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage src={author?.avatar} alt={author?.name}/>
-                                <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                    <p className="font-semibold text-sm">{comment.author}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                    </p>
+             <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="comments">Comments</TabsTrigger>
+                    <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+                <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
+                    <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
+                        {(selectedContractForDetails?.comments || []).length > 0 ? (
+                            (selectedContractForDetails?.comments || []).map(comment => {
+                               const creator = getCreator(comment.authorId);
+                               return (
+                                <div key={comment.id} className="flex items-start gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={creator?.avatar} alt={creator?.name}/>
+                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-sm">{comment.author}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                               )
+                            })
+                        ) : (
+                            <div className="text-center text-muted-foreground py-10">
+                                <MessageSquare className="mx-auto h-12 w-12" />
+                                <p className="mt-4">No comments yet.</p>
+                                <p>Be the first to add a comment.</p>
                             </div>
-                        </div>
-                       )
-                    })
-                ) : (
-                    <div className="text-center text-muted-foreground py-10">
-                        <MessageSquare className="mx-auto h-12 w-12" />
-                        <p className="mt-4">No comments yet.</p>
-                        <p>Be the first to add a comment.</p>
+                        )}
                     </div>
-                )}
-            </div>
-            <SheetFooter>
-                <div className="w-full">
-                <Form {...commentForm}>
-                    <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
-                       <FormField
-                          control={commentForm.control}
-                          name="text"
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormControl>
-                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button type="submit">Post</Button>
-                    </form>
-                </Form>
-                </div>
-            </SheetFooter>
+                     <div className="mt-auto pt-4 border-t">
+                        <Form {...commentForm}>
+                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                               <FormField
+                                  control={commentForm.control}
+                                  name="text"
+                                  render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                      <FormControl>
+                                        <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <Button type="submit">Post</Button>
+                            </form>
+                        </Form>
+                     </div>
+                </TabsContent>
+                 <TabsContent value="history" className="flex-1 overflow-y-auto">
+                    {(selectedContractForDetails?.versions || []).length > 0 ? (
+                        <div className="space-y-4 py-4">
+                            {[...(selectedContractForDetails?.versions || [])].reverse().map(version => {
+                                const creator = getCreator(version.createdBy);
+                                return (
+                                <div key={version.versionNumber} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={creator?.avatar} alt={creator?.name} />
+                                            <AvatarFallback>{creator?.name.charAt(0) || 'U'}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-medium">Version {version.versionNumber}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Saved by {creator?.name || 'Unknown'} on {format(new Date(version.createdAt), "PPP p")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => { setSelectedVersion(version); setIsVersionViewOpen(true); }}>
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )})}
+                        </div>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-10">
+                            <History className="mx-auto h-12 w-12" />
+                            <p className="mt-4">No version history.</p>
+                            <p>Edits to this contract will be tracked here.</p>
+                        </div>
+                    )}
+                 </TabsContent>
+            </Tabs>
         </SheetContent>
       </Sheet>
 
+        <Dialog open={isVersionViewOpen} onOpenChange={setIsVersionViewOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Contract Version {selectedVersion?.versionNumber}</DialogTitle>
+                    <DialogDescription>
+                        Read-only view of a past contract version. Saved by {getCreator(selectedVersion?.createdBy || '')?.name} on {selectedVersion ? format(new Date(selectedVersion.createdAt), "PPP p") : ''}.
+                    </DialogDescription>
+                </DialogHeader>
+                {selectedVersion && (
+                    <ScrollArea className="max-h-[70vh]">
+                    <div className="space-y-4 p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Contractor Name</p>
+                                <p>{selectedVersion.contractorName}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Contract Type</p>
+                                <p>{selectedVersion.type}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Start Date</p>
+                                <p>{formatPersian(new Date(selectedVersion.startDate), 'yyyy/MM/dd')}</p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">End Date</p>
+                                <p>{formatPersian(new Date(selectedVersion.endDate), 'yyyy/MM/dd')}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Unit</p>
+                                <p>{selectedVersion.unit}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Renewal Policy</p>
+                                <p className="capitalize">{selectedVersion.renewal}</p>
+                            </div>
+                             <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                                <p className="capitalize">{selectedVersion.status}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                           <p className="text-sm font-medium text-muted-foreground">Description</p>
+                           <p className="text-sm">{selectedVersion.description || 'N/A'}</p>
+                        </div>
+                         <div className="space-y-1">
+                           <p className="text-sm font-medium text-muted-foreground">Reminder Emails</p>
+                           <p className="text-sm">{selectedVersion.reminderEmails.join(', ')}</p>
+                        </div>
+                         <div className="space-y-1">
+                           <p className="text-sm font-medium text-muted-foreground">Reminder Phones</p>
+                           <p className="text-sm">{selectedVersion.reminderPhones.join(', ') || 'N/A'}</p>
+                        </div>
+                         <div className="space-y-1">
+                           <p className="text-sm font-medium text-muted-foreground">Reminder Days</p>
+                           <p className="text-sm">{selectedVersion.reminders.join(', ')}</p>
+                        </div>
+                         <div className="space-y-1">
+                           <p className="text-sm font-medium text-muted-foreground">Attachments</p>
+                           {selectedVersion.attachments.length > 0 ? (
+                                <ul className="list-disc list-inside text-sm">
+                                    {selectedVersion.attachments.map((file, index) => (
+                                        <li key={index}>
+                                            <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
+                                        </li>
+                                    ))}
+                                </ul>
+                           ) : <p className="text-sm">No attachments</p>}
+                        </div>
+
+                    </div>
+                    </ScrollArea>
+                )}
+                 <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsVersionViewOpen(false)}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
       <Card>
         <CardHeader>
@@ -1006,7 +1150,7 @@ export default function ContractsPage() {
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleOpenCommentsSheet(contract)}>Comments</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenDetailsSheet(contract)}>Details</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
                             </DropdownMenuContent>

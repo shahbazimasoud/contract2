@@ -1,4 +1,12 @@
 
+export type Comment = {
+  id: string;
+  text: string;
+  author: string;
+  authorId: string;
+  createdAt: string;
+};
+
 export type ContractVersion = {
   versionNumber: number;
   createdAt: string; // ISO String
@@ -15,12 +23,6 @@ export type ContractVersion = {
   reminderEmails: string[];
   reminderPhones: string[];
   unit: string;
-export type Comment = {
-  id: string;
-  text: string;
-  author: string;
-  authorId: string;
-  createdAt: string;
 };
 
 export type Contract = {
@@ -52,22 +54,6 @@ export type User = {
   avatar?: string;
 };
 
-export type ContractVersion = {
-  versionNumber: number;
-  createdAt: string; // ISO String
-  createdBy: string; // User ID or Name
-  contractorName: string;
-  type: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  renewal: 'auto' | 'manual';
-  status: 'active' | 'inactive';
-  attachments: { name: string; url: string }[];
-  reminders: number[];
-  reminderEmails: string[];
-  reminderPhones: string[];
-  unit: string;
 export type Unit = {
     id: string;
     name: string;

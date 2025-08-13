@@ -774,7 +774,16 @@ export default function TasksPage() {
                                             <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
                                             <TableCell>{formatRecurrence(task)}</TableCell>
                                             <TableCell>
-                                                <Badge variant={task.status === 'pending' ? 'secondary' : 'outline'}>{task.status}</Badge>
+                                                <Badge
+                                                    variant={'outline'}
+                                                    className={cn(
+                                                        task.status === 'pending'
+                                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
+                                                            : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
+                                                    )}
+                                                >
+                                                    {task.status}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <TooltipProvider>

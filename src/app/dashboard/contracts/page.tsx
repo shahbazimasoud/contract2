@@ -1081,74 +1081,72 @@ export default function ContractsPage() {
         </Dialog>
 
       <Card>
-        <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <CardTitle>Contract List</CardTitle>
-                    <CardDescription>A list of all contracts in your system.</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                     <Input
-                        placeholder="Search by contractor, ID, or type..."
-                        value={searchTerm}
-                        onChange={handleSearch}
-                        className="w-full sm:w-auto"
-                    />
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full sm:w-auto">
-                                <Filter className="mr-2 h-4 w-4" />
-                                Filter & Sort
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <h4 className="font-medium leading-none">Filters</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Refine the contracts shown in the list.
-                                    </p>
-                                </div>
-                                <div className="grid gap-2">
-                                    <div className="grid grid-cols-3 items-center gap-4">
-                                        <label htmlFor="filter-status">Status</label>
-                                        <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
-                                            <SelectTrigger id="filter-status" className="col-span-2 h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="active">Active</SelectItem>
-                                                <SelectItem value="inactive">Inactive</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-3 items-center gap-4">
-                                        <label htmlFor="filter-renewal">Renewal</label>
-                                        <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
-                                            <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="auto">Automatic</SelectItem>
-                                                <SelectItem value="manual">Manual</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
-                                    <Trash2 className="mr-2 h-4 w-4"/>
-                                    Clear Filters
-                                </Button>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <CardTitle>Contract List</CardTitle>
+                <CardDescription>A list of all contracts in your system.</CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+                 <Input
+                    placeholder="Search by contractor, ID, or type..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="w-full sm:w-auto"
+                />
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                            <Filter className="mr-2 h-4 w-4" />
+                            Filter & Sort
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="grid gap-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Filters</h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Refine the contracts shown in the list.
+                                </p>
                             </div>
-                        </PopoverContent>
-                    </Popover>
-                     <Button onClick={() => handleOpenDialog(null)}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Contract
-                    </Button>
-                </div>
+                            <div className="grid gap-2">
+                                <div className="grid grid-cols-3 items-center gap-4">
+                                    <label htmlFor="filter-status">Status</label>
+                                    <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
+                                        <SelectTrigger id="filter-status" className="col-span-2 h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="active">Active</SelectItem>
+                                            <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-3 items-center gap-4">
+                                    <label htmlFor="filter-renewal">Renewal</label>
+                                    <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
+                                        <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="auto">Automatic</SelectItem>
+                                            <SelectItem value="manual">Manual</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
+                                <Trash2 className="mr-2 h-4 w-4"/>
+                                Clear Filters
+                            </Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+                 <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Contract
+                </Button>
             </div>
         </CardHeader>
         <CardContent>

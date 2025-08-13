@@ -2,11 +2,13 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse, formatDistanceToNow } from 'date-fns';
+import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds } from 'date-fns';
+import * as ics from 'ics';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +57,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
@@ -306,6 +309,41 @@ export default function TasksPage() {
         }
         handleCloseDialog();
     };
+
+    const handleAddToCalendar = (task: Task) => {
+        const dueDate = new Date(task.dueDate);
+        const [hours, minutes] = task.recurrence.time.split(':').map(Number);
+        const startDate = setSeconds(setMinutes(setHours(dueDate, hours), minutes), 0);
+        
+        const event: ics.EventAttributes = {
+            title: task.title,
+            description: task.description,
+            start: [startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate(), startDate.getHours(), startDate.getMinutes()],
+            duration: { hours: 1 },
+        };
+        
+        ics.createEvent(event, (error, value) => {
+            if (error) {
+                console.error(error);
+                toast({
+                    title: "Error Creating Calendar Event",
+                    description: "There was a problem generating the .ics file.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            const blob = new Blob([value], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${task.title.replace(/\s+/g, '_')}.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+    }
 
     const recurrenceType = form.watch('recurrenceType');
 
@@ -806,6 +844,11 @@ export default function TasksPage() {
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={() => handleOpenDialog(task)}>Edit</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleOpenCommentsSheet(task)}>Comments</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                                                            <CalendarPlus className="mr-2 h-4 w-4" />
+                                                            Add to Calendar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive">Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>

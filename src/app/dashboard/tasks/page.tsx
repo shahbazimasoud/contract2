@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -154,11 +154,14 @@ export default function TasksPage() {
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
     const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+    const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
 
 
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
     const [sharingBoard, setSharingBoard] = useState<TaskBoard | null>(null);
+    const [movingTask, setMovingTask] = useState<Task | null>(null);
+    const [moveTargetBoardId, setMoveTargetBoardId] = useState<string>("");
 
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
@@ -224,19 +227,19 @@ export default function TasksPage() {
     }, [boards, currentUser]);
     
     useEffect(() => {
-      if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-        const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-        if (ownedBoard) {
+        if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
+          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+          if (ownedBoard) {
             setActiveBoardId(ownedBoard.id);
-        } else {
+          } else {
             setActiveBoardId(visibleBoards[0].id);
+          }
         }
-      }
     }, [currentUser, visibleBoards, activeBoardId]);
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
     
-    const userPermissions = useMemo(() => {
+    const userPermissions = useMemo((): BoardPermissionRole | 'owner' | 'none' => {
         if (!currentUser || !activeBoard) return 'none';
         if (activeBoard.ownerId === currentUser.id) return 'owner';
         const shareInfo = activeBoard.sharedWith?.find(s => s.userId === currentUser.id);
@@ -361,6 +364,17 @@ export default function TasksPage() {
         setSharingBoard(null);
         setIsShareDialogOpen(false);
     }
+    
+    const handleOpenMoveDialog = (task: Task) => {
+        setMovingTask(task);
+        setMoveTargetBoardId(""); // Reset selection
+        setIsMoveTaskDialogOpen(true);
+    };
+
+    const handleCloseMoveDialog = () => {
+        setMovingTask(null);
+        setIsMoveTaskDialogOpen(false);
+    };
 
     const onBoardSubmit = (values: z.infer<typeof boardSchema>) => {
       if(!currentUser) return;
@@ -524,6 +538,21 @@ export default function TasksPage() {
           variant: "destructive",
       });
     }
+    
+     const handleConfirmMoveTask = () => {
+        if (!movingTask || !moveTargetBoardId) return;
+
+        const updatedTask = { ...movingTask, boardId: moveTargetBoardId };
+        setTasks(tasks.map(t => t.id === movingTask.id ? updatedTask : t));
+        
+        const targetBoard = boards.find(b => b.id === moveTargetBoardId);
+        toast({
+            title: "Task Moved",
+            description: `Task "${movingTask.title}" has been moved to the "${targetBoard?.name}" board.`,
+        });
+        
+        handleCloseMoveDialog();
+    };
 
     const onTaskSubmit = (values: z.infer<typeof taskSchema>) => {
         if (!currentUser || !activeBoardId) return;
@@ -908,6 +937,38 @@ export default function TasksPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+            <Dialog open={isMoveTaskDialogOpen} onOpenChange={handleCloseMoveDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Move Task</DialogTitle>
+                        <DialogDescription>
+                            Move "{movingTask?.title}" to another board.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="move-board-select">Select a destination board</Label>
+                        <Select value={moveTargetBoardId} onValueChange={setMoveTargetBoardId}>
+                            <SelectTrigger id="move-board-select" className="mt-2">
+                                <SelectValue placeholder="Choose a board..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {visibleBoards
+                                    .filter(board => board.id !== movingTask?.boardId)
+                                    .map(board => (
+                                    <SelectItem key={board.id} value={board.id}>
+                                        {board.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                        <Button onClick={handleConfirmMoveTask} disabled={!moveTargetBoardId}>Move Task</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
 
             <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
@@ -1226,6 +1287,10 @@ export default function TasksPage() {
                                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                                 <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
+                                                                    <Move className="mr-2 h-4 w-4" />
+                                                                    Move Task
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
                                                                     <CalendarPlus className="mr-2 h-4 w-4" />
                                                                     Add to Calendar
@@ -1796,3 +1861,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

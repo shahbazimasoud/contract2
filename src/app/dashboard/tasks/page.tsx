@@ -64,6 +64,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
@@ -228,12 +229,14 @@ export default function TasksPage() {
     
     useEffect(() => {
         if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-          if (ownedBoard) {
-            setActiveBoardId(ownedBoard.id);
-          } else {
-            setActiveBoardId(visibleBoards[0].id);
-          }
+            // Prioritize selecting a board owned by the user
+            const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+            if (ownedBoard) {
+                setActiveBoardId(ownedBoard.id);
+            } else {
+                // Fallback to the first visible board
+                setActiveBoardId(visibleBoards[0].id);
+            }
         }
     }, [currentUser, visibleBoards, activeBoardId]);
 
@@ -1861,4 +1864,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
 

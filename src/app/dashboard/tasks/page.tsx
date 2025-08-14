@@ -327,7 +327,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: columnId || activeColumns?.[0]?.id || "",
+                columnId: activeColumns?.[0]?.id || "",
                 assignedTo: "",
                 sharedWith: [],
                 tags: "",
@@ -2449,5 +2449,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

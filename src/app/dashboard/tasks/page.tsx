@@ -366,11 +366,24 @@ export default function TasksPage() {
 
     const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
-        if (!task && columnId) {
-            const activeColumns = activeBoard?.columns.filter(c => !c.isArchived);
+        if (!task && columnId && activeBoard) {
+             const defaultUnit = currentUser?.role === 'admin' ? currentUser.unit : "";
+             const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
             form.reset({
-                ...form.getValues(),
-                columnId: columnId,
+                title: "",
+                description: "",
+                unit: defaultUnit,
+                columnId: columnId || activeColumns?.[0]?.id || "",
+                assignedTo: "",
+                sharedWith: [],
+                tags: "",
+                priority: 'medium',
+                dueDate: new Date(),
+                recurrenceType: 'none',
+                time: "09:00",
+                reminders: [{ days: 1 }],
+                checklist: [],
+                attachments: [],
             });
         }
         setIsTaskDialogOpen(true);
@@ -969,7 +982,9 @@ export default function TasksPage() {
       const checklistItems = task.checklist || [];
       const completedItems = checklistItems.filter(item => item.completed).length;
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
-      const isCompleted = activeBoard?.columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+      
+      const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
+      const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
 
       return (
         <Card 
@@ -1679,7 +1694,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[16rem] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[24rem] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>

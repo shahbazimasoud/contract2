@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
 import * as ics from 'ics';
+import { usePathname, useRouter, Link } from "next-intl/navigation";
 
 
 import { Button } from '@/components/ui/button';
@@ -795,7 +796,7 @@ export default function TasksPage() {
     }
     
     if (!currentUser) {
-      return <div className="flex h-screen items-center justify-center">Loading...</div>;
+      return null
     }
 
     const renderTaskCard = (task: Task) => {
@@ -804,12 +805,21 @@ export default function TasksPage() {
       const completedItems = checklistItems.filter(item => item.completed).length;
 
       return (
-        <Card key={task.id} className="mb-4">
+        <Card key={task.id} className={cn("mb-4", task.status === 'completed' && 'opacity-60')}>
           <CardContent className="p-4">
-            <div className="flex justify-between items-start">
-              <span className="font-semibold text-sm">{task.title}</span>
+            <div className="flex justify-between items-start gap-2">
+                <div className="flex items-start gap-3">
+                    <Checkbox
+                        checked={task.status === 'completed'}
+                        onCheckedChange={() => handleToggleStatus(task)}
+                        aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                        className="rounded-full h-5 w-5 mt-0.5"
+                        disabled={userPermissions === 'viewer'}
+                    />
+                    <span className={cn("font-semibold text-sm", task.status === 'completed' && 'line-through')}>{task.title}</span>
+                </div>
               <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                  <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
@@ -828,12 +838,12 @@ export default function TasksPage() {
               </DropdownMenu>
             </div>
             {task.tags && task.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-2 ml-8 flex flex-wrap gap-1">
                     {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
                 </div>
             )}
-            <p className="text-xs text-muted-foreground mt-2">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
-            <div className="flex items-center justify-between mt-4">
+            <p className={cn("text-xs text-muted-foreground mt-2 ml-8", task.status === 'completed' && 'line-through')}>{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+            <div className="flex items-center justify-between mt-4 ml-8">
                <div className="flex items-center gap-2">
                 {(task.attachments?.length || 0) > 0 && (
                     <TooltipProvider>
@@ -1432,16 +1442,16 @@ export default function TasksPage() {
                                     </Table>
                                 </div>
                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     <div id="pending-column">
-                                        <h3 className="text-lg font-semibold mb-4">Pending ({filteredTasks.filter(t => t.status === 'pending').length})</h3>
-                                        <div className="bg-muted/50 rounded-lg p-4 min-h-[400px]">
+                                        <h3 className="text-lg font-semibold mb-4 text-center">Pending ({filteredTasks.filter(t => t.status === 'pending').length})</h3>
+                                        <div className="bg-muted/50 rounded-lg p-2 min-h-[400px]">
                                              {filteredTasks.filter(t => t.status === 'pending').map(renderTaskCard)}
                                         </div>
                                     </div>
                                     <div id="completed-column">
-                                        <h3 className="text-lg font-semibold mb-4">Completed ({filteredTasks.filter(t => t.status === 'completed').length})</h3>
-                                        <div className="bg-muted/50 rounded-lg p-4 min-h-[400px]">
+                                        <h3 className="text-lg font-semibold mb-4 text-center">Completed ({filteredTasks.filter(t => t.status === 'completed').length})</h3>
+                                        <div className="bg-muted/50 rounded-lg p-2 min-h-[400px]">
                                             {filteredTasks.filter(t => t.status === 'completed').map(renderTaskCard)}
                                         </div>
                                     </div>
@@ -1992,8 +2002,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-
-
-
-    

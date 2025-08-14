@@ -144,6 +144,8 @@ export default function TasksPage() {
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+    const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
 
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
@@ -381,6 +383,7 @@ export default function TasksPage() {
             description: `Board "${boardToDelete?.name}" and all its tasks have been deleted.`,
             variant: "destructive",
         });
+        setIsDeleteAlertOpen(false);
     };
 
      const handleShareUpdate = (userId: string, role: BoardPermissionRole) => {
@@ -835,6 +838,22 @@ export default function TasksPage() {
                 </DialogContent>
              </Dialog>
 
+            <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the board
+                        and all tasks associated with it.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteBoard} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
 
             <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
                 <div className="flex items-center gap-2 mb-2">
@@ -872,28 +891,10 @@ export default function TasksPage() {
                                 <Share2 className="mr-2 h-4 w-4"/>
                                 Share Board
                             </DropdownMenuItem>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                   <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive" disabled={userPermissions !== 'owner'}>
-                                     <Trash2 className="mr-2 h-4 w-4"/>
-                                     Delete Current Board
-                                   </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the board
-                                        and all tasks associated with it.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDeleteBoard}>Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-
+                            <DropdownMenuItem onSelect={() => setIsDeleteAlertOpen(true)} className="text-destructive" disabled={userPermissions !== 'owner'}>
+                                <Trash2 className="mr-2 h-4 w-4"/>
+                                Delete Current Board
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
 

@@ -1,14 +1,15 @@
 
+
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
 import * as ics from 'ics';
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 
@@ -77,7 +78,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -101,7 +102,7 @@ import { Progress } from '@/components/ui/progress';
 
 
 const AUTH_USER_KEY = 'current_user';
-type SortableTaskField = 'title' | 'dueDate' | 'status' | 'priority';
+type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
 
 const reminderDaysSchema = z.object({
@@ -118,6 +119,7 @@ const taskSchema = z.object({
     title: z.string().min(1, "Title is required"),
     description: z.string().optional(),
     unit: z.string().min(1, "Unit is required"),
+    columnId: z.string().min(1, "A list must be selected"),
     assignedTo: z.string().optional(),
     sharedWith: z.array(z.string()).optional(),
     tags: z.string().optional(),
@@ -141,6 +143,10 @@ const boardSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Invalid hex color"),
 });
 
+const columnSchema = z.object({
+  title: z.string().min(1, "Column title cannot be empty"),
+});
+
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
@@ -159,6 +165,11 @@ export default function TasksPage() {
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
     const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
+    
+    // States for inline column editing
+    const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const [editingColumnTitle, setEditingColumnTitle] = useState("");
+    const [showAddColumnForm, setShowAddColumnForm] = useState(false);
 
 
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -182,6 +193,8 @@ export default function TasksPage() {
     const [filters, setFilters] = useState({ status: 'all', unit: 'all', tags: [] as string[], priority: 'all' });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
+    const newColumnFormRef = useRef<HTMLFormElement>(null);
+
 
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
@@ -189,6 +202,7 @@ export default function TasksPage() {
             title: "",
             description: "",
             unit: "",
+            columnId: "",
             assignedTo: "",
             sharedWith: [],
             tags: "",
@@ -213,6 +227,11 @@ export default function TasksPage() {
         color: defaultColors[0],
       }
     });
+    
+    const columnForm = useForm<z.infer<typeof columnSchema>>({
+        resolver: zodResolver(columnSchema),
+        defaultValues: { title: "" }
+    });
 
     useEffect(() => {
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
@@ -232,13 +251,11 @@ export default function TasksPage() {
     
     useEffect(() => {
         if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-            // Prioritize selecting a board owned by the user
             const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
             if (ownedBoard) {
                 setActiveBoardId(ownedBoard.id);
             } else {
-                // Fallback to the first visible board
-                setActiveBoardId(visibleBoards[0].id);
+                setActiveBoardId(visibleBoards[0]?.id);
             }
         }
     }, [currentUser, visibleBoards, activeBoardId]);
@@ -283,6 +300,7 @@ export default function TasksPage() {
                 title: editingTask.title,
                 description: editingTask.description,
                 unit: editingTask.unit,
+                columnId: editingTask.columnId,
                 assignedTo: editingTask.assignedTo,
                 sharedWith: editingTask.sharedWith,
                 tags: editingTask.tags?.join(', '),
@@ -302,6 +320,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
+                columnId: activeBoard?.columns[0]?.id || "",
                 assignedTo: "",
                 sharedWith: [],
                 tags: "",
@@ -314,7 +333,7 @@ export default function TasksPage() {
                 attachments: [],
             });
         }
-    }, [editingTask, form, currentUser]);
+    }, [editingTask, form, currentUser, activeBoard]);
 
     useEffect(() => {
         if (editingBoard) {
@@ -329,6 +348,18 @@ export default function TasksPage() {
             });
         }
     }, [editingBoard, boardForm]);
+    
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (newColumnFormRef.current && !newColumnFormRef.current.contains(event.target as Node)) {
+                setShowAddColumnForm(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     const handleOpenTaskDialog = (task: Task | null) => {
         setEditingTask(task);
@@ -399,6 +430,11 @@ export default function TasksPage() {
             color: values.color,
             ownerId: currentUser.id,
             sharedWith: [],
+            columns: [
+                { id: `COL-new-1`, title: 'To Do', boardId: `TB-${Date.now()}` },
+                { id: `COL-new-2`, title: 'In Progress', boardId: `TB-${Date.now()}` },
+                { id: `COL-new-3`, title: 'Done', boardId: `TB-${Date.now()}` },
+            ],
         };
         setBoards(prev => [...prev, newBoard]);
         setActiveBoardId(newBoard.id);
@@ -419,13 +455,12 @@ export default function TasksPage() {
             return;
         }
         
-        // Filter out the board and its associated tasks
         const remainingBoards = boards.filter(b => b.id !== activeBoardId);
         const remainingTasks = tasks.filter(t => t.boardId !== activeBoardId);
 
         setBoards(remainingBoards);
         setTasks(remainingTasks);
-        setActiveBoardId(remainingBoards[0]?.id || null); // Switch to the first remaining board or null
+        setActiveBoardId(remainingBoards[0]?.id || null);
 
         toast({
             title: "Board Deleted",
@@ -434,6 +469,52 @@ export default function TasksPage() {
         });
         setIsDeleteAlertOpen(false);
     };
+    
+    const handleAddColumn = (values: z.infer<typeof columnSchema>) => {
+        if (!activeBoard) return;
+        
+        const newColumn: BoardColumn = {
+            id: `COL-${Date.now()}`,
+            title: values.title,
+            boardId: activeBoard.id
+        };
+        
+        const updatedBoard = { ...activeBoard, columns: [...activeBoard.columns, newColumn] };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        
+        toast({ title: "List Added", description: `List "${values.title}" has been added.`});
+        columnForm.reset();
+        setShowAddColumnForm(false);
+    };
+
+    const handleEditColumn = (columnId: string, newTitle: string) => {
+        if (!activeBoard || !newTitle) {
+            setEditingColumnId(null);
+            return;
+        };
+
+        const updatedColumns = activeBoard.columns.map(c => c.id === columnId ? { ...c, title: newTitle } : c);
+        const updatedBoard = { ...activeBoard, columns: updatedColumns };
+        
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        setEditingColumnId(null);
+        toast({ title: "List Renamed", description: `List has been renamed to "${newTitle}".`});
+    };
+    
+    const handleDeleteColumn = (columnId: string) => {
+        if (!activeBoard) return;
+        
+        const updatedColumns = activeBoard.columns.filter(c => c.id !== columnId);
+        const updatedBoard = { ...activeBoard, columns: updatedColumns };
+        
+        const tasksInDeletedColumn = tasks.filter(t => t.columnId === columnId);
+        const remainingTasks = tasks.filter(t => t.columnId !== columnId);
+        
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        setTasks(remainingTasks);
+        
+        toast({ title: "List Deleted", description: `List and its ${tasksInDeletedColumn.length} tasks have been deleted.`, variant: "destructive" });
+    }
 
      const handleShareUpdate = (userId: string, role: BoardPermissionRole) => {
         if (!sharingBoard) return;
@@ -442,10 +523,8 @@ export default function TasksPage() {
         const existingShareIndex = newSharedWith.findIndex(s => s.userId === userId);
 
         if (existingShareIndex > -1) {
-            // Update existing user's role
             newSharedWith[existingShareIndex].role = role;
         } else {
-            // Add new user
             newSharedWith.push({ userId, role });
         }
         
@@ -516,7 +595,6 @@ export default function TasksPage() {
         });
         setTasks(updatedTasks);
         
-        // Also update the task in the details sheet if it's open
         if (selectedTaskForDetails?.id === taskId) {
              const updatedChecklist = selectedTaskForDetails.checklist?.map(item =>
                 item.id === itemId ? { ...item, completed } : item
@@ -526,13 +604,21 @@ export default function TasksPage() {
     };
 
 
-    const handleToggleStatus = (task: Task) => {
-        const newStatus = task.status === 'pending' ? 'completed' : 'pending';
-        const updatedTask = { ...task, status: newStatus };
+    const handleToggleStatusInList = (task: Task) => {
+        if (!activeBoard) return;
+        // This is a simplified toggle for list view. It moves between the first and last column.
+        const firstColumnId = activeBoard.columns[0]?.id;
+        const lastColumnId = activeBoard.columns[activeBoard.columns.length - 1]?.id;
+        
+        if (!firstColumnId || !lastColumnId) return;
+
+        const newColumnId = task.columnId === lastColumnId ? firstColumnId : lastColumnId;
+        
+        const updatedTask = { ...task, columnId: newColumnId };
         setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
         toast({
             title: "Task Status Updated",
-            description: `Task "${task.title}" marked as ${newStatus}.`,
+            description: `Task "${task.title}" moved to "${activeBoard.columns.find(c => c.id === newColumnId)?.title}".`,
         });
     };
     
@@ -548,10 +634,15 @@ export default function TasksPage() {
      const handleConfirmMoveTask = () => {
         if (!movingTask || !moveTargetBoardId) return;
 
-        const updatedTask = { ...movingTask, boardId: moveTargetBoardId };
+        const targetBoard = boards.find(b => b.id === moveTargetBoardId);
+        if (!targetBoard || !targetBoard.columns[0]) {
+            toast({ title: "Error", description: "The destination board has no columns.", variant: "destructive" });
+            return;
+        }
+
+        const updatedTask = { ...movingTask, boardId: moveTargetBoardId, columnId: targetBoard.columns[0].id };
         setTasks(tasks.map(t => t.id === movingTask.id ? updatedTask : t));
         
-        const targetBoard = boards.find(b => b.id === moveTargetBoardId);
         toast({
             title: "Task Moved",
             description: `Task "${movingTask.title}" has been moved to the "${targetBoard?.name}" board.`,
@@ -567,6 +658,7 @@ export default function TasksPage() {
             title: values.title,
             description: values.description,
             unit: values.unit,
+            columnId: values.columnId,
             assignedTo: values.assignedTo,
             sharedWith: values.sharedWith,
             tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
@@ -589,7 +681,6 @@ export default function TasksPage() {
                 attachments: attachedFiles.length > 0 
                     ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) 
                     : editingTask.attachments,
-                status: editingTask.status, // Preserve status on edit
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
             toast({
@@ -603,7 +694,6 @@ export default function TasksPage() {
                 createdBy: currentUser.name,
                 ...taskData,
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
-                status: 'pending',
                 comments: [],
             };
             setTasks([newTask, ...tasks]);
@@ -716,17 +806,15 @@ export default function TasksPage() {
 
         let baseTasks = tasks.filter(task => task.boardId === activeBoardId);
         
-        // 3. Apply search and filters
         baseTasks = baseTasks.filter(task => {
             const searchMatch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
-            const statusMatch = filters.status === 'all' || task.status === filters.status;
+            // Status filter is now handled by columns in board view, so we ignore it here for list view consistency
             const unitMatch = filters.unit === 'all' || task.unit === filters.unit;
             const tagsMatch = filters.tags.length === 0 || filters.tags.every(tag => task.tags?.includes(tag));
             const priorityMatch = filters.priority === 'all' || task.priority === filters.priority;
-            return searchMatch && statusMatch && unitMatch && tagsMatch && priorityMatch;
+            return searchMatch && unitMatch && tagsMatch && priorityMatch;
         });
         
-         // 4. Apply sorting
         baseTasks.sort((a, b) => {
             const field = sorting.field;
             const direction = sorting.direction === 'asc' ? 1 : -1;
@@ -795,7 +883,6 @@ export default function TasksPage() {
         return mockUsers.find(u => u.id === authorId);
     }
     
-    // --- Drag and Drop Handlers ---
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, taskId: string) => {
         e.dataTransfer.setData("taskId", taskId);
     };
@@ -809,17 +896,18 @@ export default function TasksPage() {
         e.currentTarget.classList.remove('bg-primary/10');
     }
 
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: 'pending' | 'completed') => {
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newColumnId: string) => {
         e.preventDefault();
         e.currentTarget.classList.remove('bg-primary/10');
         const taskId = e.dataTransfer.getData("taskId");
         const task = tasks.find(t => t.id === taskId);
         
-        if (task && task.status !== newStatus) {
-            setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        if (task && task.columnId !== newColumnId) {
+            setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, columnId: newColumnId } : t));
+            const columnName = activeBoard?.columns.find(c => c.id === newColumnId)?.title;
             toast({
-                title: "Task Status Updated",
-                description: `Task "${task.title}" moved to ${newStatus}.`,
+                title: "Task Moved",
+                description: `Task "${task.title}" moved to ${columnName}.`,
             });
         }
     };
@@ -837,49 +925,40 @@ export default function TasksPage() {
       return (
         <Card 
           key={task.id} 
-          className={cn("mb-4 cursor-grab", !canEdit && 'cursor-not-allowed')}
+          className={cn("mb-2 cursor-grab", !canEdit && 'cursor-not-allowed')}
           draggable={canEdit}
           onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex justify-between items-start gap-2">
-                <div className="flex items-center gap-2 flex-1">
-                     <Checkbox
-                        checked={task.status === 'completed'}
-                        onCheckedChange={() => handleToggleStatus(task)}
-                        aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
-                        className="rounded-full h-5 w-5"
-                        disabled={userPermissions === 'viewer'}
-                    />
-                    <span className={cn("font-semibold text-sm", task.status === 'completed' && 'line-through')}>{task.title}</span>
-                </div>
-              <DropdownMenu>
-                  <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
-                          <Move className="mr-2 h-4 w-4" />
-                          Move Task
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
-                          <CalendarPlus className="mr-2 h-4 w-4" />
-                          Add to Calendar
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-              </DropdownMenu>
+                <span className="font-semibold text-sm leading-tight">{task.title}</span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
+                            <Move className="mr-2 h-4 w-4" />
+                            Move Task
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                            <CalendarPlus className="mr-2 h-4 w-4" />
+                            Add to Calendar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
             {task.tags && task.tags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
-                    {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                    {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
                 </div>
             )}
-            <p className={cn("text-xs text-muted-foreground mt-2", task.status === 'completed' && 'line-through')}>{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
-            <div className="flex items-center justify-between mt-4">
-               <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground mt-2">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+            <div className="flex items-center justify-between mt-3">
+               <div className="flex items-center gap-3">
                 {(task.attachments?.length || 0) > 0 && (
                     <TooltipProvider>
                       <Tooltip>
@@ -1199,74 +1278,66 @@ export default function TasksPage() {
                                 </div>
                             </div>
                             <CardDescription>A list of all tasks in this board.</CardDescription>
-                            <div className="flex flex-wrap items-center gap-2 pt-4">
-                                <Input
-                                    placeholder="Search tasks by title..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="max-w-sm"
-                                />
-                                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                                    <SelectTrigger className="w-[180px]">
-                                        <SelectValue placeholder="Filter by status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Statuses</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {currentUser.role === 'super-admin' && (
-                                    <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
-                                        <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder="Filter by unit" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All Units</SelectItem>
-                                            {mockUnits.map(unit => (
-                                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="w-full sm:w-auto">
-                                            <Tag className="mr-2 h-4 w-4" />
-                                            Filter by Tags
-                                            {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-64 p-0">
-                                        <Command>
-                                            <CommandInput placeholder="Filter tags..." />
-                                            <CommandList>
-                                                <CommandEmpty>No tags found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {allTags.map((tag) => (
-                                                        <CommandItem
-                                                            key={tag}
-                                                            onSelect={() => {
-                                                                const newTags = filters.tags.includes(tag)
-                                                                    ? filters.tags.filter(t => t !== tag)
-                                                                    : [...filters.tags, tag];
-                                                                setFilters(prev => ({ ...prev, tags: newTags }));
-                                                            }}
-                                                        >
-                                                            <Checkbox
-                                                                className="mr-2"
-                                                                checked={filters.tags.includes(tag)}
-                                                            />
-                                                            <span>{tag}</span>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                             {viewMode === 'list' && (
+                                <div className="flex flex-wrap items-center gap-2 pt-4">
+                                    <Input
+                                        placeholder="Search tasks by title..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="max-w-sm"
+                                    />
+                                    {currentUser.role === 'super-admin' && (
+                                        <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                                            <SelectTrigger className="w-[180px]">
+                                                <SelectValue placeholder="Filter by unit" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Units</SelectItem>
+                                                {mockUnits.map(unit => (
+                                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full sm:w-auto">
+                                                <Tag className="mr-2 h-4 w-4" />
+                                                Filter by Tags
+                                                {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64 p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Filter tags..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No tags found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {allTags.map((tag) => (
+                                                            <CommandItem
+                                                                key={tag}
+                                                                onSelect={() => {
+                                                                    const newTags = filters.tags.includes(tag)
+                                                                        ? filters.tags.filter(t => t !== tag)
+                                                                        : [...filters.tags, tag];
+                                                                    setFilters(prev => ({ ...prev, tags: newTags }));
+                                                                }}
+                                                            >
+                                                                <Checkbox
+                                                                    className="mr-2"
+                                                                    checked={filters.tags.includes(tag)}
+                                                                />
+                                                                <span>{tag}</span>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
 
-                            </div>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent>
                            {viewMode === 'list' ? (
@@ -1289,6 +1360,12 @@ export default function TasksPage() {
                                                     </Button>
                                                 </TableHead>
                                                 <TableHead>
+                                                     <Button variant="ghost" onClick={() => handleSort('columnId')}>
+                                                        Status
+                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </TableHead>
+                                                <TableHead>
                                                     <Button variant="ghost" onClick={() => handleSort('priority')}>
                                                         Priority
                                                         <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -1302,12 +1379,6 @@ export default function TasksPage() {
                                                     </Button>
                                                 </TableHead>
                                                 <TableHead>Recurrence</TableHead>
-                                                <TableHead>
-                                                    <Button variant="ghost" onClick={() => handleSort('status')}>
-                                                        Status
-                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </TableHead>
                                                 <TableHead>Info</TableHead>
                                                 <TableHead><span className="sr-only">Actions</span></TableHead>
                                             </TableRow>
@@ -1319,9 +1390,10 @@ export default function TasksPage() {
                                                     const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
                                                     const checklistItems = task.checklist || [];
                                                     const completedItems = checklistItems.filter(item => item.completed).length;
+                                                    const isCompleted = activeBoard && activeBoard.columns.length > 0 ? task.columnId === activeBoard.columns[activeBoard.columns.length - 1].id : false;
 
                                                     return (
-                                                    <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
+                                                    <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
                                                         <TableCell>
                                                             <Checkbox
                                                                 onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
@@ -1331,9 +1403,9 @@ export default function TasksPage() {
                                                         </TableCell>
                                                         <TableCell className="px-2 text-center border-r">
                                                             <Checkbox
-                                                                checked={task.status === 'completed'}
-                                                                onCheckedChange={() => handleToggleStatus(task)}
-                                                                aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                                                                checked={isCompleted}
+                                                                onCheckedChange={() => handleToggleStatusInList(task)}
+                                                                aria-label={`Mark task "${task.title}" as completed/pending`}
                                                                 className="rounded-full h-5 w-5 mx-auto"
                                                                 disabled={userPermissions === 'viewer'}
                                                             />
@@ -1346,6 +1418,11 @@ export default function TasksPage() {
                                                                     {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
                                                                 </div>
                                                             )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                             <Badge variant={'outline'}>
+                                                                {activeBoard?.columns.find(c => c.id === task.columnId)?.title || 'N/A'}
+                                                            </Badge>
                                                         </TableCell>
                                                          <TableCell>
                                                             <Badge variant="outline" className={cn(
@@ -1393,18 +1470,6 @@ export default function TasksPage() {
                                                         </TableCell>
                                                         <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
                                                         <TableCell>{formatRecurrence(task)}</TableCell>
-                                                        <TableCell>
-                                                            <Badge
-                                                                variant={'outline'}
-                                                                className={cn(
-                                                                    task.status === 'pending'
-                                                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
-                                                                        : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
-                                                                )}
-                                                            >
-                                                                {task.status}
-                                                            </Badge>
-                                                        </TableCell>
                                                         <TableCell>
                                                             <TooltipProvider>
                                                                 <div className="flex items-center gap-2">
@@ -1481,31 +1546,106 @@ export default function TasksPage() {
                                     </Table>
                                 </div>
                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div 
-                                        id="pending-column"
-                                        onDrop={(e) => handleDrop(e, 'pending')}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        className="rounded-lg p-2 min-h-[400px] bg-muted/50 transition-colors"
-                                    >
-                                        <h3 className="text-lg font-semibold mb-4 text-center">Pending ({filteredTasks.filter(t => t.status === 'pending').length})</h3>
-                                        <div>
-                                             {filteredTasks.filter(t => t.status === 'pending').map(renderTaskCard)}
-                                        </div>
+                                <div className="flex gap-4 overflow-x-auto pb-4">
+                                   {activeBoard?.columns.map(column => (
+                                       <div key={column.id} className="w-72 flex-shrink-0">
+                                            <div 
+                                                id={column.id}
+                                                onDrop={(e) => handleDrop(e, column.id)}
+                                                onDragOver={handleDragOver}
+                                                onDragLeave={handleDragLeave}
+                                                className="rounded-lg p-2 h-full bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center justify-between px-2 py-1 mb-2">
+                                                    {editingColumnId === column.id ? (
+                                                        <Input
+                                                            autoFocus
+                                                            value={editingColumnTitle}
+                                                            onChange={(e) => setEditingColumnTitle(e.target.value)}
+                                                            onBlur={() => handleEditColumn(column.id, editingColumnTitle)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleEditColumn(column.id, editingColumnTitle);
+                                                                if (e.key === 'Escape') setEditingColumnId(null);
+                                                            }}
+                                                            className="h-8"
+                                                        />
+                                                    ) : (
+                                                        <h3
+                                                            className="text-md font-semibold cursor-pointer"
+                                                            onClick={() => {
+                                                                if (userPermissions !== 'viewer') {
+                                                                    setEditingColumnId(column.id);
+                                                                    setEditingColumnTitle(column.title);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {column.title}
+                                                            <span className="text-sm font-normal text-muted-foreground ml-2">
+                                                                {filteredTasks.filter(t => t.columnId === column.id).length}
+                                                            </span>
+                                                        </h3>
+                                                    )}
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions !== 'owner'}>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuLabel>List Actions</DropdownMenuLabel>
+                                                            <DropdownMenuItem
+                                                                className="text-destructive"
+                                                                onSelect={() => handleDeleteColumn(column.id)}
+                                                            >
+                                                                Delete list
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-20rem)] overflow-y-auto">
+                                                    {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
+                                                </div>
+                                            </div>
+                                       </div>
+                                   ))}
+                                    {userPermissions !== 'viewer' && (
+                                    <div className="w-72 flex-shrink-0">
+                                        {showAddColumnForm ? (
+                                            <div className="bg-muted rounded-lg p-2" ref={newColumnFormRef}>
+                                                <Form {...columnForm}>
+                                                    <form onSubmit={columnForm.handleSubmit(handleAddColumn)}>
+                                                        <FormField
+                                                            control={columnForm.control}
+                                                            name="title"
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormControl>
+                                                                        <Input autoFocus placeholder="Enter list title..." {...field} className="h-9"/>
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <Button type="submit" size="sm">Add list</Button>
+                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4"/></Button>
+                                                        </div>
+                                                    </form>
+                                                </Form>
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                className="w-full h-10 bg-primary/5 hover:bg-primary/10 text-primary justify-start"
+                                                onClick={() => setShowAddColumnForm(true)}
+                                            >
+                                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                                Add another list
+                                            </Button>
+                                        )}
                                     </div>
-                                    <div 
-                                        id="completed-column"
-                                        onDrop={(e) => handleDrop(e, 'completed')}
-                                        onDragOver={handleDragOver}
-                                        onDragLeave={handleDragLeave}
-                                        className="rounded-lg p-2 min-h-[400px] bg-muted/50 transition-colors"
-                                    >
-                                        <h3 className="text-lg font-semibold mb-4 text-center">Completed ({filteredTasks.filter(t => t.status === 'completed').length})</h3>
-                                        <div>
-                                            {filteredTasks.filter(t => t.status === 'completed').map(renderTaskCard)}
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
                              )}
                         </CardContent>
@@ -1535,6 +1675,26 @@ export default function TasksPage() {
                                             <FormControl><Input placeholder="e.g., Weekly Backup Check" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={form.control}
+                                    name="columnId"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>List / Status</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger><SelectValue placeholder="Select a list" /></SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {activeBoard?.columns.map((col) => (
+                                                    <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
                                     )}
                                 />
                                 <FormField
@@ -2053,4 +2213,3 @@ export default function TasksPage() {
         </div>
     );
 }
-

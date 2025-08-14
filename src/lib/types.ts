@@ -76,10 +76,10 @@ export type ChecklistItem = {
 
 export type Task = {
     id: string;
-    boardId: string; // New field to link to a board
+    boardId: string;
+    columnId: string; // Changed from status
     title: string;
     description?: string;
-    status: 'pending' | 'completed';
     createdBy: string;
     unit: string;
     dueDate: string; // ISO String
@@ -101,10 +101,17 @@ export type BoardShare = {
     role: BoardPermissionRole;
 }
 
+export type BoardColumn = {
+    id: string;
+    title: string;
+    boardId: string;
+};
+
 export type TaskBoard = {
     id: string;
     name: string;
     color: string; // Hex color code
     ownerId: string; // User ID of the creator/owner
     sharedWith?: BoardShare[];
+    columns: BoardColumn[]; // New field for columns
 }

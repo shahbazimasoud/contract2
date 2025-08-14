@@ -1,6 +1,6 @@
 
 
-import type { Contract, User, Unit, Task, TaskBoard } from './types';
+import type { Contract, User, Unit, Task, TaskBoard, BoardColumn } from './types';
 
 export const avatars = [
     {
@@ -227,36 +227,53 @@ export const units: Unit[] = [
 ]
 
 export const taskBoards: TaskBoard[] = [
-     {
-      id: 'TB-003',
-      name: 'IT Tasks',
-      color: '#10b981',
-      ownerId: 'U-001', // Super Admin
-      sharedWith: []
+    {
+        id: 'TB-001',
+        name: 'کارهای سازمانی',
+        color: '#3b82f6',
+        ownerId: 'U-002', // John Doe
+        sharedWith: [
+            { userId: 'U-001', role: 'editor' },
+            { userId: 'U-003', role: 'viewer' },
+        ],
+        columns: [
+            { id: 'COL-1', title: 'Backlog', boardId: 'TB-001' },
+            { id: 'COL-2', title: 'To Do', boardId: 'TB-001' },
+            { id: 'COL-3', title: 'In Progress', boardId: 'TB-001' },
+            { id: 'COL-4', title: 'Done', boardId: 'TB-001' },
+        ]
     },
     {
-      id: 'TB-001',
-      name: 'کارهای سازمانی',
-      color: '#3b82f6',
-      ownerId: 'U-002', // John Doe
-      sharedWith: [
-        { userId: 'U-001', role: 'editor' },
-        { userId: 'U-003', role: 'viewer' },
-      ]
+        id: 'TB-002',
+        name: 'پروژه آلفا',
+        color: '#ef4444',
+        ownerId: 'U-003', // Jane Smith
+        sharedWith: [],
+        columns: [
+            { id: 'COL-5', title: 'Tasks', boardId: 'TB-002' },
+            { id: 'COL-6', title: 'Completed', boardId: 'TB-002' },
+        ]
     },
     {
-      id: 'TB-004',
-      name: 'کارهای شخصی',
-      color: '#eab308',
-      ownerId: 'U-002', // John Doe (Admin for IT Department)
-      sharedWith: []
+        id: 'TB-003',
+        name: 'IT Tasks',
+        color: '#10b981',
+        ownerId: 'U-001', // Super Admin
+        sharedWith: [],
+        columns: [
+            { id: 'COL-7', title: 'Pending', boardId: 'TB-003' },
+            { id: 'COL-8', title: 'Completed', boardId: 'TB-003' },
+        ]
     },
     {
-      id: 'TB-002',
-      name: 'پروژه آلفا',
-      color: '#ef4444',
-      ownerId: 'U-003', // Jane Smith
-      sharedWith: []
+        id: 'TB-004',
+        name: 'کارهای شخصی',
+        color: '#eab308',
+        ownerId: 'U-002', // John Doe (Admin for IT Department)
+        sharedWith: [],
+        columns: [
+            { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004' },
+        ]
     },
 ];
 
@@ -265,9 +282,9 @@ export const tasks: Task[] = [
     {
         id: 'T-001',
         boardId: 'TB-003',
+        columnId: 'COL-7',
         title: 'Weekly IT Backup Check',
         description: 'Verify server backups and check logs for errors.',
-        status: 'pending',
         createdBy: 'John Doe',
         unit: 'IT Department',
         dueDate: new Date(new Date().setDate(new Date().getDate() + (5 - new Date().getDay() + 7) % 7)).toISOString(), // Next Friday
@@ -294,9 +311,9 @@ export const tasks: Task[] = [
     {
         id: 'T-002',
         boardId: 'TB-002',
+        columnId: 'COL-5',
         title: 'Submit Monthly Marketing Report',
         description: 'Compile and submit the marketing performance report for the previous month.',
-        status: 'pending',
         createdBy: 'Jane Smith',
         unit: 'Marketing',
         dueDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(), // 1st of next month
@@ -317,9 +334,9 @@ export const tasks: Task[] = [
     {
         id: 'T-003',
         boardId: 'TB-001',
+        columnId: 'COL-2',
         title: 'Quarterly Fire Drill',
         description: 'Coordinate and execute the quarterly office fire drill.',
-        status: 'pending',
         createdBy: 'Mike Ross',
         unit: 'Operations',
         dueDate: '2024-09-15T11:00:00Z',
@@ -343,10 +360,10 @@ export const tasks: Task[] = [
     },
     {
         id: 'T-004',
-        boardId: 'TB-003',
+        boardId: 'TB-001',
+        columnId: 'COL-4',
         title: 'Daily Stand-up Meeting',
         description: 'Team stand-up to discuss progress and blockers.',
-        status: 'completed',
         createdBy: 'Super Admin',
         unit: 'IT Department',
         dueDate: new Date().toISOString(),
@@ -366,9 +383,9 @@ export const tasks: Task[] = [
      {
         id: 'T-005',
         boardId: 'TB-002',
+        columnId: 'COL-5',
         title: 'Design new campaign visuals',
         description: 'Create mockups for the upcoming "Summer Sale" campaign.',
-        status: 'pending',
         createdBy: 'Jane Smith',
         unit: 'Marketing',
         dueDate: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
@@ -388,9 +405,9 @@ export const tasks: Task[] = [
     {
         id: 'T-006',
         boardId: 'TB-004',
+        columnId: 'COL-9',
         title: 'Update personal development plan',
         description: 'Review and update Q3 goals.',
-        status: 'pending',
         createdBy: 'John Doe',
         unit: 'IT Department',
         dueDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),

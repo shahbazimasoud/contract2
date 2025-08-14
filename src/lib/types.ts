@@ -85,8 +85,7 @@ export type Task = {
     dueDate: string; // ISO String
     recurrence: TaskRecurrence;
     reminders: number[]; // Days before due date to send reminders
-    assignedTo?: string; // User ID
-    sharedWith?: string[]; // Array of User IDs
+    assignees?: string[]; // Array of User IDs
     comments?: Comment[];
     tags?: string[];
     priority?: 'low' | 'medium' | 'high' | 'critical';

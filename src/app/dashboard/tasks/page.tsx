@@ -122,8 +122,7 @@ const taskSchema = z.object({
     description: z.string().optional(),
     unit: z.string().min(1, "Unit is required"),
     columnId: z.string().min(1, "A list must be selected"),
-    assignedTo: z.string().optional(),
-    sharedWith: z.array(z.string()).optional(),
+    assignees: z.array(z.string()).optional(),
     tags: z.string().optional(),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     dueDate: z.date({ required_error: "Date is required" }),
@@ -182,7 +181,7 @@ export default function TasksPage() {
     const [moveTargetBoardId, setMoveTargetBoardId] = useState<string>("");
 
     const { toast } = useToast();
-    const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
+    const [usersOnBoard, setUsersOnBoard] = useState<User[]>([]);
     
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
 
@@ -209,8 +208,7 @@ export default function TasksPage() {
             description: "",
             unit: "",
             columnId: "",
-            assignedTo: "",
-            sharedWith: [],
+            assignees: [],
             tags: "",
             priority: 'medium',
             recurrenceType: "none",
@@ -276,15 +274,17 @@ export default function TasksPage() {
     }, [currentUser, activeBoard]);
     
 
-    const selectedUnit = form.watch('unit');
-
     useEffect(() => {
-        if (selectedUnit) {
-            setUsersInUnit(mockUsers.filter(u => u.unit === selectedUnit));
+        if (activeBoard) {
+            const boardOwner = mockUsers.find(u => u.id === activeBoard.ownerId);
+            const sharedUsers = activeBoard.sharedWith?.map(s => mockUsers.find(u => u.id === s.userId)).filter(Boolean) as User[] || [];
+            const allUsersOnBoard = boardOwner ? [boardOwner, ...sharedUsers] : sharedUsers;
+            const uniqueUsers = Array.from(new Set(allUsersOnBoard.map(u => u.id))).map(id => allUsersOnBoard.find(u => u.id === id)!);
+            setUsersOnBoard(uniqueUsers);
         } else {
-            setUsersInUnit([]);
+            setUsersOnBoard([]);
         }
-    }, [selectedUnit]);
+    }, [activeBoard]);
 
 
      const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
@@ -299,7 +299,8 @@ export default function TasksPage() {
 
     useEffect(() => {
         if (!currentUser) return;
-        const defaultUnit = currentUser.role === 'admin' ? currentUser.unit : "";
+        const defaultUnit = activeBoard?.ownerId === currentUser.id ? mockUsers.find(u => u.id === currentUser.id)?.unit || "" : "";
+
 
         if (editingTask) {
             form.reset({
@@ -307,8 +308,7 @@ export default function TasksPage() {
                 description: editingTask.description,
                 unit: editingTask.unit,
                 columnId: editingTask.columnId,
-                assignedTo: editingTask.assignedTo,
-                sharedWith: editingTask.sharedWith,
+                assignees: editingTask.assignees,
                 tags: editingTask.tags?.join(', '),
                 priority: editingTask.priority || 'medium',
                 dueDate: new Date(editingTask.dueDate),
@@ -328,8 +328,7 @@ export default function TasksPage() {
                 description: "",
                 unit: defaultUnit,
                 columnId: activeColumns?.[0]?.id || "",
-                assignedTo: "",
-                sharedWith: [],
+                assignees: [],
                 tags: "",
                 priority: 'medium',
                 dueDate: new Date(),
@@ -378,8 +377,7 @@ export default function TasksPage() {
                 description: "",
                 unit: defaultUnit,
                 columnId: columnId || activeColumns?.[0]?.id || "",
-                assignedTo: "",
-                sharedWith: [],
+                assignees: [],
                 tags: "",
                 priority: 'medium',
                 dueDate: new Date(),
@@ -718,8 +716,7 @@ export default function TasksPage() {
             description: values.description,
             unit: values.unit,
             columnId: values.columnId,
-            assignedTo: values.assignedTo,
-            sharedWith: values.sharedWith,
+            assignees: values.assignees,
             tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
             priority: values.priority,
             dueDate: values.dueDate.toISOString(),
@@ -1015,7 +1012,7 @@ export default function TasksPage() {
     }
 
     const renderTaskCard = (task: Task) => {
-      const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+      const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
       const checklistItems = task.checklist || [];
       const completedItems = checklistItems.filter(item => item.completed).length;
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
@@ -1111,20 +1108,24 @@ export default function TasksPage() {
                     </TooltipProvider>
                 )}
                </div>
-              {assignedUser && (
-                <TooltipProvider>
-                  <Tooltip>
-                      <TooltipTrigger>
-                          <Avatar className="h-7 w-7">
-                              <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
-                              <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                          <p>Assigned to {assignedUser.name}</p>
-                      </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              {assignedUsers.length > 0 && (
+                <div className="flex -space-x-2 overflow-hidden">
+                    {assignedUsers.map(user => (
+                        <TooltipProvider key={user.id}>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Avatar className="h-7 w-7 border-2 border-background">
+                                        <AvatarImage src={user.avatar} alt={user.name} />
+                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Assigned to {user.name}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    ))}
+                </div>
               )}
             </div>
           </CardContent>
@@ -1546,8 +1547,7 @@ export default function TasksPage() {
                                         <TableBody>
                                             {filteredTasks.length > 0 ? (
                                                 filteredTasks.map((task) => {
-                                                    const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
-                                                    const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
+                                                    const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
                                                     const checklistItems = task.checklist || [];
                                                     const completedItems = checklistItems.filter(item => item.completed).length;
                                                     const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
@@ -1596,37 +1596,22 @@ export default function TasksPage() {
                                                             </Badge>
                                                         </TableCell>
                                                         <TableCell>
-                                                            <div className="flex items-center gap-2">
-                                                                {assignedUser && (
-                                                                    <TooltipProvider>
+                                                            <div className="flex -space-x-2 overflow-hidden">
+                                                                {assignedUsers.map(user => (
+                                                                    <TooltipProvider key={user.id}>
                                                                         <Tooltip>
                                                                             <TooltipTrigger>
-                                                                                <Avatar className="h-7 w-7">
-                                                                                    <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
-                                                                                    <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                                                                                <Avatar className="h-7 w-7 border-2 border-background">
+                                                                                    <AvatarImage src={user.avatar} alt={user.name} />
+                                                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                                                                 </Avatar>
                                                                             </TooltipTrigger>
                                                                             <TooltipContent>
-                                                                                <p>Assigned to {assignedUser.name}</p>
+                                                                                <p>Assigned to {user.name}</p>
                                                                             </TooltipContent>
                                                                         </Tooltip>
                                                                     </TooltipProvider>
-                                                                )}
-                                                                {sharedUsers.length > 0 && (
-                                                                    <TooltipProvider>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger>
-                                                                                <div className="relative flex items-center">
-                                                                                    <UsersIcon className="h-5 w-5 text-muted-foreground" />
-                                                                                    <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
-                                                                                </div>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                )}
+                                                                ))}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
@@ -1838,7 +1823,7 @@ export default function TasksPage() {
                                                 )}
                                                 <div className="space-y-1 mt-1">
                                                     {tasksOnDay.map(task => {
-                                                        const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+                                                        const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
                                                         const checklistItems = task.checklist || [];
                                                         const completedItems = checklistItems.filter(item => item.completed).length;
                                                         return (
@@ -1857,20 +1842,24 @@ export default function TasksPage() {
                                                                                 <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
                                                                             </div>
                                                                         )}
-                                                                        {assignedUser && (
-                                                                            <TooltipProvider>
-                                                                              <Tooltip>
-                                                                                  <TooltipTrigger>
-                                                                                      <Avatar className="h-5 w-5">
-                                                                                          <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
-                                                                                          <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
-                                                                                      </Avatar>
-                                                                                  </TooltipTrigger>
-                                                                                  <TooltipContent>
-                                                                                      <p>Assigned to {assignedUser.name}</p>
-                                                                                  </TooltipContent>
-                                                                              </Tooltip>
-                                                                            </TooltipProvider>
+                                                                        {assignedUsers.length > 0 && (
+                                                                            <div className="flex -space-x-1 overflow-hidden">
+                                                                                {assignedUsers.slice(0,2).map(user => (
+                                                                                     <TooltipProvider key={user.id}>
+                                                                                        <Tooltip>
+                                                                                            <TooltipTrigger>
+                                                                                                <Avatar className="h-5 w-5 border border-background">
+                                                                                                    <AvatarImage src={user.avatar} alt={user.name} />
+                                                                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                                                                </Avatar>
+                                                                                            </TooltipTrigger>
+                                                                                            <TooltipContent>
+                                                                                                <p>Assigned to {user.name}</p>
+                                                                                            </TooltipContent>
+                                                                                        </Tooltip>
+                                                                                    </TooltipProvider>
+                                                                                ))}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </CardContent>
@@ -2033,45 +2022,25 @@ export default function TasksPage() {
                                 />
                                 <FormField
                                     control={form.control}
-                                    name="assignedTo"
+                                    name="assignees"
                                     render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Assign to</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUnit}>
-                                            <FormControl>
-                                                <SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {usersInUnit.map((user) => (
-                                                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="sharedWith"
-                                    render={({ field }) => (
-                                        <FormItem className="md:col-span-2">
-                                            <FormLabel>Share with</FormLabel>
+                                        <FormItem>
+                                            <FormLabel>Assign to</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                    <Button variant="outline" className="w-full justify-start font-normal" disabled={!selectedUnit}>
+                                                    <Button variant="outline" className="w-full justify-start font-normal" disabled={usersOnBoard.length === 0}>
                                                         {field.value && field.value.length > 0
                                                             ? `${field.value.length} user(s) selected`
-                                                            : "Select users to share with"}
+                                                            : "Select members..."}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                                     <Command>
                                                         <CommandInput placeholder="Search users..." />
                                                         <CommandList>
-                                                            <CommandEmpty>No users found.</CommandEmpty>
+                                                            <CommandEmpty>No users found on this board.</CommandEmpty>
                                                             <CommandGroup>
-                                                                {usersInUnit.map((user) => (
+                                                                {usersOnBoard.map((user) => (
                                                                     <CommandItem
                                                                         key={user.id}
                                                                         onSelect={() => {

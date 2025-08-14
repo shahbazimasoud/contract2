@@ -227,10 +227,11 @@ export default function TasksPage() {
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     
     useEffect(() => {
-        if (!activeBoardId && visibleBoards.length > 0) {
-            setActiveBoardId(visibleBoards[0].id);
-        }
-    }, [visibleBoards, activeBoardId]);
+      if (visibleBoards.length > 0 && !activeBoardId) {
+          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser?.id);
+          setActiveBoardId(ownedBoard ? ownedBoard.id : visibleBoards[0].id);
+      }
+    }, [visibleBoards, currentUser, activeBoardId]);
 
     useEffect(() => {
         if (!currentUser) return;

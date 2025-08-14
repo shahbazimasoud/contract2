@@ -230,9 +230,9 @@ export const taskBoards: TaskBoard[] = [
       id: 'TB-001', 
       name: 'کارهای سازمانی', 
       color: '#3b82f6',
-      ownerId: 'U-002', // John Doe is now the owner
+      ownerId: 'U-002',
       sharedWith: [
-        { userId: 'U-001', role: 'editor' }, // Shared with Super Admin
+        { userId: 'U-001', role: 'editor' }, 
         { userId: 'U-003', role: 'viewer' },
       ]
     },
@@ -359,5 +359,6 @@ export const tasks: Task[] = [
         comments: []
     }
 ];
+
 
 

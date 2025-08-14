@@ -91,6 +91,7 @@ export type Task = {
     tags?: string[];
     priority?: 'low' | 'medium' | 'high' | 'critical';
     checklist?: ChecklistItem[];
+    attachments?: { name: string; url: string }[];
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';

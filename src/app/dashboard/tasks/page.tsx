@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -127,6 +127,7 @@ const taskSchema = z.object({
     dayOfMonth: z.number().optional(),
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
     checklist: z.array(checklistItemSchema).optional(),
+    attachments: z.any().optional(),
 });
 
 const commentSchema = z.object({
@@ -161,6 +162,8 @@ export default function TasksPage() {
 
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
+    
+    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
 
     const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
     const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
@@ -187,6 +190,7 @@ export default function TasksPage() {
             time: "09:00",
             reminders: [{ days: 1 }],
             checklist: [],
+            attachments: [],
         },
     });
 
@@ -218,15 +222,15 @@ export default function TasksPage() {
             board.sharedWith?.some(s => s.userId === currentUser.id)
         );
     }, [boards, currentUser]);
-
+    
     useEffect(() => {
       if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-          if (ownedBoard) {
-              setActiveBoardId(ownedBoard.id);
-          } else {
-              setActiveBoardId(visibleBoards[0].id);
-          }
+        const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+        if (ownedBoard) {
+            setActiveBoardId(ownedBoard.id);
+        } else {
+            setActiveBoardId(visibleBoards[0].id);
+        }
       }
     }, [currentUser, visibleBoards, activeBoardId]);
 
@@ -281,7 +285,9 @@ export default function TasksPage() {
                 dayOfMonth: editingTask.recurrence.dayOfMonth,
                 reminders: editingTask.reminders.map(days => ({ days })),
                 checklist: editingTask.checklist || [],
+                attachments: [], // Cannot pre-fill file inputs
             });
+             setAttachedFiles([]);
         } else {
             form.reset({
                 title: "",
@@ -296,6 +302,7 @@ export default function TasksPage() {
                 time: "09:00",
                 reminders: [{ days: 1 }],
                 checklist: [],
+                attachments: [],
             });
         }
     }, [editingTask, form, currentUser]);
@@ -323,7 +330,16 @@ export default function TasksPage() {
         setEditingTask(null);
         setIsTaskDialogOpen(false);
         form.reset();
+        setAttachedFiles([]);
     };
+    
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files) {
+        setAttachedFiles(Array.from(event.target.files));
+        form.setValue('attachments', Array.from(event.target.files));
+      }
+    };
+
 
     const handleOpenBoardDialog = (board: TaskBoard | null) => {
         setEditingBoard(board);
@@ -535,6 +551,9 @@ export default function TasksPage() {
             const updatedTask: Task = {
                 ...editingTask,
                 ...taskData,
+                attachments: attachedFiles.length > 0 
+                    ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) 
+                    : editingTask.attachments,
                 status: editingTask.status, // Preserve status on edit
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
@@ -548,6 +567,7 @@ export default function TasksPage() {
                 boardId: activeBoardId,
                 createdBy: currentUser.name,
                 ...taskData,
+                attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 status: 'pending',
                 comments: [],
             };
@@ -873,7 +893,7 @@ export default function TasksPage() {
                 </DialogContent>
              </Dialog>
 
-            <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+             <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -926,7 +946,7 @@ export default function TasksPage() {
                                 <Share2 className="mr-2 h-4 w-4"/>
                                 Share Board
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setIsDeleteAlertOpen(true)} className="text-destructive" disabled={userPermissions !== 'owner'}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsDeleteAlertOpen(true); }} className="text-destructive" disabled={userPermissions !== 'owner'}>
                                 <Trash2 className="mr-2 h-4 w-4"/>
                                 Delete Current Board
                             </DropdownMenuItem>
@@ -1163,6 +1183,16 @@ export default function TasksPage() {
                                                     <TableCell>
                                                         <TooltipProvider>
                                                             <div className="flex items-center gap-2">
+                                                                {(task.attachments?.length || 0) > 0 && (
+                                                                     <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{task.attachments?.length} attachment(s)</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
                                                                 {(task.comments?.length || 0) > 0 && (
                                                                     <Tooltip>
                                                                         <TooltipTrigger>
@@ -1201,7 +1231,7 @@ export default function TasksPage() {
                                                                     Add to Calendar
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
@@ -1560,6 +1590,76 @@ export default function TasksPage() {
                                         </Button>
                                     </div>
                                 </div>
+                                
+                                <div className="md:col-span-2 space-y-4">
+                                  <FormField
+                                      control={form.control}
+                                      name="attachments"
+                                      render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel>Attachments</FormLabel>
+                                          <FormControl>
+                                          <div className="relative">
+                                              <Button type="button" variant="outline" asChild>
+                                              <label htmlFor="task-file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
+                                                  <Upload className="h-4 w-4"/>
+                                                  <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
+                                              </label>
+                                              </Button>
+                                              <Input 
+                                                  id="task-file-upload"
+                                                  type="file" 
+                                                  multiple 
+                                                  onChange={handleFileChange}
+                                                  className="sr-only"
+                                              />
+                                          </div>
+                                          </FormControl>
+                                          <FormMessage />
+                                      </FormItem>
+                                      )}
+                                  />
+                                  {attachedFiles.length > 0 && (
+                                      <div className="space-y-2">
+                                      <p className="text-sm font-medium">New files to upload:</p>
+                                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                          {attachedFiles.map((file, index) => (
+                                          <li key={index} className="flex items-center gap-2">
+                                              <Paperclip className="h-4 w-4" />
+                                              <span>{file.name}</span>
+                                              <Button 
+                                                  type="button" 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  className="h-6 w-6 ml-auto"
+                                                  onClick={() => {
+                                                      const newFiles = attachedFiles.filter((_, i) => i !== index);
+                                                      setAttachedFiles(newFiles);
+                                                      form.setValue('attachments', newFiles);
+                                                  }}
+                                              >
+                                                  <X className="h-4 w-4" />
+                                              </Button>
+                                          </li>
+                                          ))}
+                                      </ul>
+                                      </div>
+                                  )}
+                                  {editingTask && editingTask.attachments && editingTask.attachments.length > 0 && (
+                                     <div className="space-y-2">
+                                        <p className="text-sm font-medium">Current attachments:</p>
+                                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                            {editingTask.attachments.map((file, index) => (
+                                            <li key={index} className="flex items-center gap-2">
+                                                <Paperclip className="h-4 w-4" />
+                                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
+                                            </li>
+                                            ))}
+                                        </ul>
+                                        <p className="text-xs text-muted-foreground">Uploading new files will replace current attachments.</p>
+                                     </div>
+                                  )}
+                              </div>
 
                             </div>
                             <DialogFooter>
@@ -1580,9 +1680,10 @@ export default function TasksPage() {
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
-                         <TabsList className="grid w-full grid-cols-2">
+                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="checklist">Checklist</TabsTrigger>
                             <TabsTrigger value="comments">Comments</TabsTrigger>
+                            <TabsTrigger value="attachments">Attachments</TabsTrigger>
                         </TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-2 py-4">
@@ -1662,6 +1763,31 @@ export default function TasksPage() {
                                         <Button type="submit" disabled={userPermissions === 'viewer'}>Post</Button>
                                     </form>
                                 </Form>
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
+                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-2 py-4">
+                                 {(selectedTaskForDetails?.attachments || []).length > 0 ? (
+                                    <ul className="space-y-2">
+                                        {(selectedTaskForDetails?.attachments || []).map((file, index) => (
+                                            <li key={index} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                                <div className='flex items-center gap-3'>
+                                                    <Paperclip className="h-5 w-5 text-muted-foreground" />
+                                                    <span className="text-sm font-medium">{file.name}</span>
+                                                </div>
+                                                <a href={file.url} download={file.name} target="_blank" rel="noopener noreferrer">
+                                                    <Button variant="ghost" size="icon"><Download className="h-4 w-4" /></Button>
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                 ) : (
+                                    <div className="text-center text-muted-foreground py-10">
+                                        <Paperclip className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">No attachments found.</p>
+                                        <p>You can add files by editing this task.</p>
+                                    </div>
+                                 )}
                             </div>
                         </TabsContent>
                     </Tabs>

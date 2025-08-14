@@ -227,9 +227,16 @@ export const units: Unit[] = [
 ]
 
 export const taskBoards: TaskBoard[] = [
-    { 
-      id: 'TB-001', 
-      name: 'کارهای سازمانی', 
+     {
+      id: 'TB-003',
+      name: 'IT Tasks',
+      color: '#10b981',
+      ownerId: 'U-001', // Super Admin
+      sharedWith: []
+    },
+    {
+      id: 'TB-001',
+      name: 'کارهای سازمانی',
       color: '#3b82f6',
       ownerId: 'U-002', // John Doe
       sharedWith: [
@@ -237,25 +244,18 @@ export const taskBoards: TaskBoard[] = [
         { userId: 'U-003', role: 'viewer' },
       ]
     },
-    { 
-      id: 'TB-004', 
-      name: 'کارهای شخصی', 
+    {
+      id: 'TB-004',
+      name: 'کارهای شخصی',
       color: '#eab308',
       ownerId: 'U-002', // John Doe (Admin for IT Department)
       sharedWith: []
     },
-    { 
-      id: 'TB-002', 
-      name: 'پروژه آلفا', 
+    {
+      id: 'TB-002',
+      name: 'پروژه آلفا',
       color: '#ef4444',
       ownerId: 'U-003', // Jane Smith
-      sharedWith: []
-    },
-    { 
-      id: 'TB-003', 
-      name: 'IT Tasks', 
-      color: '#10b981',
-      ownerId: 'U-001', // Super Admin
       sharedWith: []
     },
 ];
@@ -281,6 +281,7 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['technical', 'backup', 'critical'],
         priority: 'critical',
+        attachments: [{ name: 'backup_procedure.pdf', url: '#' }, { name: 'server_list.xlsx', url: '#' }],
         comments: [
             { id: 'CMT-T001', text: 'Please ensure the off-site backup is also checked.', author: 'Super Admin', authorId: 'U-001', createdAt: '2024-07-29T11:00:00Z'}
         ],
@@ -309,6 +310,7 @@ export const tasks: Task[] = [
         tags: ['reporting', 'marketing'],
         priority: 'high',
         sharedWith: [],
+        attachments: [],
         comments: [],
         checklist: []
     },
@@ -330,6 +332,7 @@ export const tasks: Task[] = [
         sharedWith: ['U-001'],
         tags: ['safety', 'operations'],
         priority: 'medium',
+        attachments: [],
         comments: [],
         checklist: [
             { id: 'CL-004', text: 'Send notification email to all staff', completed: true },
@@ -356,6 +359,7 @@ export const tasks: Task[] = [
         sharedWith: ['U-001', 'U-004'],
         tags: ['meeting', 'daily'],
         priority: 'low',
+        attachments: [],
         comments: [],
         checklist: []
     },
@@ -377,6 +381,7 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['design', 'marketing', 'creative'],
         priority: 'high',
+        attachments: [],
         comments: [],
         checklist: []
     },
@@ -398,6 +403,7 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['personal', 'career'],
         priority: 'low',
+        attachments: [],
         comments: [],
         checklist: []
     }

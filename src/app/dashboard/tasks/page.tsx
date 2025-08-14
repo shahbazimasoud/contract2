@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -148,6 +148,10 @@ const columnSchema = z.object({
   title: z.string().min(1, "Column title cannot be empty"),
 });
 
+const copyColumnSchema = z.object({
+  title: z.string().min(1, "New list name cannot be empty"),
+});
+
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
@@ -168,6 +172,8 @@ export default function TasksPage() {
     const [isDeleteColumnAlertOpen, setIsDeleteColumnAlertOpen] = useState(false);
     const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
+    const [isCopyColumnDialogOpen, setIsCopyColumnDialogOpen] = useState(false);
+    const [columnToCopy, setColumnToCopy] = useState<BoardColumn | null>(null);
     
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState("");
@@ -235,6 +241,10 @@ export default function TasksPage() {
     const columnForm = useForm<z.infer<typeof columnSchema>>({
         resolver: zodResolver(columnSchema),
         defaultValues: { title: "" }
+    });
+
+    const copyColumnForm = useForm<z.infer<typeof copyColumnSchema>>({
+      resolver: zodResolver(copyColumnSchema),
     });
 
     useEffect(() => {
@@ -356,6 +366,14 @@ export default function TasksPage() {
     }, [editingBoard, boardForm]);
     
     useEffect(() => {
+        if (columnToCopy) {
+            copyColumnForm.reset({
+                title: `${columnToCopy.title} (Copy)`,
+            });
+        }
+    }, [columnToCopy, copyColumnForm]);
+
+    useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (newColumnFormRef.current && !newColumnFormRef.current.contains(event.target as Node)) {
                 setShowAddColumnForm(false);
@@ -436,6 +454,17 @@ export default function TasksPage() {
     const handleCloseMoveDialog = () => {
         setMovingTask(null);
         setIsMoveTaskDialogOpen(false);
+    };
+
+    const handleOpenCopyColumnDialog = (column: BoardColumn) => {
+        setColumnToCopy(column);
+        setIsCopyColumnDialogOpen(true);
+    };
+
+    const handleCloseCopyColumnDialog = () => {
+        setColumnToCopy(null);
+        setIsCopyColumnDialogOpen(false);
+        copyColumnForm.reset();
     };
 
     const onBoardSubmit = (values: z.infer<typeof boardSchema>) => {
@@ -571,6 +600,40 @@ export default function TasksPage() {
         setIsDeleteColumnAlertOpen(false);
         setColumnToDelete(null);
     }
+
+    const onCopyColumnSubmit = (values: z.infer<typeof copyColumnSchema>) => {
+      if (!activeBoard || !columnToCopy) return;
+
+      const newColumnId = `COL-${Date.now()}`;
+      const newColumn: BoardColumn = {
+        id: newColumnId,
+        title: values.title,
+        boardId: activeBoard.id,
+        isArchived: false,
+      };
+
+      const tasksToCopy = tasks.filter(t => t.columnId === columnToCopy.id);
+      const newTasks: Task[] = tasksToCopy.map(task => ({
+        ...task,
+        id: `T-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        columnId: newColumnId,
+      }));
+
+      const updatedBoard = {
+        ...activeBoard,
+        columns: [...activeBoard.columns, newColumn],
+      };
+
+      setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+      setTasks(prevTasks => [...prevTasks, ...newTasks]);
+
+      toast({
+        title: "List Copied",
+        description: `List "${columnToCopy.title}" was copied to "${values.title}".`
+      });
+
+      handleCloseCopyColumnDialog();
+    };
 
 
      const handleShareUpdate = (userId: string, role: BoardPermissionRole) => {
@@ -1325,6 +1388,38 @@ export default function TasksPage() {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={isCopyColumnDialogOpen} onOpenChange={handleCloseCopyColumnDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Copy List</DialogTitle>
+                        <DialogDescription>Create a duplicate of "{columnToCopy?.title}" and all its tasks.</DialogDescription>
+                    </DialogHeader>
+                    <Form {...copyColumnForm}>
+                        <form onSubmit={copyColumnForm.handleSubmit(onCopyColumnSubmit)} className="space-y-4 py-4">
+                            <FormField
+                                control={copyColumnForm.control}
+                                name="title"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>New List Name</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button variant="ghost">Cancel</Button>
+                                </DialogClose>
+                                <Button type="submit">Copy List</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
 
             <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
                 <div className="flex items-center gap-2 mb-4">
@@ -1399,7 +1494,7 @@ export default function TasksPage() {
                                 );
                            })}
                         </div>
-                         <Button variant="outline" size="sm" onClick={() => handleOpenShareDialog(activeBoard)}>
+                         <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
                             <Share2 className="mr-2 h-4 w-4" />
                             Share
                         </Button>
@@ -1741,6 +1836,9 @@ export default function TasksPage() {
                                                             <DropdownMenuLabel>List Actions</DropdownMenuLabel>
                                                             <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
                                                                 <PlusCircle className="mr-2 h-4 w-4" /> Add new task
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleOpenCopyColumnDialog(column)}>
+                                                                <Copy className="mr-2 h-4 w-4" /> Copy list
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
@@ -2450,3 +2548,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

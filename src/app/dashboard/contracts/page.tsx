@@ -103,7 +103,7 @@ const reminderEmailSchema = z.object({
 });
 
 const reminderPhoneSchema = z.object({
-  phone: z.string().min(10, { message: "Please enter a valid phone number." }),
+  phone: z.string(),
 });
 
 const reminderDaysSchema = z.object({
@@ -185,7 +185,7 @@ export default function ContractsPage() {
         renewal: "manual",
         unit: "",
         reminderEmails: [{email: ""}],
-        reminderPhones: [],
+        reminderPhones: [{phone: ""}],
         reminders: [{days: 30}],
         attachments: [],
         status: "active",
@@ -376,7 +376,7 @@ export default function ContractsPage() {
         endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
-        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
+        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone).filter(Boolean) : [],
         attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) : editingContract.attachments,
         versions: [...(editingContract.versions || []), currentVersion],
       };
@@ -400,7 +400,7 @@ export default function ContractsPage() {
         attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
-        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone) : [],
+        reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone).filter(Boolean) : [],
         createdBy: currentUser.name,
         comments: [],
         versions: [],
@@ -541,7 +541,14 @@ export default function ContractsPage() {
 
 
   if (!currentUser) {
-    return null;
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+                <FileText className="h-10 w-10 animate-pulse text-muted-foreground" />
+                <p className="text-muted-foreground">Loading Contracts...</p>
+            </div>
+        </div>
+    );
   }
 
   return (
@@ -840,7 +847,7 @@ export default function ContractsPage() {
 
                   <div className="md:col-span-2 space-y-4">
                       <div>
-                        <FormLabel>Reminder Phone Numbers</FormLabel>
+                        <FormLabel>Reminder Phone Numbers (Optional)</FormLabel>
                         <FormDescription className="mb-2">Phone numbers for SMS notifications.</FormDescription>
                         {phoneFields.map((field, index) => (
                           <FormField
@@ -936,102 +943,106 @@ export default function ContractsPage() {
       
       <Sheet open={isDetailsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDetailsSheet()}>
         <SheetContent className="flex flex-col sm:max-w-lg">
-            <SheetHeader>
-                <SheetTitle>Details for {selectedContractForDetails?.contractorName}</SheetTitle>
-                <SheetDescription>
-                    Contract ID: {selectedContractForDetails?.id}
-                </SheetDescription>
-            </SheetHeader>
-             <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="comments">Comments</TabsTrigger>
-                    <TabsTrigger value="history">History</TabsTrigger>
-                </TabsList>
-                <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
-                    <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
-                        {(selectedContractForDetails?.comments || []).length > 0 ? (
-                            (selectedContractForDetails?.comments || []).map(comment => {
-                               const creator = getCreator(comment.authorId);
-                               return (
-                                <div key={comment.id} className="flex items-start gap-3">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={creator?.avatar} alt={creator?.name}/>
-                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-semibold text-sm">{comment.author}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                            </p>
+            {selectedContractForDetails && (
+                <>
+                    <SheetHeader>
+                        <SheetTitle>Details for {selectedContractForDetails.contractorName}</SheetTitle>
+                        <SheetDescription>
+                            Contract ID: {selectedContractForDetails.id}
+                        </SheetDescription>
+                    </SheetHeader>
+                    <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="comments">Comments</TabsTrigger>
+                            <TabsTrigger value="history">History</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
+                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
+                                {(selectedContractForDetails.comments || []).length > 0 ? (
+                                    (selectedContractForDetails.comments || []).map(comment => {
+                                    const creator = getCreator(comment.authorId);
+                                    return (
+                                        <div key={comment.id} className="flex items-start gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={creator?.avatar} alt={creator?.name}/>
+                                                <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-semibold text-sm">{comment.author}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                    </p>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                            </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                    )
+                                    })
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">
+                                        <MessageSquare className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">No comments yet.</p>
+                                        <p>Be the first to add a comment.</p>
                                     </div>
-                                </div>
-                               )
-                            })
-                        ) : (
-                            <div className="text-center text-muted-foreground py-10">
-                                <MessageSquare className="mx-auto h-12 w-12" />
-                                <p className="mt-4">No comments yet.</p>
-                                <p>Be the first to add a comment.</p>
+                                )}
                             </div>
-                        )}
-                    </div>
-                     <div className="mt-auto pt-4 border-t">
-                        <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
-                               <FormField
-                                  control={commentForm.control}
-                                  name="text"
-                                  render={({ field }) => (
-                                    <FormItem className="flex-1">
-                                      <FormControl>
-                                        <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <Button type="submit">Post</Button>
-                            </form>
-                        </Form>
-                     </div>
-                </TabsContent>
-                 <TabsContent value="history" className="flex-1 overflow-y-auto">
-                    {(selectedContractForDetails?.versions || []).length > 0 ? (
-                        <div className="space-y-4 py-4">
-                            {[...(selectedContractForDetails?.versions || [])].reverse().map(version => {
-                                const creator = getCreator(version.createdBy);
-                                return (
-                                <div key={version.versionNumber} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={creator?.avatar} alt={creator?.name} />
-                                            <AvatarFallback>{creator?.name.charAt(0) || 'U'}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm font-medium">Version {version.versionNumber}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Saved by {creator?.name || 'Unknown'} on {format(new Date(version.createdAt), "PPP p")}
-                                            </p>
+                            <div className="mt-auto pt-4 border-t">
+                                <Form {...commentForm}>
+                                    <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                                    <FormField
+                                        control={commentForm.control}
+                                        name="text"
+                                        render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                            <FormControl>
+                                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        />
+                                        <Button type="submit">Post</Button>
+                                    </form>
+                                </Form>
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="history" className="flex-1 overflow-y-auto">
+                            {(selectedContractForDetails.versions || []).length > 0 ? (
+                                <div className="space-y-4 py-4">
+                                    {[...(selectedContractForDetails.versions || [])].reverse().map(version => {
+                                        const creator = getCreator(version.createdBy);
+                                        return (
+                                        <div key={version.versionNumber} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={creator?.avatar} alt={creator?.name} />
+                                                    <AvatarFallback>{creator?.name.charAt(0) || 'U'}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <p className="text-sm font-medium">Version {version.versionNumber}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Saved by {creator?.name || 'Unknown'} on {format(new Date(version.createdAt), "PPP p")}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button variant="ghost" size="icon" onClick={() => { setSelectedVersion(version); setIsVersionViewOpen(true); }}>
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
                                         </div>
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => { setSelectedVersion(version); setIsVersionViewOpen(true); }}>
-                                        <Eye className="h-4 w-4" />
-                                    </Button>
+                                    )})}
                                 </div>
-                            )})}
-                        </div>
-                    ) : (
-                        <div className="text-center text-muted-foreground py-10">
-                            <History className="mx-auto h-12 w-12" />
-                            <p className="mt-4">No version history.</p>
-                            <p>Edits to this contract will be tracked here.</p>
-                        </div>
-                    )}
-                 </TabsContent>
-            </Tabs>
+                            ) : (
+                                <div className="text-center text-muted-foreground py-10">
+                                    <History className="mx-auto h-12 w-12" />
+                                    <p className="mt-4">No version history.</p>
+                                    <p>Edits to this contract will be tracked here.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                </>
+            )}
         </SheetContent>
       </Sheet>
 
@@ -1398,19 +1409,22 @@ export default function ContractsPage() {
                                 )}
                                 <div className="space-y-1 mt-1">
                                     {contractsOnDay.map(contract => (
-                                         <TooltipProvider key={contract.id}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="bg-primary/20 text-primary-foreground p-1 rounded-md text-xs cursor-pointer hover:bg-primary/30">
-                                                        <p className="font-semibold text-primary truncate">{contract.contractorName}</p>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{contract.type}</p>
-                                                    <p>Expires: {formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                         <div key={contract.id} onClick={() => handleOpenDetailsSheet(contract)}>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="bg-primary/20 text-primary-foreground p-1 rounded-md text-xs cursor-pointer hover:bg-primary/30">
+                                                            <p className="font-semibold text-primary truncate">{contract.contractorName}</p>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{contract.type}</p>
+                                                        <p>Expires: {formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</p>
+                                                        <p className="italic text-muted-foreground">Click to see details</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     ))}
                                 </div>
                             </div>

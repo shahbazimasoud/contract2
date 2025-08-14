@@ -3,11 +3,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
+import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday } from 'date-fns';
 import * as ics from 'ics';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -105,6 +105,7 @@ import { Progress } from '@/components/ui/progress';
 const AUTH_USER_KEY = 'current_user';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
+type ViewMode = 'list' | 'board' | 'archived' | 'calendar';
 
 const reminderDaysSchema = z.object({
   days: z.number().min(0, "Cannot be negative").max(365, "Cannot be more than 365 days"),
@@ -158,7 +159,7 @@ export default function TasksPage() {
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'list' | 'board' | 'archived'>('list');
+    const [viewMode, setViewMode] = useState<ViewMode>('board');
 
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -196,6 +197,9 @@ export default function TasksPage() {
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
+    
+    // Calendar State
+    const [currentMonth, setCurrentMonth] = useState(new Date());
 
 
     const form = useForm<z.infer<typeof taskSchema>>({
@@ -323,7 +327,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: activeColumns?.[0]?.id || "",
+                columnId: columnId || activeColumns?.[0]?.id || "",
                 assignedTo: "",
                 sharedWith: [],
                 tags: "",
@@ -565,7 +569,7 @@ export default function TasksPage() {
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setTasks(remainingTasks);
         
-        toast({ title: "List Deleted", description: `List "${columnToDelete.title}" and its tasks have been permanently deleted.`, variant: "destructive" });
+        toast({ title: "List Deleted", description: `List "${columnToDelete.title}" and all of its tasks have been permanently deleted.`, variant: "destructive" });
         setIsDeleteColumnAlertOpen(false);
         setColumnToDelete(null);
     }
@@ -918,6 +922,35 @@ export default function TasksPage() {
             setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
         }
     };
+
+    // Calendar-related memos and functions
+    const calendarDays = useMemo(() => {
+        const start = startOfMonth(currentMonth);
+        const end = endOfMonth(currentMonth);
+        const days = eachDayOfInterval({ start, end });
+        const startingDayIndex = getDay(start);
+        const placeholders = Array.from({ length: startingDayIndex }, (_, i) => ({
+            date: null,
+            key: `placeholder-${i}`
+        }));
+        return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
+    }, [currentMonth]);
+
+    const tasksByDate = useMemo(() => {
+        const tasksForBoard = tasks.filter(task => task.boardId === activeBoardId);
+        return tasksForBoard.reduce((acc, task) => {
+            const dueDate = format(parseISO(task.dueDate), 'yyyy-MM-dd');
+            if (!acc[dueDate]) {
+                acc[dueDate] = [];
+            }
+            acc[dueDate].push(task);
+            return acc;
+        }, {} as Record<string, Task[]>);
+    }, [tasks, activeBoardId]);
+
+    const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
+    const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
+    const goToToday = () => setCurrentMonth(new Date());
 
 
     function formatRecurrence(task: Task): string {
@@ -1353,6 +1386,9 @@ export default function TasksPage() {
                                      <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}>
                                         <LayoutGrid className="h-5 w-5" />
                                     </Button>
+                                    <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}>
+                                        <CalendarViewIcon className="h-5 w-5" />
+                                    </Button>
                                     <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}>
                                         <Archive className="h-5 w-5" />
                                     </Button>
@@ -1743,7 +1779,78 @@ export default function TasksPage() {
                                     </div>
                                     )}
                                 </div>
-                             ) : (
+                             ) : viewMode === 'calendar' ? (
+                                <div className="border rounded-lg">
+                                    <div className="flex items-center justify-between p-4">
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
+                                            <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                                            <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
+                                        </div>
+                                        <Button variant="outline" onClick={goToToday}>Today</Button>
+                                    </div>
+                                    <div className="grid grid-cols-7 border-t border-b">
+                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                            <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
+                                        ))}
+                                    </div>
+                                    <div className="grid grid-cols-7">
+                                        {calendarDays.map((dayObj) => {
+                                            const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                                            return (
+                                            <div key={dayObj.key} className={cn("h-48 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
+                                                {dayObj.date && (
+                                                    <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
+                                                        {format(dayObj.date, 'd')}
+                                                    </span>
+                                                )}
+                                                <div className="space-y-1 mt-1">
+                                                    {tasksOnDay.map(task => {
+                                                        const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+                                                        const checklistItems = task.checklist || [];
+                                                        const completedItems = checklistItems.filter(item => item.completed).length;
+                                                        return (
+                                                             <Card key={task.id} onClick={() => handleOpenDetailsSheet(task)} className="cursor-pointer hover:bg-muted/80">
+                                                                <CardContent className="p-2 text-xs">
+                                                                     <p className="font-semibold text-primary truncate mb-1">{task.title}</p>
+                                                                    {task.tags && task.tags.length > 0 && (
+                                                                        <div className="flex flex-wrap gap-1 mb-1">
+                                                                            {task.tags.slice(0, 2).map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex items-center justify-between text-muted-foreground">
+                                                                        {checklistItems.length > 0 && (
+                                                                            <div className="flex items-center gap-1">
+                                                                                <ListChecks className="h-3 w-3" />
+                                                                                <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {assignedUser && (
+                                                                            <TooltipProvider>
+                                                                              <Tooltip>
+                                                                                  <TooltipTrigger>
+                                                                                      <Avatar className="h-5 w-5">
+                                                                                          <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
+                                                                                          <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                                                                                      </Avatar>
+                                                                                  </TooltipTrigger>
+                                                                                  <TooltipContent>
+                                                                                      <p>Assigned to {assignedUser.name}</p>
+                                                                                  </TooltipContent>
+                                                                              </Tooltip>
+                                                                            </TooltipProvider>
+                                                                        )}
+                                                                    </div>
+                                                                </CardContent>
+                                                            </Card>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )})}
+                                    </div>
+                                </div>
+                             ) : ( // Archived View
                                  <div className="space-y-4">
                                     {archivedColumns.length > 0 ? (
                                         archivedColumns.map(column => (
@@ -2342,3 +2449,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

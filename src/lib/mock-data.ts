@@ -237,10 +237,10 @@ export const taskBoards: TaskBoard[] = [
             { userId: 'U-003', role: 'viewer' },
         ],
         columns: [
-            { id: 'COL-1', title: 'Backlog', boardId: 'TB-001' },
-            { id: 'COL-2', title: 'To Do', boardId: 'TB-001' },
-            { id: 'COL-3', title: 'In Progress', boardId: 'TB-001' },
-            { id: 'COL-4', title: 'Done', boardId: 'TB-001' },
+            { id: 'COL-1', title: 'Backlog', boardId: 'TB-001', isArchived: false },
+            { id: 'COL-2', title: 'To Do', boardId: 'TB-001', isArchived: false },
+            { id: 'COL-3', title: 'In Progress', boardId: 'TB-001', isArchived: false },
+            { id: 'COL-4', title: 'Done', boardId: 'TB-001', isArchived: false },
         ]
     },
     {
@@ -250,8 +250,8 @@ export const taskBoards: TaskBoard[] = [
         ownerId: 'U-003', // Jane Smith
         sharedWith: [],
         columns: [
-            { id: 'COL-5', title: 'Tasks', boardId: 'TB-002' },
-            { id: 'COL-6', title: 'Completed', boardId: 'TB-002' },
+            { id: 'COL-5', title: 'Tasks', boardId: 'TB-002', isArchived: false },
+            { id: 'COL-6', title: 'Completed', boardId: 'TB-002', isArchived: false },
         ]
     },
     {
@@ -261,8 +261,8 @@ export const taskBoards: TaskBoard[] = [
         ownerId: 'U-001', // Super Admin
         sharedWith: [],
         columns: [
-            { id: 'COL-7', title: 'Pending', boardId: 'TB-003' },
-            { id: 'COL-8', title: 'Completed', boardId: 'TB-003' },
+            { id: 'COL-7', title: 'Pending', boardId: 'TB-003', isArchived: false },
+            { id: 'COL-8', title: 'Completed', boardId: 'TB-003', isArchived: true },
         ]
     },
     {
@@ -272,7 +272,7 @@ export const taskBoards: TaskBoard[] = [
         ownerId: 'U-002', // John Doe (Admin for IT Department)
         sharedWith: [],
         columns: [
-            { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004' },
+            { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004', isArchived: false },
         ]
     },
 ];
@@ -306,7 +306,8 @@ export const tasks: Task[] = [
             { id: 'CL-001', text: 'Check local server backup status', completed: true },
             { id: 'CL-002', text: 'Verify cloud backup integrity', completed: false },
             { id: 'CL-003', text: 'Review backup logs for any errors', completed: false },
-        ]
+        ],
+        isArchived: false,
     },
     {
         id: 'T-002',
@@ -329,7 +330,8 @@ export const tasks: Task[] = [
         sharedWith: [],
         attachments: [],
         comments: [],
-        checklist: []
+        checklist: [],
+        isArchived: false,
     },
     {
         id: 'T-003',
@@ -356,7 +358,8 @@ export const tasks: Task[] = [
             { id: 'CL-005', text: 'Check all fire extinguishers', completed: true },
             { id: 'CL-006', text: 'Coordinate with building management', completed: false },
             { id: 'CL-007', text: 'Prepare post-drill report', completed: false },
-        ]
+        ],
+        isArchived: false,
     },
     {
         id: 'T-004',
@@ -378,7 +381,8 @@ export const tasks: Task[] = [
         priority: 'low',
         attachments: [],
         comments: [],
-        checklist: []
+        checklist: [],
+        isArchived: false,
     },
      {
         id: 'T-005',
@@ -400,7 +404,8 @@ export const tasks: Task[] = [
         priority: 'high',
         attachments: [],
         comments: [],
-        checklist: []
+        checklist: [],
+        isArchived: false,
     },
     {
         id: 'T-006',
@@ -422,6 +427,30 @@ export const tasks: Task[] = [
         priority: 'low',
         attachments: [],
         comments: [],
-        checklist: []
-    }
+        checklist: [],
+        isArchived: false,
+    },
+     {
+        id: 'T-007',
+        boardId: 'TB-003',
+        columnId: 'COL-8',
+        title: 'Decommission old server',
+        description: 'Server XYZ-01 needs to be decommissioned.',
+        createdBy: 'Super Admin',
+        unit: 'IT Department',
+        dueDate: '2024-07-20T17:00:00Z',
+        recurrence: {
+            type: 'none',
+            time: '15:00',
+        },
+        reminders: [1],
+        assignedTo: 'U-002',
+        sharedWith: [],
+        tags: ['technical', 'servers'],
+        priority: 'medium',
+        attachments: [],
+        comments: [],
+        checklist: [],
+        isArchived: true, // This task belongs to an archived column
+    },
 ];

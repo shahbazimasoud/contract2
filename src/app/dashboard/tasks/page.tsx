@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -74,6 +74,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
@@ -157,16 +158,17 @@ export default function TasksPage() {
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'board' | 'archived'>('list');
 
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
     const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+    const [isDeleteColumnAlertOpen, setIsDeleteColumnAlertOpen] = useState(false);
+    const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
     
-    // States for inline column editing
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState("");
     const [showAddColumnForm, setShowAddColumnForm] = useState(false);
@@ -316,11 +318,12 @@ export default function TasksPage() {
             });
              setAttachedFiles([]);
         } else {
+            const activeColumns = activeBoard?.columns.filter(c => !c.isArchived);
             form.reset({
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: activeBoard?.columns[0]?.id || "",
+                columnId: activeColumns?.[0]?.id || "",
                 assignedTo: "",
                 sharedWith: [],
                 tags: "",
@@ -361,8 +364,15 @@ export default function TasksPage() {
         };
     }, []);
 
-    const handleOpenTaskDialog = (task: Task | null) => {
+    const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
+        if (!task && columnId) {
+            const activeColumns = activeBoard?.columns.filter(c => !c.isArchived);
+            form.reset({
+                ...form.getValues(),
+                columnId: columnId,
+            });
+        }
         setIsTaskDialogOpen(true);
     };
 
@@ -424,16 +434,17 @@ export default function TasksPage() {
             description: `Board "${updatedBoard.name}" has been updated.`
         });
       } else {
+         const newBoardId = `TB-${Date.now()}`;
          const newBoard: TaskBoard = {
-            id: `TB-${Date.now()}`,
+            id: newBoardId,
             name: values.name,
             color: values.color,
             ownerId: currentUser.id,
             sharedWith: [],
             columns: [
-                { id: `COL-new-1`, title: 'To Do', boardId: `TB-${Date.now()}` },
-                { id: `COL-new-2`, title: 'In Progress', boardId: `TB-${Date.now()}` },
-                { id: `COL-new-3`, title: 'Done', boardId: `TB-${Date.now()}` },
+                { id: `COL-${Date.now()}-1`, title: 'To Do', boardId: newBoardId, isArchived: false },
+                { id: `COL-${Date.now()}-2`, title: 'In Progress', boardId: newBoardId, isArchived: false },
+                { id: `COL-${Date.now()}-3`, title: 'Done', boardId: newBoardId, isArchived: false },
             ],
         };
         setBoards(prev => [...prev, newBoard]);
@@ -476,7 +487,8 @@ export default function TasksPage() {
         const newColumn: BoardColumn = {
             id: `COL-${Date.now()}`,
             title: values.title,
-            boardId: activeBoard.id
+            boardId: activeBoard.id,
+            isArchived: false,
         };
         
         const updatedBoard = { ...activeBoard, columns: [...activeBoard.columns, newColumn] };
@@ -501,20 +513,50 @@ export default function TasksPage() {
         toast({ title: "List Renamed", description: `List has been renamed to "${newTitle}".`});
     };
     
-    const handleDeleteColumn = (columnId: string) => {
+    const handleArchiveColumn = (columnId: string) => {
         if (!activeBoard) return;
+        const updatedBoard = {
+            ...activeBoard,
+            columns: activeBoard.columns.map(c => c.id === columnId ? { ...c, isArchived: true } : c)
+        };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+
+        const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: true } : t);
+        setTasks(updatedTasks);
         
-        const updatedColumns = activeBoard.columns.filter(c => c.id !== columnId);
+        toast({ title: "List Archived", description: `The list and its tasks have been archived.` });
+    };
+
+    const handleRestoreColumn = (columnId: string) => {
+        if (!activeBoard) return;
+         const updatedBoard = {
+            ...activeBoard,
+            columns: activeBoard.columns.map(c => c.id === columnId ? { ...c, isArchived: false } : c)
+        };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+
+        const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: false } : t);
+        setTasks(updatedTasks);
+        
+        toast({ title: "List Restored", description: `The list has been restored.` });
+    }
+    
+    const handleDeleteColumnPermanently = () => {
+        if (!activeBoard || !columnToDelete) return;
+        
+        const updatedColumns = activeBoard.columns.filter(c => c.id !== columnToDelete.id);
         const updatedBoard = { ...activeBoard, columns: updatedColumns };
         
-        const tasksInDeletedColumn = tasks.filter(t => t.columnId === columnId);
-        const remainingTasks = tasks.filter(t => t.columnId !== columnId);
+        const remainingTasks = tasks.filter(t => t.columnId !== columnToDelete.id);
         
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setTasks(remainingTasks);
         
-        toast({ title: "List Deleted", description: `List and its ${tasksInDeletedColumn.length} tasks have been deleted.`, variant: "destructive" });
+        toast({ title: "List Deleted", description: `List "${columnToDelete.title}" and its tasks have been permanently deleted.`, variant: "destructive" });
+        setIsDeleteColumnAlertOpen(false);
+        setColumnToDelete(null);
     }
+
 
      const handleShareUpdate = (userId: string, role: BoardPermissionRole) => {
         if (!sharingBoard) return;
@@ -607,8 +649,9 @@ export default function TasksPage() {
     const handleToggleStatusInList = (task: Task) => {
         if (!activeBoard) return;
         // This is a simplified toggle for list view. It moves between the first and last column.
-        const firstColumnId = activeBoard.columns[0]?.id;
-        const lastColumnId = activeBoard.columns[activeBoard.columns.length - 1]?.id;
+        const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
+        const firstColumnId = activeColumns[0]?.id;
+        const lastColumnId = activeColumns[activeColumns.length - 1]?.id;
         
         if (!firstColumnId || !lastColumnId) return;
 
@@ -672,6 +715,7 @@ export default function TasksPage() {
             },
             reminders: values.reminders.map(r => r.days),
             checklist: values.checklist || [],
+            isArchived: false,
         };
         
         if (editingTask) {
@@ -804,11 +848,10 @@ export default function TasksPage() {
     const filteredTasks = useMemo(() => {
         if (!currentUser || !activeBoardId) return [];
 
-        let baseTasks = tasks.filter(task => task.boardId === activeBoardId);
+        let baseTasks = tasks.filter(task => task.boardId === activeBoardId && !task.isArchived);
         
         baseTasks = baseTasks.filter(task => {
             const searchMatch = !searchTerm || task.title.toLowerCase().includes(searchTerm.toLowerCase());
-            // Status filter is now handled by columns in board view, so we ignore it here for list view consistency
             const unitMatch = filters.unit === 'all' || task.unit === filters.unit;
             const tagsMatch = filters.tags.length === 0 || filters.tags.every(tag => task.tags?.includes(tag));
             const priorityMatch = filters.priority === 'all' || task.priority === filters.priority;
@@ -842,6 +885,11 @@ export default function TasksPage() {
         return baseTasks;
 
     }, [tasks, currentUser, searchTerm, filters, sorting, activeBoardId]);
+    
+    const archivedColumns = useMemo(() => {
+        if (!activeBoard) return [];
+        return activeBoard.columns.filter(c => c.isArchived);
+    }, [activeBoard]);
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -921,22 +969,30 @@ export default function TasksPage() {
       const checklistItems = task.checklist || [];
       const completedItems = checklistItems.filter(item => item.completed).length;
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
+      const isCompleted = activeBoard?.columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
 
       return (
         <Card 
           key={task.id} 
-          className={cn("mb-2 cursor-grab", !canEdit && 'cursor-not-allowed')}
+          className={cn("mb-2 cursor-grab", !canEdit && 'cursor-not-allowed', isCompleted && 'opacity-70')}
           draggable={canEdit}
           onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
         >
           <CardContent className="p-3">
-            <div className="flex justify-between items-start gap-2">
-                <span className="font-semibold text-sm leading-tight">{task.title}</span>
+             <div className="flex justify-between items-start gap-2">
+                <Checkbox
+                    id={`card-check-${task.id}`}
+                    checked={isCompleted}
+                    onCheckedChange={() => handleToggleStatusInList(task)}
+                    className="mt-1"
+                    disabled={!canEdit}
+                />
+                <label htmlFor={`card-check-${task.id}`} className={cn("flex-1 font-semibold text-sm leading-tight", isCompleted && "line-through")}>{task.title}</label>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenTaskDialog(task, task.columnId)} disabled={!canEdit}>Edit</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
                             <Move className="mr-2 h-4 w-4" />
@@ -952,12 +1008,12 @@ export default function TasksPage() {
                 </DropdownMenu>
             </div>
             {task.tags && task.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-2 flex flex-wrap gap-1 pl-7">
                     {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
                 </div>
             )}
-            <p className="text-xs text-muted-foreground mt-2">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
-            <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+            <div className="flex items-center justify-between mt-3 pl-7">
                <div className="flex items-center gap-3">
                 {(task.attachments?.length || 0) > 0 && (
                     <TooltipProvider>
@@ -1168,6 +1224,21 @@ export default function TasksPage() {
                 </AlertDialogContent>
             </AlertDialog>
             
+             <AlertDialog open={isDeleteColumnAlertOpen} onOpenChange={setIsDeleteColumnAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Delete List Permanently?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete the "{columnToDelete?.title}" list and all of its tasks. This action cannot be undone.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setColumnToDelete(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteColumnPermanently} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <Dialog open={isMoveTaskDialogOpen} onOpenChange={handleCloseMoveDialog}>
                 <DialogContent>
                     <DialogHeader>
@@ -1255,16 +1326,18 @@ export default function TasksPage() {
                     <Card>
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle>Task List</CardTitle>
                                  <div className="flex items-center gap-2">
-                                     <Button
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => setViewMode(viewMode === 'list' ? 'board' : 'list')}
-                                      >
-                                          {viewMode === 'list' ? <LayoutGrid className="h-5 w-5" /> : <List className="h-5 w-5" />}
-                                          <span className="sr-only">Toggle View</span>
-                                      </Button>
+                                    <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
+                                        <List className="h-5 w-5" />
+                                    </Button>
+                                     <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}>
+                                        <LayoutGrid className="h-5 w-5" />
+                                    </Button>
+                                    <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}>
+                                        <Archive className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                                 <div className="flex items-center gap-2">
                                     {selectedTaskIds.length > 0 && viewMode === 'list' && (
                                         <Button onClick={handleBulkExport} variant="outline">
                                             <Download className="mr-2 h-4 w-4" />
@@ -1277,7 +1350,6 @@ export default function TasksPage() {
                                     </Button>
                                 </div>
                             </div>
-                            <CardDescription>A list of all tasks in this board.</CardDescription>
                              {viewMode === 'list' && (
                                 <div className="flex flex-wrap items-center gap-2 pt-4">
                                     <Input
@@ -1390,7 +1462,8 @@ export default function TasksPage() {
                                                     const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
                                                     const checklistItems = task.checklist || [];
                                                     const completedItems = checklistItems.filter(item => item.completed).length;
-                                                    const isCompleted = activeBoard && activeBoard.columns.length > 0 ? task.columnId === activeBoard.columns[activeBoard.columns.length - 1].id : false;
+                                                    const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
+                                                    const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
 
                                                     return (
                                                     <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
@@ -1545,9 +1618,9 @@ export default function TasksPage() {
                                         </TableBody>
                                     </Table>
                                 </div>
-                             ) : (
+                            ) : viewMode === 'board' ? (
                                 <div className="flex gap-4 overflow-x-auto pb-4">
-                                   {activeBoard?.columns.map(column => (
+                                   {activeBoard?.columns.filter(c => !c.isArchived).map(column => (
                                        <div key={column.id} className="w-72 flex-shrink-0">
                                             <div 
                                                 id={column.id}
@@ -1593,17 +1666,20 @@ export default function TasksPage() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent>
                                                             <DropdownMenuLabel>List Actions</DropdownMenuLabel>
+                                                            <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
+                                                                <PlusCircle className="mr-2 h-4 w-4" /> Add new task
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
                                                             <DropdownMenuItem
-                                                                className="text-destructive"
-                                                                onSelect={() => handleDeleteColumn(column.id)}
+                                                                onSelect={() => handleArchiveColumn(column.id)}
                                                             >
-                                                                Delete list
+                                                                <Archive className="mr-2 h-4 w-4" /> Archive list
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-20rem)] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[16rem] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>
@@ -1647,6 +1723,39 @@ export default function TasksPage() {
                                     </div>
                                     )}
                                 </div>
+                             ) : (
+                                 <div className="space-y-4">
+                                    {archivedColumns.length > 0 ? (
+                                        archivedColumns.map(column => (
+                                            <Card key={column.id} className="bg-muted/50">
+                                                <CardHeader className="flex flex-row items-center justify-between pb-4">
+                                                    <div>
+                                                        <CardTitle className="text-lg">{column.title}</CardTitle>
+                                                        <CardDescription>
+                                                            {tasks.filter(t => t.columnId === column.id).length} tasks in this list.
+                                                        </CardDescription>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button variant="outline" size="sm" onClick={() => handleRestoreColumn(column.id)}>
+                                                            <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                            Restore
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}>
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete Permanently
+                                                        </Button>
+                                                    </div>
+                                                </CardHeader>
+                                            </Card>
+                                        ))
+                                    ) : (
+                                        <div className="text-center text-muted-foreground py-10">
+                                            <Archive className="mx-auto h-12 w-12" />
+                                            <p className="mt-4 font-semibold">No archived lists.</p>
+                                            <p>You can archive lists from the board view.</p>
+                                        </div>
+                                    )}
+                                 </div>
                              )}
                         </CardContent>
                     </Card>
@@ -1688,7 +1797,7 @@ export default function TasksPage() {
                                                 <SelectTrigger><SelectValue placeholder="Select a list" /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {activeBoard?.columns.map((col) => (
+                                                {activeBoard?.columns.filter(c => !c.isArchived).map((col) => (
                                                     <SelectItem key={col.id} value={col.id}>{col.title}</SelectItem>
                                                 ))}
                                             </SelectContent>

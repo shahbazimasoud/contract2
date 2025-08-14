@@ -92,6 +92,7 @@ export type Task = {
     priority?: 'low' | 'medium' | 'high' | 'critical';
     checklist?: ChecklistItem[];
     attachments?: { name: string; url: string }[];
+    isArchived: boolean;
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';
@@ -105,6 +106,7 @@ export type BoardColumn = {
     id: string;
     title: string;
     boardId: string;
+    isArchived: boolean;
 };
 
 export type TaskBoard = {

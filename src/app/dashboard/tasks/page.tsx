@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -150,6 +150,8 @@ export default function TasksPage() {
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
@@ -796,6 +798,107 @@ export default function TasksPage() {
       return <div className="flex h-screen items-center justify-center">Loading...</div>;
     }
 
+    const renderTaskCard = (task: Task) => {
+      const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+      const checklistItems = task.checklist || [];
+      const completedItems = checklistItems.filter(item => item.completed).length;
+
+      return (
+        <Card key={task.id} className="mb-4">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-start">
+              <span className="font-semibold text-sm">{task.title}</span>
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
+                          <Move className="mr-2 h-4 w-4" />
+                          Move Task
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                          <CalendarPlus className="mr-2 h-4 w-4" />
+                          Add to Calendar
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {task.tags && task.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                    {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-2">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+            <div className="flex items-center justify-between mt-4">
+               <div className="flex items-center gap-2">
+                {(task.attachments?.length || 0) > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger>
+                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>{task.attachments?.length} attachment(s)</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                )}
+                {(task.comments?.length || 0) > 0 && (
+                     <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger>
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <MessageSquare className="h-4 w-4" />
+                                <span className="text-xs">{task.comments?.length}</span>
+                              </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>{task.comments?.length} comment(s)</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                )}
+                {checklistItems.length > 0 && (
+                      <TooltipProvider>
+                      <Tooltip>
+                          <TooltipTrigger>
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <ListChecks className="h-4 w-4" />
+                                  <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                              </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                              <p>Checklist progress</p>
+                          </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                )}
+               </div>
+              {assignedUser && (
+                <TooltipProvider>
+                  <Tooltip>
+                      <TooltipTrigger>
+                          <Avatar className="h-7 w-7">
+                              <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
+                              <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          <p>Assigned to {assignedUser.name}</p>
+                      </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
     return (
         <div className="container mx-auto px-4 py-8">
             <PageHeader className="pb-4">
@@ -1026,7 +1129,15 @@ export default function TasksPage() {
                             <div className="flex items-center justify-between">
                                 <CardTitle>Task List</CardTitle>
                                  <div className="flex items-center gap-2">
-                                    {selectedTaskIds.length > 0 && (
+                                     <Button
+                                          variant="outline"
+                                          size="icon"
+                                          onClick={() => setViewMode(viewMode === 'list' ? 'board' : 'list')}
+                                      >
+                                          {viewMode === 'list' ? <LayoutGrid className="h-5 w-5" /> : <List className="h-5 w-5" />}
+                                          <span className="sr-only">Toggle View</span>
+                                      </Button>
+                                    {selectedTaskIds.length > 0 && viewMode === 'list' && (
                                         <Button onClick={handleBulkExport} variant="outline">
                                             <Download className="mr-2 h-4 w-4" />
                                             Export Selected ({selectedTaskIds.length})
@@ -1109,216 +1220,233 @@ export default function TasksPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[50px]">
-                                                <Checkbox
-                                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                                    checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
-                                                    aria-label="Select all rows"
-                                                />
-                                            </TableHead>
-                                            <TableHead className="w-[60px] text-center border-r">Done</TableHead>
-                                            <TableHead>
-                                                <Button variant="ghost" onClick={() => handleSort('title')}>
-                                                    Task
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button variant="ghost" onClick={() => handleSort('priority')}>
-                                                    Priority
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>Assigned To</TableHead>
-                                            <TableHead>
-                                                <Button variant="ghost" onClick={() => handleSort('dueDate')}>
-                                                    Next Due
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>Recurrence</TableHead>
-                                            <TableHead>
-                                                <Button variant="ghost" onClick={() => handleSort('status')}>
-                                                    Status
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>Info</TableHead>
-                                            <TableHead><span className="sr-only">Actions</span></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredTasks.length > 0 ? (
-                                            filteredTasks.map((task) => {
-                                                const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
-                                                const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
-                                                const checklistItems = task.checklist || [];
-                                                const completedItems = checklistItems.filter(item => item.completed).length;
+                           {viewMode === 'list' ? (
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-[50px]">
+                                                    <Checkbox
+                                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                                        checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                                                        aria-label="Select all rows"
+                                                    />
+                                                </TableHead>
+                                                <TableHead className="w-[60px] text-center border-r">Done</TableHead>
+                                                <TableHead>
+                                                    <Button variant="ghost" onClick={() => handleSort('title')}>
+                                                        Task
+                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </TableHead>
+                                                <TableHead>
+                                                    <Button variant="ghost" onClick={() => handleSort('priority')}>
+                                                        Priority
+                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </TableHead>
+                                                <TableHead>Assigned To</TableHead>
+                                                <TableHead>
+                                                    <Button variant="ghost" onClick={() => handleSort('dueDate')}>
+                                                        Next Due
+                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </TableHead>
+                                                <TableHead>Recurrence</TableHead>
+                                                <TableHead>
+                                                    <Button variant="ghost" onClick={() => handleSort('status')}>
+                                                        Status
+                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </TableHead>
+                                                <TableHead>Info</TableHead>
+                                                <TableHead><span className="sr-only">Actions</span></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredTasks.length > 0 ? (
+                                                filteredTasks.map((task) => {
+                                                    const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
+                                                    const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
+                                                    const checklistItems = task.checklist || [];
+                                                    const completedItems = checklistItems.filter(item => item.completed).length;
 
-                                                return (
-                                                <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
-                                                    <TableCell>
-                                                        <Checkbox
-                                                            onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
-                                                            checked={selectedTaskIds.includes(task.id)}
-                                                            aria-label={`Select row for task "${task.title}"`}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="px-2 text-center border-r">
-                                                        <Checkbox
-                                                            checked={task.status === 'completed'}
-                                                            onCheckedChange={() => handleToggleStatus(task)}
-                                                            aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
-                                                            className="rounded-full h-5 w-5 mx-auto"
-                                                            disabled={userPermissions === 'viewer'}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        <div>{task.title}</div>
-                                                        <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
-                                                        {task.tags && task.tags.length > 0 && (
-                                                            <div className="mt-1 flex flex-wrap gap-1">
-                                                                {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                                    return (
+                                                    <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
+                                                        <TableCell>
+                                                            <Checkbox
+                                                                onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                                                                checked={selectedTaskIds.includes(task.id)}
+                                                                aria-label={`Select row for task "${task.title}"`}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="px-2 text-center border-r">
+                                                            <Checkbox
+                                                                checked={task.status === 'completed'}
+                                                                onCheckedChange={() => handleToggleStatus(task)}
+                                                                aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                                                                className="rounded-full h-5 w-5 mx-auto"
+                                                                disabled={userPermissions === 'viewer'}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            <div>{task.title}</div>
+                                                            <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
+                                                            {task.tags && task.tags.length > 0 && (
+                                                                <div className="mt-1 flex flex-wrap gap-1">
+                                                                    {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                                                </div>
+                                                            )}
+                                                        </TableCell>
+                                                         <TableCell>
+                                                            <Badge variant="outline" className={cn(
+                                                                task.priority === 'critical' && 'border-red-500 text-red-500',
+                                                                task.priority === 'high' && 'border-orange-500 text-orange-500',
+                                                                task.priority === 'medium' && 'border-yellow-500 text-yellow-500',
+                                                                task.priority === 'low' && 'border-blue-500 text-blue-500',
+                                                            )}>
+                                                                {task.priority || 'medium'}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                {assignedUser && (
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger>
+                                                                                <Avatar className="h-7 w-7">
+                                                                                    <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
+                                                                                    <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
+                                                                                </Avatar>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Assigned to {assignedUser.name}</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                )}
+                                                                {sharedUsers.length > 0 && (
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger>
+                                                                                <div className="relative flex items-center">
+                                                                                    <UsersIcon className="h-5 w-5 text-muted-foreground" />
+                                                                                    <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </TableCell>
-                                                     <TableCell>
-                                                        <Badge variant="outline" className={cn(
-                                                            task.priority === 'critical' && 'border-red-500 text-red-500',
-                                                            task.priority === 'high' && 'border-orange-500 text-orange-500',
-                                                            task.priority === 'medium' && 'border-yellow-500 text-yellow-500',
-                                                            task.priority === 'low' && 'border-blue-500 text-blue-500',
-                                                        )}>
-                                                            {task.priority || 'medium'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            {assignedUser && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <Avatar className="h-7 w-7">
-                                                                                <AvatarImage src={assignedUser.avatar} alt={assignedUser.name}/>
-                                                                                <AvatarFallback>{assignedUser.name.charAt(0)}</AvatarFallback>
-                                                                            </Avatar>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Assigned to {assignedUser.name}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                            {sharedUsers.length > 0 && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <div className="relative flex items-center">
-                                                                                <UsersIcon className="h-5 w-5 text-muted-foreground" />
-                                                                                <span className="absolute -top-1 -right-2 text-xs font-bold">{sharedUsers.length}</span>
-                                                                            </div>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Shared with: {sharedUsers.map(u => u.name).join(', ')}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
+                                                        <TableCell>{formatRecurrence(task)}</TableCell>
+                                                        <TableCell>
+                                                            <Badge
+                                                                variant={'outline'}
+                                                                className={cn(
+                                                                    task.status === 'pending'
+                                                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
+                                                                        : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
+                                                                )}
+                                                            >
+                                                                {task.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <TooltipProvider>
+                                                                <div className="flex items-center gap-2">
+                                                                    {(task.attachments?.length || 0) > 0 && (
+                                                                         <Tooltip>
+                                                                            <TooltipTrigger>
+                                                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>{task.attachments?.length} attachment(s)</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    )}
+                                                                    {(task.comments?.length || 0) > 0 && (
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger>
+                                                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Has comments</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    )}
+                                                                    {checklistItems.length > 0 && (
+                                                                         <Tooltip>
+                                                                            <TooltipTrigger>
+                                                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                                                    <ListChecks className="h-4 w-4" />
+                                                                                    <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>Checklist progress</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    )}
+                                                                </div>
+                                                            </TooltipProvider>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                    <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
+                                                                        <Move className="mr-2 h-4 w-4" />
+                                                                        Move Task
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                                                                        <CalendarPlus className="mr-2 h-4 w-4" />
+                                                                        Add to Calendar
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )})
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={10} className="h-24 text-center">
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
+                                                            <p className="font-semibold">No tasks found.</p>
+                                                            <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
-                                                    <TableCell>{formatRecurrence(task)}</TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            variant={'outline'}
-                                                            className={cn(
-                                                                task.status === 'pending'
-                                                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 border-amber-200 dark:border-amber-700'
-                                                                    : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700'
-                                                            )}
-                                                        >
-                                                            {task.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TooltipProvider>
-                                                            <div className="flex items-center gap-2">
-                                                                {(task.attachments?.length || 0) > 0 && (
-                                                                     <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{task.attachments?.length} attachment(s)</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                                {(task.comments?.length || 0) > 0 && (
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Has comments</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                                {checklistItems.length > 0 && (
-                                                                     <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <div className="flex items-center gap-1.5 text-muted-foreground">
-                                                                                <ListChecks className="h-4 w-4" />
-                                                                                <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
-                                                                            </div>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Checklist progress</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                )}
-                                                            </div>
-                                                        </TooltipProvider>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
-                                                                    <Move className="mr-2 h-4 w-4" />
-                                                                    Move Task
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
-                                                                    <CalendarPlus className="mr-2 h-4 w-4" />
-                                                                    Add to Calendar
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
                                                 </TableRow>
-                                            )})
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={10} className="h-24 text-center">
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
-                                                        <p className="font-semibold">No tasks found.</p>
-                                                        <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                             ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div id="pending-column">
+                                        <h3 className="text-lg font-semibold mb-4">Pending ({filteredTasks.filter(t => t.status === 'pending').length})</h3>
+                                        <div className="bg-muted/50 rounded-lg p-4 min-h-[400px]">
+                                             {filteredTasks.filter(t => t.status === 'pending').map(renderTaskCard)}
+                                        </div>
+                                    </div>
+                                    <div id="completed-column">
+                                        <h3 className="text-lg font-semibold mb-4">Completed ({filteredTasks.filter(t => t.status === 'completed').length})</h3>
+                                        <div className="bg-muted/50 rounded-lg p-4 min-h-[400px]">
+                                            {filteredTasks.filter(t => t.status === 'completed').map(renderTaskCard)}
+                                        </div>
+                                    </div>
+                                </div>
+                             )}
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -1866,3 +1994,6 @@ export default function TasksPage() {
 }
 
 
+
+
+    

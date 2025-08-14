@@ -236,11 +236,11 @@ export const taskBoards: TaskBoard[] = [
         { userId: 'U-003', role: 'viewer' },
       ]
     },
-     { 
+    { 
       id: 'TB-004', 
       name: 'کارهای شخصی', 
       color: '#eab308',
-      ownerId: 'U-002', // John Doe
+      ownerId: 'U-002', // John Doe (Admin for IT Department)
       sharedWith: []
     },
     { 
@@ -363,6 +363,26 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['design', 'marketing', 'creative'],
         priority: 'high',
+        comments: []
+    },
+    {
+        id: 'T-006',
+        boardId: 'TB-004',
+        title: 'Update personal development plan',
+        description: 'Review and update Q3 goals.',
+        status: 'pending',
+        createdBy: 'John Doe',
+        unit: 'IT Department',
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
+        recurrence: {
+            type: 'none',
+            time: '11:00',
+        },
+        reminders: [1],
+        assignedTo: 'U-002',
+        sharedWith: [],
+        tags: ['personal', 'career'],
+        priority: 'low',
         comments: []
     }
 ];

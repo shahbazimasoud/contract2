@@ -139,6 +139,7 @@ export default function TasksPage() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
+    const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
@@ -191,6 +192,46 @@ export default function TasksPage() {
       }
     });
 
+    useEffect(() => {
+        const storedUser = localStorage.getItem(AUTH_USER_KEY);
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            setCurrentUser(user);
+        }
+    }, []);
+    
+    const visibleBoards = useMemo(() => {
+        if (!currentUser) return [];
+        return boards.filter(board => 
+            board.ownerId === currentUser.id || 
+            board.sharedWith?.some(s => s.userId === currentUser.id)
+        );
+    }, [boards, currentUser]);
+
+    useEffect(() => {
+        // This effect ensures an active board is set intelligently on load or user change.
+        if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
+            // Prioritize setting a board owned by the user as active.
+            const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+            if (ownedBoard) {
+                setActiveBoardId(ownedBoard.id);
+            } else {
+                // If no owned boards, set the first available board as active.
+                setActiveBoardId(visibleBoards[0].id);
+            }
+        }
+    }, [currentUser, visibleBoards, activeBoardId]);
+
+    const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
+    
+    const userPermissions = useMemo(() => {
+        if (!currentUser || !activeBoard) return 'none';
+        if (activeBoard.ownerId === currentUser.id) return 'owner';
+        const shareInfo = activeBoard.sharedWith?.find(s => s.userId === currentUser.id);
+        return shareInfo ? shareInfo.role : 'none';
+    }, [currentUser, activeBoard]);
+    
+
     const selectedUnit = form.watch('unit');
 
     useEffect(() => {
@@ -207,38 +248,6 @@ export default function TasksPage() {
         name: "reminders"
     });
     
-    useEffect(() => {
-        const storedUser = localStorage.getItem(AUTH_USER_KEY);
-        if (storedUser) {
-            const user = JSON.parse(storedUser);
-            setCurrentUser(user);
-        }
-    }, []);
-
-    const visibleBoards = useMemo(() => {
-        if (!currentUser) return [];
-        return boards.filter(board => 
-            board.ownerId === currentUser.id || 
-            board.sharedWith?.some(s => s.userId === currentUser.id)
-        );
-    }, [boards, currentUser]);
-    
-    const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
-    
-    useEffect(() => {
-      // Set the active board ID only once when the boards are loaded for the current user.
-      if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-          // Prioritize setting an owned board as active first.
-          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-          if (ownedBoard) {
-              setActiveBoardId(ownedBoard.id);
-          } else {
-              // If no owned boards, set the first available board as active.
-              setActiveBoardId(visibleBoards[0].id);
-          }
-      }
-    }, [visibleBoards, currentUser, activeBoardId]);
-
     useEffect(() => {
         if (!currentUser) return;
         const defaultUnit = currentUser.role === 'admin' ? currentUser.unit : "";
@@ -608,16 +617,6 @@ export default function TasksPage() {
         });
         return Array.from(tagSet).sort();
     }, [tasks]);
-
-    const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
-
-    const userPermissions = useMemo(() => {
-        if (!currentUser || !activeBoard) return 'none';
-        if (activeBoard.ownerId === currentUser.id) return 'owner';
-        const shareInfo = activeBoard.sharedWith?.find(s => s.userId === currentUser.id);
-        return shareInfo ? shareInfo.role : 'none';
-    }, [currentUser, activeBoard]);
-
 
     const filteredTasks = useMemo(() => {
         if (!currentUser || !activeBoardId) return [];

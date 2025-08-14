@@ -1716,7 +1716,7 @@ export default function TasksPage() {
                                                     )}
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions !== 'owner'}>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions === 'viewer'}>
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
@@ -1735,7 +1735,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[30rem] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[calc(5*4.5rem)] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>
@@ -2369,7 +2369,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
+                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
                                 {(selectedTaskForDetails?.comments || []).length > 0 ? (
                                     (selectedTaskForDetails?.comments || []).map(comment => {
                                         const author = getCommentAuthor(comment.authorId);
@@ -2398,7 +2398,7 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </div>
-                            <div className="mt-auto pt-4 border-t">
+                            <div className="mt-auto pt-4 border-t sticky bottom-0 bg-background">
                                 <Form {...commentForm}>
                                     <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
                                     <FormField

@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye, ArrowUpDown, Trash2, Filter } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye, ArrowUpDown, Trash2, Filter, List, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, formatDistanceToNow } from "date-fns"
+import { format, formatDistanceToNow, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian"
 import PersianCalendar from "react-date-object/calendars/persian"
@@ -95,6 +95,8 @@ const ITEMS_PER_PAGE = 10;
 
 type SortableField = 'contractorName' | 'endDate' | 'status';
 type SortDirection = 'asc' | 'desc';
+type ViewMode = 'list' | 'calendar';
+
 
 const reminderEmailSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -169,6 +171,9 @@ export default function ContractsPage() {
     status: 'all',
     renewal: 'all',
   });
+  
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
 
   const form = useForm<z.infer<typeof contractSchema>>({
@@ -505,9 +510,38 @@ export default function ContractsPage() {
   const getCreator = (creatorId: string): User | undefined => {
     return mockUsers.find(u => u.id === creatorId);
   }
+  
+    const calendarDays = useMemo(() => {
+        const start = startOfMonth(currentMonth);
+        const end = endOfMonth(currentMonth);
+        const days = eachDayOfInterval({ start, end });
+        const startingDayIndex = getDay(start); // 0 for Sunday, 1 for Monday...
+        // Create an array of empty placeholders for days before the start of the month
+        const placeholders = Array.from({ length: startingDayIndex }, (_, i) => ({
+            date: null,
+            key: `placeholder-${i}`
+        }));
+        return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
+    }, [currentMonth]);
+
+    const contractsByDate = useMemo(() => {
+        return filteredContracts.reduce((acc, contract) => {
+            const endDate = format(new Date(contract.endDate), 'yyyy-MM-dd');
+            if (!acc[endDate]) {
+                acc[endDate] = [];
+            }
+            acc[endDate].push(contract);
+            return acc;
+        }, {} as Record<string, Contract[]>);
+    }, [filteredContracts]);
+
+    const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
+    const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
+    const goToToday = () => setCurrentMonth(new Date());
+
 
   if (!currentUser) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return null;
   }
 
   return (
@@ -1149,189 +1183,243 @@ export default function ContractsPage() {
                         </div>
                     </PopoverContent>
                 </Popover>
+                 <div className="flex items-center gap-1 rounded-md bg-muted p-1 ml-auto">
+                    <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
+                        <List className="h-4 w-4"/>
+                    </Button>
+                     <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}>
+                        <CalendarViewIcon className="h-4 w-4"/>
+                    </Button>
+                </div>
             </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[25%]">
-                    <Button variant="ghost" onClick={() => handleSort('contractorName')}>
-                        Contractor
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-[15%]">Type</TableHead>
-                  <TableHead className="w-[10%]">
-                     <Button variant="ghost" onClick={() => handleSort('status')}>
-                        Status
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-[15%]">
-                     <Button variant="ghost" onClick={() => handleSort('endDate')}>
-                        End Date
-                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="w-[10%]">Days Left</TableHead>
-                  <TableHead className="w-[10%]">Unit</TableHead>
-                  <TableHead className="w-[10%]">Info</TableHead>
-                  <TableHead className="w-[5%] text-right">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedContracts.length > 0 ? (
-                  paginatedContracts.map((contract) => {
-                    const daysLeft = getDaysLeft(contract.endDate);
-                    const daysLeftText = daysLeft < 0 ? 'Expired' : `${daysLeft} days`;
-                    const daysLeftColor = daysLeft < 7 ? 'text-destructive' : daysLeft < 30 ? 'text-amber-600' : 'text-green-600';
-                    return (
-                        <TableRow key={contract.id} className={cn(contract.status === 'inactive' && 'opacity-50')}>
-                        <TableCell className="font-medium">
-                            <div className="truncate font-semibold">{contract.contractorName}</div>
-                            <div className="text-xs text-muted-foreground">{contract.id}</div>
-                        </TableCell>
-                        <TableCell>{contract.type}</TableCell>
-                        <TableCell>
-                            <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}
-                                className={cn(
-                                    'w-20 justify-center',
-                                    contract.status === 'active' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700' 
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
-                                )}
-                            >
-                                {contract.status === 'active' ? 'Active' : 'Inactive'}
-                            </Badge>
-                        </TableCell>
-                        <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
-                        <TableCell className={cn("font-semibold", daysLeftColor)}>
-                            {daysLeftText}
-                        </TableCell>
-                        <TableCell>{contract.unit}</TableCell>
-                        <TableCell>
-                            <TooltipProvider>
-                                <div className="flex items-center gap-3">
-                                    {(contract.comments?.length || 0) > 0 && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Has comments</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                     {(contract.versions?.length || 0) > 0 && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <History className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Has version history</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                    {contract.attachments.length > 0 && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <AttachmentIcon className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{contract.attachments.length} attachment(s)</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                    {contract.reminders.length > 0 && contract.status === 'active' && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Bell className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Email reminders active</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                     {contract.reminderPhones && contract.reminderPhones.length > 0 && contract.status === 'active' && (
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>SMS reminders active</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    )}
-                                </div>
-                            </TooltipProvider>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleOpenDetailsSheet(contract)}>Details</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
+            {viewMode === 'list' ? (
+                <>
+                <div className="rounded-md border">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="w-[25%]">
+                            <Button variant="ghost" onClick={() => handleSort('contractorName')}>
+                                Contractor
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead className="w-[15%]">Type</TableHead>
+                        <TableHead className="w-[10%]">
+                            <Button variant="ghost" onClick={() => handleSort('status')}>
+                                Status
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead className="w-[15%]">
+                            <Button variant="ghost" onClick={() => handleSort('endDate')}>
+                                End Date
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </TableHead>
+                        <TableHead className="w-[10%]">Days Left</TableHead>
+                        <TableHead className="w-[10%]">Unit</TableHead>
+                        <TableHead className="w-[10%]">Info</TableHead>
+                        <TableHead className="w-[5%] text-right">
+                            <span className="sr-only">Actions</span>
+                        </TableHead>
                         </TableRow>
-                    )
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                           <FileText className="h-8 w-8 text-muted-foreground" />
-                           <p className="font-semibold">No contracts found.</p>
-                           <p className="text-muted-foreground text-sm">Try adjusting your filters or add a new contract.</p>
-                        </div>
-                    </TableCell>
-                  </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {paginatedContracts.length > 0 ? (
+                        paginatedContracts.map((contract) => {
+                            const daysLeft = getDaysLeft(contract.endDate);
+                            const daysLeftText = daysLeft < 0 ? 'Expired' : `${daysLeft} days`;
+                            const daysLeftColor = daysLeft < 7 ? 'text-destructive' : daysLeft < 30 ? 'text-amber-600' : 'text-green-600';
+                            return (
+                                <TableRow key={contract.id} className={cn(contract.status === 'inactive' && 'opacity-50')}>
+                                <TableCell className="font-medium">
+                                    <div className="truncate font-semibold">{contract.contractorName}</div>
+                                    <div className="text-xs text-muted-foreground">{contract.id}</div>
+                                </TableCell>
+                                <TableCell>{contract.type}</TableCell>
+                                <TableCell>
+                                    <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}
+                                        className={cn(
+                                            'w-20 justify-center',
+                                            contract.status === 'active' 
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400 border-green-200 dark:border-green-700' 
+                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                                        )}
+                                    >
+                                        {contract.status === 'active' ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
+                                <TableCell className={cn("font-semibold", daysLeftColor)}>
+                                    {daysLeftText}
+                                </TableCell>
+                                <TableCell>{contract.unit}</TableCell>
+                                <TableCell>
+                                    <TooltipProvider>
+                                        <div className="flex items-center gap-3">
+                                            {(contract.comments?.length || 0) > 0 && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Has comments</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {(contract.versions?.length || 0) > 0 && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <History className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Has version history</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {contract.attachments.length > 0 && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <AttachmentIcon className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{contract.attachments.length} attachment(s)</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {contract.reminders.length > 0 && contract.status === 'active' && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <Bell className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Email reminders active</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {contract.reminderPhones && contract.reminderPhones.length > 0 && contract.status === 'active' && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>SMS reminders active</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                        </div>
+                                    </TooltipProvider>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenDetailsSheet(contract)}>Details</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                                </TableRow>
+                            )
+                        })
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={8} className="h-24 text-center">
+                                <div className="flex flex-col items-center gap-2">
+                                <FileText className="h-8 w-8 text-muted-foreground" />
+                                <p className="font-semibold">No contracts found.</p>
+                                <p className="text-muted-foreground text-sm">Try adjusting your filters or add a new contract.</p>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-end space-x-2 py-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                    </div>
                 )}
-              </TableBody>
-            </Table>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center justify-end space-x-2 py-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </Button>
-            </div>
-          )}
+                </>
+            ) : (
+                <div className="border rounded-lg">
+                    <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
+                            <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                            <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
+                        </div>
+                        <Button variant="outline" onClick={goToToday}>Today</Button>
+                    </div>
+                    <div className="grid grid-cols-7 border-t border-b">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                            <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-7">
+                        {calendarDays.map((dayObj) => {
+                            const contractsOnDay = dayObj.date ? contractsByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                            return (
+                            <div key={dayObj.key} className={cn("h-40 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
+                                {dayObj.date && (
+                                    <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
+                                        {format(dayObj.date, 'd')}
+                                    </span>
+                                )}
+                                <div className="space-y-1 mt-1">
+                                    {contractsOnDay.map(contract => (
+                                         <TooltipProvider key={contract.id}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="bg-primary/20 text-primary-foreground p-1 rounded-md text-xs cursor-pointer hover:bg-primary/30">
+                                                        <p className="font-semibold text-primary truncate">{contract.contractorName}</p>
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{contract.type}</p>
+                                                    <p>Expires: {formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ))}
+                                </div>
+                            </div>
+                        )})}
+                    </div>
+                </div>
+            )}
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    
-
-    

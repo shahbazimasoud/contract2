@@ -1085,40 +1085,51 @@ export default function TasksPage() {
 
       return (
         <Card 
-          key={task.id} 
-          className={cn("mb-2 cursor-grab", !canEdit && 'cursor-not-allowed', isCompleted && 'opacity-70')}
-          draggable={canEdit}
-          onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
-          onDragEnd={handleDragEnd}
+            key={task.id} 
+            className={cn("mb-2 cursor-pointer", !canEdit && 'cursor-not-allowed', isCompleted && 'opacity-70')}
+            draggable={canEdit}
+            onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
+            onDragEnd={handleDragEnd}
+            onClick={(e) => {
+                // Stop propagation to prevent opening both details and edit dialogs
+                if ((e.target as HTMLElement).closest('[data-no-dnd]')) {
+                    return;
+                }
+                handleOpenTaskDialog(task, task.columnId)
+            }}
         >
           <CardContent className="p-3">
              <div className="flex justify-between items-start gap-2">
-                <Checkbox
-                    id={`card-check-${task.id}`}
-                    checked={isCompleted}
-                    onCheckedChange={() => handleToggleStatusInList(task)}
-                    className="mt-1"
-                    disabled={!canEdit}
-                />
-                <label htmlFor={`card-check-${task.id}`} className={cn("flex-1 font-semibold text-sm leading-tight", isCompleted && "line-through")}>{task.title}</label>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleOpenTaskDialog(task, task.columnId)} disabled={!canEdit}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
-                            <Move className="mr-2 h-4 w-4" />
-                            Move Task
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
-                            <CalendarPlus className="mr-2 h-4 w-4" />
-                            Add to Calendar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div data-no-dnd>
+                    <Checkbox
+                        id={`card-check-${task.id}`}
+                        checked={isCompleted}
+                        onCheckedChange={() => handleToggleStatusInList(task)}
+                        className="mt-1"
+                        disabled={!canEdit}
+                    />
+                </div>
+                <label htmlFor={`card-check-${task.id}`} className="flex-1 font-semibold text-sm leading-tight cursor-pointer">{task.title}</label>
+                <div data-no-dnd>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleOpenTaskDialog(task, task.columnId)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
+                                <Move className="mr-2 h-4 w-4" />
+                                Move Task
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                                <CalendarPlus className="mr-2 h-4 w-4" />
+                                Add to Calendar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
             {task.tags && task.tags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1 pl-7">
@@ -2468,7 +2479,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto space-y-4 py-4">
+                             <div className="flex-1 overflow-y-auto space-y-4 py-4">
                                 {(selectedTaskForDetails?.comments || []).length > 0 ? (
                                     (selectedTaskForDetails?.comments || []).map(comment => {
                                         const author = getCommentAuthor(comment.authorId);

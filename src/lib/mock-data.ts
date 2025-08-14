@@ -230,11 +230,18 @@ export const taskBoards: TaskBoard[] = [
       id: 'TB-001', 
       name: 'کارهای سازمانی', 
       color: '#3b82f6',
-      ownerId: 'U-002',
+      ownerId: 'U-001', // Super Admin
       sharedWith: [
-        { userId: 'U-001', role: 'editor' }, 
+        { userId: 'U-002', role: 'editor' }, 
         { userId: 'U-003', role: 'viewer' },
       ]
+    },
+     { 
+      id: 'TB-004', 
+      name: 'کارهای شخصی', 
+      color: '#eab308',
+      ownerId: 'U-002', // John Doe
+      sharedWith: []
     },
     { 
       id: 'TB-002', 
@@ -247,7 +254,7 @@ export const taskBoards: TaskBoard[] = [
       id: 'TB-003', 
       name: 'IT Tasks', 
       color: '#10b981',
-      ownerId: 'U-002', // John Doe
+      ownerId: 'U-001', // Super Admin
       sharedWith: []
     },
 ];
@@ -359,6 +366,3 @@ export const tasks: Task[] = [
         comments: []
     }
 ];
-
-
-

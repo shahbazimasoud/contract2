@@ -227,9 +227,16 @@ export default function TasksPage() {
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     
     useEffect(() => {
-      if (visibleBoards.length > 0 && !activeBoardId) {
-          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser?.id);
-          setActiveBoardId(ownedBoard ? ownedBoard.id : visibleBoards[0].id);
+      // Set the active board ID only once when the boards are loaded for the current user.
+      if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
+          // Prioritize setting an owned board as active first.
+          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+          if (ownedBoard) {
+              setActiveBoardId(ownedBoard.id);
+          } else {
+              // If no owned boards, set the first available board as active.
+              setActiveBoardId(visibleBoards[0].id);
+          }
       }
     }, [visibleBoards, currentUser, activeBoardId]);
 

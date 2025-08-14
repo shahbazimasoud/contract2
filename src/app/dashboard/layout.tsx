@@ -35,7 +35,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { usePathname, useRouter } from "next/navigation"
-import type { User } from '@/lib/types';
+import type { User, AppearanceSettings } from '@/lib/types';
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -76,16 +76,27 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter();
-  const isActive = (path: string) => pathname === path
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+  const isActive = (path: string) => pathname === path;
+  
+  const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({
+      siteName: 'ContractWise',
+      loginTitle: '',
+      loginSubtitle: '',
+      logo: null,
+      primaryColor: ''
+  });
   const [user, setUser] = React.useState<User | null>(null);
+  const [isClient, setIsClient] = React.useState(false);
+
 
   React.useEffect(() => {
+    setIsClient(true);
     const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
     if (savedSettings) {
         const settings = JSON.parse(savedSettings);
-        if (settings.logo) {
-            setLogoUrl(settings.logo);
+        setAppearanceSettings(settings);
+        if (settings.primaryColor) {
+            document.documentElement.style.setProperty('--primary-hsl', settings.primaryColor);
         }
     }
 
@@ -102,21 +113,31 @@ export default function DashboardLayout({
     router.push('/login');
   }
 
-  if (!user) {
-    return <div className="flex h-screen items-center justify-center">Loading user data...</div>;
+  if (!isClient || !user) {
+    // Render a skeleton or loading state on the server and initial client render
+    // to prevent hydration mismatch.
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+                <Building className="h-10 w-10 animate-pulse text-muted-foreground" />
+                <p className="text-muted-foreground">Loading Dashboard...</p>
+            </div>
+        </div>
+    );
   }
+
 
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar>
         <SidebarHeader className="p-4">
           <Link href="/dashboard" className="flex items-center gap-2">
-            {logoUrl ? (
-                <Image src={logoUrl} alt="Company Logo" width={32} height={32} className="w-8 h-8" />
+            {appearanceSettings.logo ? (
+                <Image src={appearanceSettings.logo} alt="Company Logo" width={32} height={32} className="w-8 h-8" />
             ) : (
                 <Building className="w-8 h-8 text-primary" />
             )}
-            <span className="text-xl font-semibold font-headline group-data-[collapsible=icon]:hidden">ContractWise</span>
+            <span className="text-xl font-semibold font-headline group-data-[collapsible=icon]:hidden">{appearanceSettings.siteName}</span>
           </Link>
         </SidebarHeader>
         <SidebarContent>
@@ -253,5 +274,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   )
 }
-
-    

@@ -117,3 +117,11 @@ export type TaskBoard = {
     sharedWith?: BoardShare[];
     columns: BoardColumn[]; // New field for columns
 }
+
+export type AppearanceSettings = {
+    siteName: string;
+    loginTitle: string;
+    loginSubtitle: string;
+    logo: string | null;
+    primaryColor: string; // HSL value string e.g., "231 48% 48%"
+}

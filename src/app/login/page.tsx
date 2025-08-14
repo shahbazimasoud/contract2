@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { users as mockUsers } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import type { AppearanceSettings } from '@/lib/types';
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
@@ -22,34 +23,37 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = React.useState("");
-  
-  const [loginSplashProps, setLoginSplashProps] = React.useState({
-    welcomeText: "Welcome to ContractWise",
-    subText: "Your integrated solution for managing contracts efficiently and effectively.",
-    bgType: "image" as "gradient" | "image",
-    bgValue: "/login-splash.jpg", // Default image
-    gradientStart: "#3F51B5",
-    gradientEnd: "#2196F3",
-    logo: null as string | null,
+
+  const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({
+    siteName: "ContractWise",
+    loginTitle: "Welcome to ContractWise",
+    loginSubtitle: "Your integrated solution for managing contracts efficiently and effectively.",
+    logo: null,
+    primaryColor: "231 48% 48%",
   });
+
+  const [isClient, setIsClient] = React.useState(false);
   
   React.useEffect(() => {
+      setIsClient(true);
       const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
       if (savedSettings) {
           const settings = JSON.parse(savedSettings);
-          setLoginSplashProps(prev => ({
-              ...prev,
-              welcomeText: settings.welcomeText || prev.welcomeText,
-              bgType: settings.bgType || prev.bgType,
-              gradientStart: settings.gradientStart || prev.gradientStart,
-              gradientEnd: settings.gradientEnd || prev.gradientEnd,
-              logo: settings.logo || null,
-          }));
+          setAppearanceSettings(settings);
+          if (settings.primaryColor) {
+              document.documentElement.style.setProperty('--primary-hsl', settings.primaryColor);
+          }
       }
       
       // Clear any existing user session on login page load
       localStorage.removeItem(AUTH_USER_KEY);
   }, []);
+
+  React.useEffect(() => {
+    if (appearanceSettings.siteName) {
+      document.title = `Login | ${appearanceSettings.siteName}`;
+    }
+  }, [appearanceSettings.siteName]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,9 +77,16 @@ export default function LoginPage() {
     }
   };
 
-  const backgroundStyle = loginSplashProps.bgType === 'gradient' 
-    ? { background: `linear-gradient(to bottom right, ${loginSplashProps.gradientStart}, ${loginSplashProps.gradientEnd})` }
-    : {};
+  const backgroundStyle = { 
+    background: 'hsl(var(--background))',
+    backgroundImage: 'url(/login-splash.jpg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+   };
+
+  if (!isClient) {
+    return null; // or a skeleton loader
+  }
 
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
@@ -83,13 +94,13 @@ export default function LoginPage() {
         <Card className="mx-auto w-full max-w-md shadow-2xl">
             <CardHeader className="space-y-1 text-center">
               <div className="flex justify-center mb-4">
-                 {loginSplashProps.logo ? (
-                    <Image src={loginSplashProps.logo} alt="Company Logo" width={40} height={40} className="h-10 w-10" />
+                 {appearanceSettings.logo ? (
+                    <Image src={appearanceSettings.logo} alt="Company Logo" width={40} height={40} className="h-10 w-10" />
                  ) : (
                     <Building className="h-10 w-10 text-primary" />
                  )}
               </div>
-              <CardTitle className="text-3xl font-bold font-headline">ContractWise</CardTitle>
+              <CardTitle className="text-3xl font-bold font-headline">{appearanceSettings.siteName}</CardTitle>
               <CardDescription>
                 Enter your credentials to access your dashboard
               </CardDescription>
@@ -139,24 +150,14 @@ export default function LoginPage() {
           </Card>
       </div>
       <div className="hidden bg-muted lg:block relative" style={backgroundStyle}>
-        {loginSplashProps.bgType === 'image' && (
-          <Image
-            src={loginSplashProps.bgValue}
-            alt="Login splash image"
-            width="1920"
-            height="1080"
-            className="h-full w-full object-cover"
-            data-ai-hint="office building"
-          />
-        )}
         <div className="absolute inset-0 bg-primary/60" />
         <div className="absolute inset-0 flex items-center justify-center text-white text-center p-12">
           <div>
             <h2 className="text-5xl font-bold font-headline mb-4">
-              {loginSplashProps.welcomeText}
+              {appearanceSettings.loginTitle}
             </h2>
             <p className="text-xl opacity-90">
-              {loginSplashProps.subText}
+              {appearanceSettings.loginSubtitle}
             </p>
           </div>
         </div>

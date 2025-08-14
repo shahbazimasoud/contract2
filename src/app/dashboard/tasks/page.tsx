@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -795,6 +794,35 @@ export default function TasksPage() {
         return mockUsers.find(u => u.id === authorId);
     }
     
+    // --- Drag and Drop Handlers ---
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, taskId: string) => {
+        e.dataTransfer.setData("taskId", taskId);
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.currentTarget.classList.add('bg-primary/10');
+    };
+    
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.currentTarget.classList.remove('bg-primary/10');
+    }
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: 'pending' | 'completed') => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('bg-primary/10');
+        const taskId = e.dataTransfer.getData("taskId");
+        const task = tasks.find(t => t.id === taskId);
+        
+        if (task && task.status !== newStatus) {
+            setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+            toast({
+                title: "Task Status Updated",
+                description: `Task "${task.title}" moved to ${newStatus}.`,
+            });
+        }
+    };
+    
     if (!currentUser) {
       return null
     }
@@ -803,28 +831,25 @@ export default function TasksPage() {
       const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
       const checklistItems = task.checklist || [];
       const completedItems = checklistItems.filter(item => item.completed).length;
+      const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
 
       return (
-        <Card key={task.id} className={cn("mb-4", task.status === 'completed' && 'opacity-60')}>
+        <Card 
+          key={task.id} 
+          className={cn("mb-4 cursor-grab", task.status === 'completed' && 'opacity-60', !canEdit && 'cursor-not-allowed')}
+          draggable={canEdit}
+          onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
+        >
           <CardContent className="p-4">
             <div className="flex justify-between items-start gap-2">
-                <div className="flex items-start gap-3">
-                    <Checkbox
-                        checked={task.status === 'completed'}
-                        onCheckedChange={() => handleToggleStatus(task)}
-                        aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
-                        className="rounded-full h-5 w-5 mt-0.5"
-                        disabled={userPermissions === 'viewer'}
-                    />
-                    <span className={cn("font-semibold text-sm", task.status === 'completed' && 'line-through')}>{task.title}</span>
-                </div>
+                <span className={cn("font-semibold text-sm flex-1", task.status === 'completed' && 'line-through')}>{task.title}</span>
               <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
+                      <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
                           <Move className="mr-2 h-4 w-4" />
                           Move Task
                       </DropdownMenuItem>
@@ -838,12 +863,12 @@ export default function TasksPage() {
               </DropdownMenu>
             </div>
             {task.tags && task.tags.length > 0 && (
-                <div className="mt-2 ml-8 flex flex-wrap gap-1">
+                <div className="mt-2 flex flex-wrap gap-1">
                     {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
                 </div>
             )}
-            <p className={cn("text-xs text-muted-foreground mt-2 ml-8", task.status === 'completed' && 'line-through')}>{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
-            <div className="flex items-center justify-between mt-4 ml-8">
+            <p className={cn("text-xs text-muted-foreground mt-2", task.status === 'completed' && 'line-through')}>{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+            <div className="flex items-center justify-between mt-4">
                <div className="flex items-center gap-2">
                 {(task.attachments?.length || 0) > 0 && (
                     <TooltipProvider>
@@ -1443,15 +1468,27 @@ export default function TasksPage() {
                                 </div>
                              ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <div id="pending-column">
+                                    <div 
+                                        id="pending-column"
+                                        onDrop={(e) => handleDrop(e, 'pending')}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        className="rounded-lg p-2 min-h-[400px] bg-muted/50 transition-colors"
+                                    >
                                         <h3 className="text-lg font-semibold mb-4 text-center">Pending ({filteredTasks.filter(t => t.status === 'pending').length})</h3>
-                                        <div className="bg-muted/50 rounded-lg p-2 min-h-[400px]">
+                                        <div>
                                              {filteredTasks.filter(t => t.status === 'pending').map(renderTaskCard)}
                                         </div>
                                     </div>
-                                    <div id="completed-column">
+                                    <div 
+                                        id="completed-column"
+                                        onDrop={(e) => handleDrop(e, 'completed')}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        className="rounded-lg p-2 min-h-[400px] bg-muted/50 transition-colors"
+                                    >
                                         <h3 className="text-lg font-semibold mb-4 text-center">Completed ({filteredTasks.filter(t => t.status === 'completed').length})</h3>
-                                        <div className="bg-muted/50 rounded-lg p-2 min-h-[400px]">
+                                        <div>
                                             {filteredTasks.filter(t => t.status === 'completed').map(renderTaskCard)}
                                         </div>
                                     </div>
@@ -2002,3 +2039,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

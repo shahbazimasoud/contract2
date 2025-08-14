@@ -37,6 +37,17 @@ import { Header } from "@/components/header"
 import { usePathname, useRouter } from "next/navigation"
 import type { User } from '@/lib/types';
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
@@ -63,7 +74,6 @@ export default function DashboardLayout({
   children: React.ReactNode
   params: any
 }) {
-  React.use(params);
   const pathname = usePathname()
   const router = useRouter();
   const isActive = (path: string) => pathname === path
@@ -83,7 +93,7 @@ export default function DashboardLayout({
     if (storedUser) {
         setUser(JSON.parse(storedUser));
     } else {
-        router.push('/login');
+        router.push("/login");
     }
   }, [router]);
 
@@ -93,7 +103,7 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return <div className="flex h-screen items-center justify-center">Loading user data...</div>;
   }
 
   return (
@@ -212,10 +222,26 @@ export default function DashboardLayout({
                <CustomSidebarTrigger />
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
-                  <LogOut />
-                  <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-              </SidebarMenuButton>
+               <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <SidebarMenuButton tooltip="Logout">
+                          <LogOut />
+                          <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+                      </SidebarMenuButton>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          You will be returned to the login page.
+                      </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLogout}>Log Out</AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
@@ -227,3 +253,5 @@ export default function DashboardLayout({
     </SidebarProvider>
   )
 }
+
+    

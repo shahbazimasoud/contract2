@@ -11,7 +11,7 @@ export type Comment = {
 export type ContractVersion = {
   versionNumber: number;
   createdAt: string; // ISO String
-  createdBy: string; // User ID or Name
+  createdBy: string; // User ID
   contractorName: string;
   type: string;
   description: string;
@@ -125,3 +125,5 @@ export type AppearanceSettings = {
     logo: string | null;
     primaryColor: string; // HSL value string e.g., "231 48% 48%"
 }
+
+    

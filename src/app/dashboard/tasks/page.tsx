@@ -1735,7 +1735,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[calc(5*4.5rem)] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[19rem] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>
@@ -2418,7 +2418,7 @@ export default function TasksPage() {
                                 </Form>
                             </div>
                         </TabsContent>
-                        <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
+                         <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                  {(selectedTaskForDetails?.attachments || []).length > 0 ? (
                                     <ul className="space-y-2">

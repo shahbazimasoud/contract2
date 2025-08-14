@@ -1,4 +1,5 @@
 
+
 import type { Contract, User, Unit, Task, TaskBoard } from './types';
 
 export const avatars = [
@@ -230,9 +231,9 @@ export const taskBoards: TaskBoard[] = [
       id: 'TB-001', 
       name: 'کارهای سازمانی', 
       color: '#3b82f6',
-      ownerId: 'U-001', // Super Admin
+      ownerId: 'U-002', // John Doe
       sharedWith: [
-        { userId: 'U-002', role: 'editor' }, 
+        { userId: 'U-001', role: 'editor' },
         { userId: 'U-003', role: 'viewer' },
       ]
     },
@@ -282,6 +283,11 @@ export const tasks: Task[] = [
         priority: 'critical',
         comments: [
             { id: 'CMT-T001', text: 'Please ensure the off-site backup is also checked.', author: 'Super Admin', authorId: 'U-001', createdAt: '2024-07-29T11:00:00Z'}
+        ],
+        checklist: [
+            { id: 'CL-001', text: 'Check local server backup status', completed: true },
+            { id: 'CL-002', text: 'Verify cloud backup integrity', completed: false },
+            { id: 'CL-003', text: 'Review backup logs for any errors', completed: false },
         ]
     },
     {
@@ -303,7 +309,8 @@ export const tasks: Task[] = [
         tags: ['reporting', 'marketing'],
         priority: 'high',
         sharedWith: [],
-        comments: []
+        comments: [],
+        checklist: []
     },
     {
         id: 'T-003',
@@ -323,7 +330,13 @@ export const tasks: Task[] = [
         sharedWith: ['U-001'],
         tags: ['safety', 'operations'],
         priority: 'medium',
-        comments: []
+        comments: [],
+        checklist: [
+            { id: 'CL-004', text: 'Send notification email to all staff', completed: true },
+            { id: 'CL-005', text: 'Check all fire extinguishers', completed: true },
+            { id: 'CL-006', text: 'Coordinate with building management', completed: false },
+            { id: 'CL-007', text: 'Prepare post-drill report', completed: false },
+        ]
     },
     {
         id: 'T-004',
@@ -343,7 +356,8 @@ export const tasks: Task[] = [
         sharedWith: ['U-001', 'U-004'],
         tags: ['meeting', 'daily'],
         priority: 'low',
-        comments: []
+        comments: [],
+        checklist: []
     },
      {
         id: 'T-005',
@@ -363,7 +377,8 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['design', 'marketing', 'creative'],
         priority: 'high',
-        comments: []
+        comments: [],
+        checklist: []
     },
     {
         id: 'T-006',
@@ -383,6 +398,7 @@ export const tasks: Task[] = [
         sharedWith: [],
         tags: ['personal', 'career'],
         priority: 'low',
-        comments: []
+        comments: [],
+        checklist: []
     }
 ];

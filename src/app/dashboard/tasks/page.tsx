@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -74,7 +75,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -92,9 +93,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -103,6 +104,12 @@ type SortDirection = 'asc' | 'desc';
 
 const reminderDaysSchema = z.object({
   days: z.number().min(0, "Cannot be negative").max(365, "Cannot be more than 365 days"),
+});
+
+const checklistItemSchema = z.object({
+    id: z.string(),
+    text: z.string().min(1, "Checklist item cannot be empty"),
+    completed: z.boolean(),
 });
 
 const taskSchema = z.object({
@@ -119,6 +126,7 @@ const taskSchema = z.object({
     dayOfWeek: z.number().optional(),
     dayOfMonth: z.number().optional(),
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
+    checklist: z.array(checklistItemSchema).optional(),
 });
 
 const commentSchema = z.object({
@@ -154,8 +162,8 @@ export default function TasksPage() {
     const { toast } = useToast();
     const [usersInUnit, setUsersInUnit] = useState<User[]>([]);
 
-    const [isCommentsSheetOpen, setIsCommentsSheetOpen] = useState(false);
-    const [selectedTaskForComments, setSelectedTaskForComments] = useState<Task | null>(null);
+    const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
+    const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
 
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     
@@ -178,6 +186,7 @@ export default function TasksPage() {
             recurrenceType: "none",
             time: "09:00",
             reminders: [{ days: 1 }],
+            checklist: [],
         },
     });
 
@@ -211,17 +220,14 @@ export default function TasksPage() {
     }, [boards, currentUser]);
 
     useEffect(() => {
-        // This effect ensures an active board is set intelligently on load or user change.
-        if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-            // Prioritize setting a board owned by the user as active.
-            const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-            if (ownedBoard) {
-                setActiveBoardId(ownedBoard.id);
-            } else {
-                // If no owned boards, set the first available board as active.
-                setActiveBoardId(visibleBoards[0].id);
-            }
-        }
+      if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
+          const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+          if (ownedBoard) {
+              setActiveBoardId(ownedBoard.id);
+          } else {
+              setActiveBoardId(visibleBoards[0].id);
+          }
+      }
     }, [currentUser, visibleBoards, activeBoardId]);
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
@@ -250,6 +256,11 @@ export default function TasksPage() {
         name: "reminders"
     });
     
+     const { fields: checklistFields, append: appendChecklistItem, remove: removeChecklistItem } = useFieldArray({
+        control: form.control,
+        name: "checklist"
+    });
+
     useEffect(() => {
         if (!currentUser) return;
         const defaultUnit = currentUser.role === 'admin' ? currentUser.unit : "";
@@ -269,6 +280,7 @@ export default function TasksPage() {
                 dayOfWeek: editingTask.recurrence.dayOfWeek,
                 dayOfMonth: editingTask.recurrence.dayOfMonth,
                 reminders: editingTask.reminders.map(days => ({ days })),
+                checklist: editingTask.checklist || [],
             });
         } else {
             form.reset({
@@ -283,6 +295,7 @@ export default function TasksPage() {
                 recurrenceType: 'none',
                 time: "09:00",
                 reminders: [{ days: 1 }],
+                checklist: [],
             });
         }
     }, [editingTask, form, currentUser]);
@@ -419,19 +432,19 @@ export default function TasksPage() {
     };
 
 
-    const handleOpenCommentsSheet = (task: Task) => {
-        setSelectedTaskForComments(task);
-        setIsCommentsSheetOpen(true);
+    const handleOpenDetailsSheet = (task: Task) => {
+        setSelectedTaskForDetails(task);
+        setIsDetailsSheetOpen(true);
     };
 
-    const handleCloseCommentsSheet = () => {
-        setSelectedTaskForComments(null);
-        setIsCommentsSheetOpen(false);
+    const handleCloseDetailsSheet = () => {
+        setSelectedTaskForDetails(null);
+        setIsDetailsSheetOpen(false);
         commentForm.reset();
     };
 
      const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
-        if (!currentUser || !selectedTaskForComments) return;
+        if (!currentUser || !selectedTaskForDetails) return;
 
         const newComment: Comment = {
             id: `CMT-T-${Date.now()}`,
@@ -442,17 +455,38 @@ export default function TasksPage() {
         };
 
         const updatedTask = {
-            ...selectedTaskForComments,
-            comments: [...(selectedTaskForComments.comments || []), newComment],
+            ...selectedTaskForDetails,
+            comments: [...(selectedTaskForDetails.comments || []), newComment],
         };
 
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-        setSelectedTaskForComments(updatedTask);
+        setSelectedTaskForDetails(updatedTask);
         commentForm.reset();
         toast({
             title: "Comment Added",
             description: "Your comment has been successfully posted.",
         });
+    };
+    
+    const handleChecklistItemToggle = (taskId: string, itemId: string, completed: boolean) => {
+        const updatedTasks = tasks.map(task => {
+            if (task.id === taskId) {
+                const updatedChecklist = task.checklist?.map(item =>
+                    item.id === itemId ? { ...item, completed } : item
+                );
+                return { ...task, checklist: updatedChecklist };
+            }
+            return task;
+        });
+        setTasks(updatedTasks);
+        
+        // Also update the task in the details sheet if it's open
+        if (selectedTaskForDetails?.id === taskId) {
+             const updatedChecklist = selectedTaskForDetails.checklist?.map(item =>
+                item.id === itemId ? { ...item, completed } : item
+            );
+            setSelectedTaskForDetails(prev => prev ? {...prev, checklist: updatedChecklist} : null);
+        }
     };
 
 
@@ -494,6 +528,7 @@ export default function TasksPage() {
                 dayOfMonth: values.recurrenceType === 'monthly' ? values.dayOfMonth : undefined,
             },
             reminders: values.reminders.map(r => r.days),
+            checklist: values.checklist || [],
         };
         
         if (editingTask) {
@@ -1037,6 +1072,8 @@ export default function TasksPage() {
                                             filteredTasks.map((task) => {
                                                 const assignedUser = mockUsers.find(u => u.id === task.assignedTo);
                                                 const sharedUsers = mockUsers.filter(u => task.sharedWith?.includes(u.id));
+                                                const checklistItems = task.checklist || [];
+                                                const completedItems = checklistItems.filter(item => item.completed).length;
 
                                                 return (
                                                 <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(task.status === 'completed' && 'text-muted-foreground line-through')}>
@@ -1125,16 +1162,31 @@ export default function TasksPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <TooltipProvider>
-                                                            {(task.comments?.length || 0) > 0 && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger>
-                                                                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Has comments</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            )}
+                                                            <div className="flex items-center gap-2">
+                                                                {(task.comments?.length || 0) > 0 && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Has comments</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                                {checklistItems.length > 0 && (
+                                                                     <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                                                <ListChecks className="h-4 w-4" />
+                                                                                <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Checklist progress</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </div>
                                                         </TooltipProvider>
                                                     </TableCell>
                                                     <TableCell>
@@ -1143,7 +1195,7 @@ export default function TasksPage() {
                                                             <DropdownMenuContent align="end">
                                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                                 <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleOpenCommentsSheet(task)}>Comments</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
                                                                 <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
                                                                     <CalendarPlus className="mr-2 h-4 w-4" />
                                                                     Add to Calendar
@@ -1177,7 +1229,7 @@ export default function TasksPage() {
 
 
             <Dialog open={isTaskDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseTaskDialog()}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
                         <DialogDescription>
@@ -1186,288 +1238,330 @@ export default function TasksPage() {
                     </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onTaskSubmit)} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-6">
-                            <FormField
-                                control={form.control}
-                                name="title"
-                                render={({ field }) => (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="title"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Title</FormLabel>
+                                            <FormControl><Input placeholder="e.g., Weekly Backup Check" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="tags"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tags</FormLabel>
+                                            <FormControl><Input placeholder="e.g., reporting, critical, finance" {...field} /></FormControl>
+                                            <FormDescription>
+                                                Enter tags separated by commas.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="priority"
+                                    render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Title</FormLabel>
-                                        <FormControl><Input placeholder="e.g., Weekly Backup Check" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="tags"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Tags</FormLabel>
-                                        <FormControl><Input placeholder="e.g., reporting, critical, finance" {...field} /></FormControl>
-                                        <FormDescription>
-                                            Enter tags separated by commas.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="priority"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Priority</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="critical">Critical</SelectItem>
-                                    </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="description"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Description</FormLabel>
-                                        <FormControl><Textarea placeholder="Describe the task..." {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="unit"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Unit</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={currentUser.role === 'admin'}>
+                                        <FormLabel>Priority</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {mockUnits.map((unit) => (
-                                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                            ))}
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                            <SelectItem value="critical">Critical</SelectItem>
                                         </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="assignedTo"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Assign to</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUnit}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {usersInUnit.map((user) => (
-                                                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="sharedWith"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Share with</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" className="w-full justify-start font-normal" disabled={!selectedUnit}>
-                                                    {field.value && field.value.length > 0
-                                                        ? `${field.value.length} user(s) selected`
-                                                        : "Select users to share with"}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                 <Command>
-                                                    <CommandInput placeholder="Search users..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No users found.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {usersInUnit.map((user) => (
-                                                                <CommandItem
-                                                                    key={user.id}
-                                                                    onSelect={() => {
-                                                                        const currentValue = field.value || [];
-                                                                        if (currentValue.includes(user.id)) {
-                                                                            field.onChange(currentValue.filter(id => id !== user.id));
-                                                                        } else {
-                                                                            field.onChange([...currentValue, user.id]);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <Checkbox
-                                                                        className="mr-2"
-                                                                        checked={field.value?.includes(user.id)}
-                                                                    />
-                                                                    <span>{user.name}</span>
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
+                                        </Select>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="recurrenceType"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Recurrence</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="none">One-time</SelectItem>
-                                        <SelectItem value="daily">Daily</SelectItem>
-                                        <SelectItem value="weekly">Weekly</SelectItem>
-                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                        <SelectItem value="yearly">Yearly</SelectItem>
-                                    </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            
-                            <FormField
-                                control={form.control}
-                                name="dueDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>
-                                            {recurrenceType === 'none' ? 'Date' : 'Start / Reference Date'}
-                                        </FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="description"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Description</FormLabel>
+                                            <FormControl><Textarea placeholder="Describe the task..." {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="unit"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Unit</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={currentUser.role === 'admin'}>
+                                            <FormControl>
+                                                <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {mockUnits.map((unit) => (
+                                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="assignedTo"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Assign to</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedUnit}>
+                                            <FormControl>
+                                                <SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {usersInUnit.map((user) => (
+                                                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="sharedWith"
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Share with</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-start font-normal" disabled={!selectedUnit}>
+                                                        {field.value && field.value.length > 0
+                                                            ? `${field.value.length} user(s) selected`
+                                                            : "Select users to share with"}
                                                     </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormDescription>
-                                            For recurring tasks, this is the first due date.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            
-                            {recurrenceType === 'weekly' && (
-                                <FormField
-                                    control={form.control}
-                                    name="dayOfWeek"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Day of Week</FormLabel>
-                                            <Select onValueChange={(val) => field.onChange(parseInt(val))} value={String(field.value)}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
-                                                <SelectContent>
-                                                    {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search users..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No users found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {usersInUnit.map((user) => (
+                                                                    <CommandItem
+                                                                        key={user.id}
+                                                                        onSelect={() => {
+                                                                            const currentValue = field.value || [];
+                                                                            if (currentValue.includes(user.id)) {
+                                                                                field.onChange(currentValue.filter(id => id !== user.id));
+                                                                            } else {
+                                                                                field.onChange([...currentValue, user.id]);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Checkbox
+                                                                            className="mr-2"
+                                                                            checked={field.value?.includes(user.id)}
+                                                                        />
+                                                                        <span>{user.name}</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
-                            )}
-                            
-                            {recurrenceType === 'monthly' && (
                                 <FormField
                                     control={form.control}
-                                    name="dayOfMonth"
+                                    name="recurrenceType"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Day of Month</FormLabel>
-                                            <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} placeholder="e.g., 15"/></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-
-                             <FormField
-                                control={form.control}
-                                name="time"
-                                render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Time</FormLabel>
-                                        <FormControl><Input type="time" {...field} /></FormControl>
+                                        <FormLabel>Recurrence</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none">One-time</SelectItem>
+                                            <SelectItem value="daily">Daily</SelectItem>
+                                            <SelectItem value="weekly">Weekly</SelectItem>
+                                            <SelectItem value="monthly">Monthly</SelectItem>
+                                            <SelectItem value="yearly">Yearly</SelectItem>
+                                        </SelectContent>
+                                        </Select>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-
-                            <div className="space-y-4">
-                                <div>
-                                    <FormLabel>Task Reminders</FormLabel>
-                                    <FormDescription className="mb-2">Days before the due date to send a reminder. Enter 0 for on the same day.</FormDescription>
-                                    {reminderDayFields.map((field, index) => (
+                                    )}
+                                />
+                                
+                                <FormField
+                                    control={form.control}
+                                    name="dueDate"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>
+                                                {recurrenceType === 'none' ? 'Date' : 'Start / Reference Date'}
+                                            </FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormDescription>
+                                                For recurring tasks, this is the first due date.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                
+                                {recurrenceType === 'weekly' && (
                                     <FormField
-                                        key={field.id}
                                         control={form.control}
-                                        name={`reminders.${index}.days`}
+                                        name="dayOfWeek"
                                         render={({ field }) => (
                                             <FormItem>
-                                            <div className="flex items-center gap-2">
-                                                <FormControl>
-                                                    <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 3" />
-                                                </FormControl>
-                                                <span className="text-sm text-muted-foreground">days before</span>
-                                                {reminderDayFields.length > 1 && (
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
-                                                    <X className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <FormMessage />
+                                                <FormLabel>Day of Week</FormLabel>
+                                                <Select onValueChange={(val) => field.onChange(parseInt(val))} value={String(field.value)}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    ))}
-                                    <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    onClick={() => appendReminderDay({ days: 1 })}
-                                    >
-                                    Add Reminder
-                                    </Button>
+                                )}
+                                
+                                {recurrenceType === 'monthly' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="dayOfMonth"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Day of Month</FormLabel>
+                                                <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} placeholder="e.g., 15"/></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+
+                                <FormField
+                                    control={form.control}
+                                    name="time"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Time</FormLabel>
+                                            <FormControl><Input type="time" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <div className="space-y-4 md:col-span-2">
+                                    <div>
+                                        <FormLabel>Task Reminders</FormLabel>
+                                        <FormDescription className="mb-2">Days before the due date to send a reminder. Enter 0 for on the same day.</FormDescription>
+                                        {reminderDayFields.map((field, index) => (
+                                        <FormField
+                                            key={field.id}
+                                            control={form.control}
+                                            name={`reminders.${index}.days`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <div className="flex items-center gap-2">
+                                                    <FormControl>
+                                                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 3" />
+                                                    </FormControl>
+                                                    <span className="text-sm text-muted-foreground">days before</span>
+                                                    {reminderDayFields.length > 1 && (
+                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
+                                                        <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        ))}
+                                        <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                        onClick={() => appendReminderDay({ days: 1 })}
+                                        >
+                                        Add Reminder
+                                        </Button>
+                                    </div>
                                 </div>
+                                <div className="space-y-4 md:col-span-2">
+                                    <div>
+                                        <FormLabel>Checklist</FormLabel>
+                                        <FormDescription className="mb-2">Break down this task into smaller steps.</FormDescription>
+                                        {checklistFields.map((field, index) => (
+                                            <div key={field.id} className="flex items-center gap-2 mb-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`checklist.${index}.completed`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                 <FormField
+                                                    control={form.control}
+                                                    name={`checklist.${index}.text`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex-1">
+                                                            <FormControl><Input placeholder="Checklist item..." {...field} /></FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}>
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2"
+                                            onClick={() => appendChecklistItem({ id: `CL-new-${Date.now()}`, text: '', completed: false })}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Item
+                                        </Button>
+                                    </div>
+                                </div>
+
                             </div>
-
-
                             <DialogFooter>
                                 <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
                                 <Button type="submit">{editingTask ? 'Save Changes' : 'Create Task'}</Button>
@@ -1477,64 +1571,100 @@ export default function TasksPage() {
                 </DialogContent>
             </Dialog>
 
-             <Sheet open={isCommentsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseCommentsSheet()}>
-                <SheetContent className="flex flex-col">
+             <Sheet open={isDetailsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDetailsSheet()}>
+                <SheetContent className="flex flex-col sm:max-w-lg">
                     <SheetHeader>
-                        <SheetTitle>Comments for {selectedTaskForComments?.title}</SheetTitle>
+                        <SheetTitle>Details for: {selectedTaskForDetails?.title}</SheetTitle>
                         <SheetDescription>
-                            Task ID: {selectedTaskForComments?.id}
+                            Task ID: {selectedTaskForDetails?.id}
                         </SheetDescription>
                     </SheetHeader>
-                    <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
-                        {(selectedTaskForComments?.comments || []).length > 0 ? (
-                            (selectedTaskForComments?.comments || []).map(comment => {
-                                const author = getCommentAuthor(comment.authorId);
-                                return (
-                                <div key={comment.id} className="flex items-start gap-3">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={author?.avatar} alt={author?.name} />
-                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <p className="font-semibold text-sm">{comment.author}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                            </p>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                    <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
+                         <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="checklist">Checklist</TabsTrigger>
+                            <TabsTrigger value="comments">Comments</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
+                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-2 py-4">
+                                {(selectedTaskForDetails?.checklist || []).length > 0 ? (
+                                    <>
+                                        <Progress value={
+                                            ((selectedTaskForDetails?.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails?.checklist?.length || 1)) * 100
+                                        } className="mb-4" />
+                                        {(selectedTaskForDetails?.checklist || []).map(item => (
+                                            <div key={item.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted">
+                                                <Checkbox
+                                                    id={`sheet-${item.id}`}
+                                                    checked={item.completed}
+                                                    onCheckedChange={(checked) => handleChecklistItemToggle(selectedTaskForDetails!.id, item.id, !!checked)}
+                                                    disabled={userPermissions === 'viewer'}
+                                                />
+                                                <label htmlFor={`sheet-${item.id}`} className={cn("flex-1 text-sm", item.completed && "line-through text-muted-foreground")}>
+                                                    {item.text}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </>
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">
+                                        <ListChecks className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">No checklist items.</p>
+                                        <p>You can add a checklist by editing this task.</p>
                                     </div>
-                                </div>
-                            )})
-                        ) : (
-                            <div className="text-center text-muted-foreground py-10">
-                                <MessageSquare className="mx-auto h-12 w-12" />
-                                <p className="mt-4">No comments yet.</p>
-                                <p>Be the first to add a comment.</p>
+                                )}
                             </div>
-                        )}
-                    </div>
-                    <SheetFooter>
-                        <div className="w-full">
-                        <Form {...commentForm}>
-                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
-                               <FormField
-                                  control={commentForm.control}
-                                  name="text"
-                                  render={({ field }) => (
-                                    <FormItem className="flex-1">
-                                      <FormControl>
-                                        <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                                <Button type="submit">Post</Button>
-                            </form>
-                        </Form>
-                        </div>
-                    </SheetFooter>
+                        </TabsContent>
+                        <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
+                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4">
+                                {(selectedTaskForDetails?.comments || []).length > 0 ? (
+                                    (selectedTaskForDetails?.comments || []).map(comment => {
+                                        const author = getCommentAuthor(comment.authorId);
+                                        return (
+                                        <div key={comment.id} className="flex items-start gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={author?.avatar} alt={author?.name} />
+                                                <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-semibold text-sm">{comment.author}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                    </p>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                            </div>
+                                        </div>
+                                    )})
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">
+                                        <MessageSquare className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">No comments yet.</p>
+                                        <p>Be the first to add a comment.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-auto pt-4 border-t">
+                                <Form {...commentForm}>
+                                    <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                                    <FormField
+                                        control={commentForm.control}
+                                        name="text"
+                                        render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                            <FormControl>
+                                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        />
+                                        <Button type="submit" disabled={userPermissions === 'viewer'}>Post</Button>
+                                    </form>
+                                </Form>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
                 </SheetContent>
             </Sheet>
         </div>

@@ -68,6 +68,11 @@ export type TaskRecurrence = {
     dayOfMonth?: number; // 1 to 31
 };
 
+export type ChecklistItem = {
+    id: string;
+    text: string;
+    completed: boolean;
+};
 
 export type Task = {
     id: string;
@@ -85,6 +90,7 @@ export type Task = {
     comments?: Comment[];
     tags?: string[];
     priority?: 'low' | 'medium' | 'high' | 'critical';
+    checklist?: ChecklistItem[];
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';

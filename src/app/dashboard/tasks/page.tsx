@@ -1326,7 +1326,7 @@ export default function TasksPage() {
 
 
             <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-4">
                     <TabsList className="rounded-lg p-1.5">
                         {visibleBoards.map(board => (
                              <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm font-medium flex items-center gap-2">
@@ -1373,6 +1373,38 @@ export default function TasksPage() {
                     </DropdownMenu>
 
                 </div>
+                
+                {activeBoard && (activeBoard.sharedWith || []).length > 0 && (
+                    <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="flex -space-x-2 overflow-hidden">
+                           {(activeBoard.sharedWith || []).map(share => {
+                                const user = mockUsers.find(u => u.id === share.userId);
+                                if (!user) return null;
+                                return (
+                                <TooltipProvider key={user.id}>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Avatar className="h-8 w-8 border-2 border-background">
+                                                <AvatarImage src={user.avatar} />
+                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{user.name}</p>
+                                            <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                );
+                           })}
+                        </div>
+                         <Button variant="outline" size="sm" onClick={() => handleOpenShareDialog(activeBoard)}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share
+                        </Button>
+                    </div>
+                )}
+
 
                 {visibleBoards.map(board => (
                 <TabsContent key={board.id} value={board.id} className="mt-0">
@@ -1735,7 +1767,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[19rem] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[24rem] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>

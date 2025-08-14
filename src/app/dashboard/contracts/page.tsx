@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye, ArrowUpDown, Trash2, Filter, List, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Paperclip, Upload, Bell, Paperclip as AttachmentIcon, Mail, Send, MessageSquare, History, Eye, ArrowUpDown, Trash2, Filter, List, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -951,11 +951,81 @@ export default function ContractsPage() {
                             Contract ID: {selectedContractForDetails.id}
                         </SheetDescription>
                     </SheetHeader>
-                    <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
-                        <TabsList className="grid w-full grid-cols-2">
+                    <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="details">Details</TabsTrigger>
                             <TabsTrigger value="comments">Comments</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                         </TabsList>
+                        <TabsContent value="details" className="flex-1 overflow-y-auto">
+                           <ScrollArea className="h-full">
+                                <div className="space-y-4 p-4 text-sm">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                       <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Contractor</p>
+                                            <p>{selectedContractForDetails.contractorName}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Type</p>
+                                            <p>{selectedContractForDetails.type}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Start Date</p>
+                                            <p>{formatPersian(new Date(selectedContractForDetails.startDate), 'yyyy/MM/dd')}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">End Date</p>
+                                            <p>{formatPersian(new Date(selectedContractForDetails.endDate), 'yyyy/MM/dd')}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Unit</p>
+                                            <p>{selectedContractForDetails.unit}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Renewal</p>
+                                            <p className="capitalize">{selectedContractForDetails.renewal}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Status</p>
+                                            <p className="capitalize">{selectedContractForDetails.status}</p>
+                                        </div>
+                                         <div className="space-y-1">
+                                            <p className="font-medium text-muted-foreground">Created By</p>
+                                            <p className="capitalize">{selectedContractForDetails.createdBy}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                       <p className="font-medium text-muted-foreground">Description</p>
+                                       <p>{selectedContractForDetails.description || 'N/A'}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                       <p className="font-medium text-muted-foreground">Reminder Emails</p>
+                                       <p>{selectedContractForDetails.reminderEmails.join(', ')}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                       <p className="font-medium text-muted-foreground">Reminder Phones</p>
+                                       <p>{selectedContractForDetails.reminderPhones.join(', ') || 'N/A'}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                       <p className="font-medium text-muted-foreground">Reminder Days</p>
+                                       <p>{selectedContractForDetails.reminders.join(', ')}</p>
+                                    </div>
+                                     <div className="space-y-1">
+                                       <p className="font-medium text-muted-foreground">Attachments</p>
+                                       {selectedContractForDetails.attachments.length > 0 ? (
+                                            <ul className="list-disc list-inside">
+                                                {selectedContractForDetails.attachments.map((file, index) => (
+                                                    <li key={index}>
+                                                        <a href={file.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{file.name}</a>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                       ) : <p>No attachments</p>}
+                                    </div>
+
+                                </div>
+                           </ScrollArea>
+                        </TabsContent>
                         <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
                                 {(selectedContractForDetails.comments || []).length > 0 ? (
@@ -1437,3 +1507,5 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    

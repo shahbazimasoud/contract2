@@ -616,7 +616,7 @@ export default function TasksPage() {
         if (activeBoard.ownerId === currentUser.id) return 'owner';
         const shareInfo = activeBoard.sharedWith?.find(s => s.userId === currentUser.id);
         return shareInfo ? shareInfo.role : 'none';
-    }, [currentUser, activeBoard, boards, activeBoardId]);
+    }, [currentUser, activeBoard]);
 
 
     const filteredTasks = useMemo(() => {

@@ -661,15 +661,14 @@ export default function TasksPage() {
 
     const handleToggleStatusInList = (task: Task) => {
         if (!activeBoard) return;
-        // This is a simplified toggle for list view. It moves between the first and last column.
         const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
-        const firstColumnId = activeColumns[0]?.id;
-        const lastColumnId = activeColumns[activeColumns.length - 1]?.id;
-        
-        if (!firstColumnId || !lastColumnId) return;
-
+        if (activeColumns.length < 2) return;
+    
+        const firstColumnId = activeColumns[0].id;
+        const lastColumnId = activeColumns[activeColumns.length - 1].id;
+    
         const newColumnId = task.columnId === lastColumnId ? firstColumnId : lastColumnId;
-        
+    
         const updatedTask = { ...task, columnId: newColumnId };
         setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
         toast({
@@ -946,6 +945,11 @@ export default function TasksPage() {
     
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, taskId: string) => {
         e.dataTransfer.setData("taskId", taskId);
+        e.currentTarget.classList.add('dragging-card');
+    };
+
+    const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+        e.currentTarget.classList.remove('dragging-card');
     };
 
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -984,7 +988,7 @@ export default function TasksPage() {
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
       
       const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
-      const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
+      const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1]?.id : false;
 
       return (
         <Card 
@@ -992,6 +996,7 @@ export default function TasksPage() {
           className={cn("mb-2 cursor-grab", !canEdit && 'cursor-not-allowed', isCompleted && 'opacity-70')}
           draggable={canEdit}
           onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
+          onDragEnd={handleDragEnd}
         >
           <CardContent className="p-3">
              <div className="flex justify-between items-start gap-2">
@@ -1694,7 +1699,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[24rem] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[30rem] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>

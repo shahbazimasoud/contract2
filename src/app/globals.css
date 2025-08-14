@@ -85,3 +85,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .dragging-card {
+    @apply opacity-75 scale-105 rotate-2 shadow-2xl;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  }
+}

@@ -8,8 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
 import * as ics from 'ics';
-import { usePathname, useRouter } from "next-intl/navigation";
-import Link from "next-intl/link";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 
 
 import { Button } from '@/components/ui/button';
@@ -843,7 +843,16 @@ export default function TasksPage() {
         >
           <CardContent className="p-4">
             <div className="flex justify-between items-start gap-2">
-                <span className={cn("font-semibold text-sm flex-1", task.status === 'completed' && 'line-through')}>{task.title}</span>
+                <div className="flex items-center gap-2 flex-1">
+                     <Checkbox
+                        checked={task.status === 'completed'}
+                        onCheckedChange={() => handleToggleStatus(task)}
+                        aria-label={`Mark task "${task.title}" as ${task.status === 'pending' ? 'completed' : 'pending'}`}
+                        className="rounded-full h-5 w-5"
+                        disabled={userPermissions === 'viewer'}
+                    />
+                    <span className={cn("font-semibold text-sm", task.status === 'completed' && 'line-through')}>{task.title}</span>
+                </div>
               <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -1134,22 +1143,26 @@ export default function TasksPage() {
                             </TabsTrigger>
                         ))}
                     </TabsList>
-                    <Button variant="ghost" size="icon" onClick={() => handleOpenBoardDialog(null)}><PlusCircle className="h-5 w-5" /></Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={!activeBoardId}><Settings className="h-5 w-5" /></Button>
+                            <Button variant="outline" size="icon"><Settings className="h-5 w-5" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
                             <DropdownMenuLabel>Board Actions</DropdownMenuLabel>
-                             <DropdownMenuItem onClick={() => { if (activeBoard) handleOpenBoardDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                             <DropdownMenuItem onSelect={() => handleOpenBoardDialog(null)}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Create New Board
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                             <DropdownMenuItem onSelect={() => { if (activeBoard) handleOpenBoardDialog(activeBoard); }} disabled={!activeBoardId || userPermissions !== 'owner'}>
                                 <Edit className="mr-2 h-4 w-4"/>
                                 Edit Current Board
                             </DropdownMenuItem>
-                             <DropdownMenuItem onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                             <DropdownMenuItem onSelect={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={!activeBoardId || userPermissions !== 'owner'}>
                                 <Share2 className="mr-2 h-4 w-4"/>
-                                Share Board
+                                Share Current Board
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsDeleteAlertOpen(true); }} className="text-destructive" disabled={userPermissions !== 'owner'}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsDeleteAlertOpen(true); }} className="text-destructive" disabled={!activeBoardId || userPermissions !== 'owner'}>
                                 <Trash2 className="mr-2 h-4 w-4"/>
                                 Delete Current Board
                             </DropdownMenuItem>
@@ -2040,3 +2053,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

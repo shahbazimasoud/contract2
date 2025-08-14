@@ -1735,7 +1735,7 @@ export default function TasksPage() {
                                                     </DropdownMenu>
                                                 </div>
 
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-25rem)] min-h-[calc(5*4.5rem)] overflow-y-auto">
+                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[calc(5*4.5rem)] overflow-y-auto">
                                                     {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
                                                 </div>
                                             </div>
@@ -2339,7 +2339,7 @@ export default function TasksPage() {
                             <TabsTrigger value="attachments">Attachments</TabsTrigger>
                         </TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-2 py-4">
+                            <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                 {(selectedTaskForDetails?.checklist || []).length > 0 ? (
                                     <>
                                         <Progress value={
@@ -2360,7 +2360,7 @@ export default function TasksPage() {
                                         ))}
                                     </>
                                 ) : (
-                                    <div className="text-center text-muted-foreground py-10">
+                                    <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <ListChecks className="mx-auto h-12 w-12" />
                                         <p className="mt-4">No checklist items.</p>
                                         <p>You can add a checklist by editing this task.</p>
@@ -2369,7 +2369,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
+                            <div className="flex-1 overflow-y-auto space-y-4 py-4">
                                 {(selectedTaskForDetails?.comments || []).length > 0 ? (
                                     (selectedTaskForDetails?.comments || []).map(comment => {
                                         const author = getCommentAuthor(comment.authorId);
@@ -2391,7 +2391,7 @@ export default function TasksPage() {
                                         </div>
                                     )})
                                 ) : (
-                                    <div className="text-center text-muted-foreground py-10">
+                                     <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <MessageSquare className="mx-auto h-12 w-12" />
                                         <p className="mt-4">No comments yet.</p>
                                         <p>Be the first to add a comment.</p>
@@ -2419,7 +2419,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-2 py-4">
+                            <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                  {(selectedTaskForDetails?.attachments || []).length > 0 ? (
                                     <ul className="space-y-2">
                                         {(selectedTaskForDetails?.attachments || []).map((file, index) => (
@@ -2435,7 +2435,7 @@ export default function TasksPage() {
                                         ))}
                                     </ul>
                                  ) : (
-                                    <div className="text-center text-muted-foreground py-10">
+                                     <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <Paperclip className="mx-auto h-12 w-12" />
                                         <p className="mt-4">No attachments found.</p>
                                         <p>You can add files by editing this task.</p>

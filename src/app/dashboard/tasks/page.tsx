@@ -8,7 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO } from 'date-fns';
 import * as ics from 'ics';
-import { usePathname, useRouter, Link } from "next-intl/navigation";
+import { usePathname, useRouter } from "next-intl/navigation";
+import Link from "next-intl/link";
 
 
 import { Button } from '@/components/ui/button';
@@ -836,7 +837,7 @@ export default function TasksPage() {
       return (
         <Card 
           key={task.id} 
-          className={cn("mb-4 cursor-grab", task.status === 'completed' && 'opacity-60', !canEdit && 'cursor-not-allowed')}
+          className={cn("mb-4 cursor-grab", !canEdit && 'cursor-not-allowed')}
           draggable={canEdit}
           onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
         >
@@ -2039,5 +2040,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

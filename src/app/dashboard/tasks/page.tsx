@@ -1855,19 +1855,35 @@ export default function TasksPage() {
                                 )}
                                 </div>
                             )}
-                            <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share
-                            </Button>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                                            <Share2 className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Share board</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
                      <div className="flex items-center gap-2">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    <Mail className="mr-2 h-4 w-4" />
-                                    Email Report
-                                </Button>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="outline" size="icon">
+                                                <Mail className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Email Reports</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
@@ -2851,7 +2867,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                         <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
-                             <div className="flex-1 overflow-y-auto space-y-4 py-4">
+                            <div className="flex-1 overflow-y-auto space-y-4 py-4">
                                 {(selectedTaskForDetails?.comments || []).length > 0 ? (
                                     (selectedTaskForDetails?.comments || []).map(comment => {
                                         const author = getCommentAuthor(comment.authorId);

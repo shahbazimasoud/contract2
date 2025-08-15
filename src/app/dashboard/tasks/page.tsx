@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -63,6 +62,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -1091,11 +1094,10 @@ export default function TasksPage() {
             onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
             onDragEnd={handleDragEnd}
             onClick={(e) => {
-                // Stop propagation to prevent opening both details and edit dialogs
                 if ((e.target as HTMLElement).closest('[data-no-dnd]')) {
                     return;
                 }
-                handleOpenTaskDialog(task, task.columnId)
+                handleOpenTaskDialog(task);
             }}
         >
           <CardContent className="p-3">
@@ -1115,7 +1117,7 @@ export default function TasksPage() {
                         <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenTaskDialog(task, task.columnId)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
                                 <Move className="mr-2 h-4 w-4" />
@@ -1481,29 +1483,57 @@ export default function TasksPage() {
 
                 </div>
                 
-                {activeBoard && (activeBoard.sharedWith || []).length > 0 && (
-                    <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg">
-                        <div className="flex -space-x-2 overflow-hidden">
-                           {(activeBoard.sharedWith || []).map(share => {
+                 {activeBoard && (
+                    <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg min-h-[52px]">
+                       <div className="flex items-center -space-x-2">
+                            {(activeBoard.sharedWith || []).slice(0, 3).map(share => {
                                 const user = mockUsers.find(u => u.id === share.userId);
-                                if (!user) return null;
-                                return (
-                                <TooltipProvider key={user.id}>
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Avatar className="h-8 w-8 border-2 border-background">
-                                                <AvatarImage src={user.avatar} />
-                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{user.name}</p>
-                                            <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                );
-                           })}
+                                return user ? (
+                                    <TooltipProvider key={user.id}>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Avatar className="h-8 w-8 border-2 border-background">
+                                                    <AvatarImage src={user.avatar} />
+                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{user.name}</p>
+                                                <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ) : null;
+                            })}
+
+                            {(activeBoard.sharedWith || []).length > 3 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                                            <AvatarFallback>+{(activeBoard.sharedWith || []).length - 3}</AvatarFallback>
+                                        </Avatar>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuLabel>All Members</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {(activeBoard.sharedWith || []).map(share => {
+                                            const user = mockUsers.find(u => u.id === share.userId);
+                                            return user ? (
+                                                <DropdownMenuItem key={user.id} className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={user.avatar} />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{share.role}</p>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            ) : null;
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                         </div>
                          <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
                             <Share2 className="mr-2 h-4 w-4" />
@@ -2448,7 +2478,7 @@ export default function TasksPage() {
                             <TabsTrigger value="comments">Comments</TabsTrigger>
                             <TabsTrigger value="attachments">Attachments</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
+                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                 {(selectedTaskForDetails?.checklist || []).length > 0 ? (
                                     <>
@@ -2529,7 +2559,7 @@ export default function TasksPage() {
                             </div>
                         </TabsContent>
                          <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto space-y-2 py-4">
+                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                  {(selectedTaskForDetails?.attachments || []).length > 0 ? (
                                     <ul className="space-y-2">
                                         {(selectedTaskForDetails?.attachments || []).map((file, index) => (
@@ -2545,7 +2575,7 @@ export default function TasksPage() {
                                         ))}
                                     </ul>
                                  ) : (
-                                     <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
+                                      <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <Paperclip className="mx-auto h-12 w-12" />
                                         <p className="mt-4">No attachments found.</p>
                                         <p>You can add files by editing this task.</p>
@@ -2561,3 +2591,4 @@ export default function TasksPage() {
 }
 
     
+

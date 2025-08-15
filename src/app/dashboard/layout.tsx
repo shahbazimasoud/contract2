@@ -57,18 +57,37 @@ const AUTH_USER_KEY = 'current_user';
 // This is a new component that wraps the main content and handles language direction.
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
+  const [isClient, setIsClient] = React.useState(false);
 
   React.useEffect(() => {
-    document.documentElement.lang = language;
-    document.documentElement.dir = 'ltr'; // Always LTR
-    
-    // Add font class to body for Persian
-    if (language === 'fa') {
-      document.body.classList.add('font-vazir');
-    } else {
-      document.body.classList.remove('font-vazir');
+    setIsClient(true);
+  }, []);
+
+
+  React.useEffect(() => {
+    if (isClient) {
+      document.documentElement.lang = language;
+      document.documentElement.dir = 'ltr'; // Always LTR
+      
+      if (language === 'fa') {
+        document.body.style.fontFamily = 'Vazirmatn, sans-serif';
+      } else {
+        document.body.style.fontFamily = 'Inter, sans-serif';
+      }
     }
-  }, [language]);
+  }, [language, isClient]);
+
+  if (!isClient) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+                <Building className="h-10 w-10 animate-pulse text-muted-foreground" />
+                <p className="text-muted-foreground">Loading Dashboard...</p> 
+            </div>
+        </div>
+    );
+  }
+
 
   return <>{children}</>;
 }

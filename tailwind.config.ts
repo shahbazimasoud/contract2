@@ -11,9 +11,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'Vazirmatn', 'sans-serif'],
-        headline: ['Inter', 'Vazirmatn', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'],
         code: ['monospace'],
+        vazir: ['Vazirmatn', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

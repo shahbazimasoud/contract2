@@ -36,6 +36,17 @@ import { useLanguage } from "@/context/language-context"
 import { Slider } from "@/components/ui/slider"
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+
+const defaultSettings: Omit<AppearanceSettings, 'logo' | 'loginTitle' | 'loginSubtitle' | 'siteName' | 'primaryColor'> = {
+    fontFamilyEn: 'Inter, sans-serif',
+    fontFamilyFa: 'Vazirmatn, sans-serif',
+    fontSize: 100,
+    fontColor: '#000000',
+    customFontEn: null,
+    customFontFa: null,
+};
+
+
 const defaultColors = [
     { name: 'Indigo', value: '231 48% 48%' },
     { name: 'Blue', value: '221 83% 53%' },
@@ -68,13 +79,14 @@ export default function SettingsPage() {
         loginSubtitle: "Your integrated solution for managing contracts efficiently and effectively.",
         logo: null,
         primaryColor: "231 48% 48%",
-        fontFamilyEn: 'Inter, sans-serif',
-        fontFamilyFa: 'Vazirmatn, sans-serif',
-        fontSize: 100,
-        fontColor: '#000000'
+        ...defaultSettings
     });
+
     const [logoFile, setLogoFile] = React.useState<File | null>(null);
     const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+    const [fontEnFile, setFontEnFile] = React.useState<File | null>(null);
+    const [fontFaFile, setFontFaFile] = React.useState<File | null>(null);
+
 
     React.useEffect(() => {
         const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
@@ -111,30 +123,74 @@ export default function SettingsPage() {
             reader.readAsDataURL(file);
         }
     };
-
-    const handleAppearanceSave = () => {
-        const saveSettings = (logoDataUrl: string | null) => {
-             const finalSettings = { 
-                ...settings,
-                logo: logoDataUrl,
-             };
-            localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(finalSettings));
-            toast({
-                title: t('settings.toast_settings_saved_title'),
-                description: t('settings.toast_appearance_saved_desc'),
-            });
-            window.location.reload();
+    
+    const handleFontFileChange = (e: React.ChangeEvent<HTMLInputElement>, lang: 'en' | 'fa') => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (lang === 'en') {
+                setFontEnFile(file);
+            } else {
+                setFontFaFile(file);
+            }
         }
+    };
+
+    const handleAppearanceSave = async () => {
+        let logoDataUrl: string | null = settings.logo || null;
+        let customFontEnData: { name: string, url: string } | null = settings.customFontEn || null;
+        let customFontFaData: { name: string, url: string } | null = settings.customFontFa || null;
+
+        const readFileAsDataURL = (file: File): Promise<string> => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        };
 
         if (logoFile) {
-             const reader = new FileReader();
-             reader.onloadend = () => {
-                saveSettings(reader.result as string);
-            };
-            reader.readAsDataURL(logoFile);
-        } else {
-             saveSettings(settings.logo || null);
+            logoDataUrl = await readFileAsDataURL(logoFile);
         }
+        if (fontEnFile) {
+            const url = await readFileAsDataURL(fontEnFile);
+            customFontEnData = { name: fontEnFile.name, url };
+        }
+        if (fontFaFile) {
+             const url = await readFileAsDataURL(fontFaFile);
+            customFontFaData = { name: fontFaFile.name, url };
+        }
+
+        const finalSettings = { 
+            ...settings,
+            logo: logoDataUrl,
+            customFontEn: customFontEnData,
+            customFontFa: customFontFaData,
+            // If custom font is uploaded, set it as the selected font
+            fontFamilyEn: customFontEnData ? `"${customFontEnData.name}"` : settings.fontFamilyEn,
+            fontFamilyFa: customFontFaData ? `"${customFontFaData.name}"` : settings.fontFamilyFa,
+        };
+
+        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(finalSettings));
+        toast({
+            title: t('settings.toast_settings_saved_title'),
+            description: t('settings.toast_appearance_saved_desc'),
+        });
+        window.location.reload();
+    };
+
+    const handleResetFonts = () => {
+        const resetFontSettings = {
+            ...settings,
+            ...defaultSettings,
+        };
+        setSettings(resetFontSettings);
+        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(resetFontSettings));
+        toast({
+            title: "Font Settings Reset",
+            description: "Font settings have been reverted to default.",
+        });
+        window.location.reload();
     };
 
 
@@ -213,55 +269,82 @@ export default function SettingsPage() {
                 </div>
               </div>
               
-              {/* Font Settings */}
-                <div className="space-y-6 p-6 border rounded-lg">
-                    <h3 className="text-lg font-medium">{t('settings.font.title')}</h3>
-                    <p className="text-sm text-muted-foreground">{t('settings.font.description')}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="space-y-2">
-                            <Label htmlFor="font-en">{t('settings.font.en_font_label')}</Label>
-                            <Select value={settings.fontFamilyEn} onValueChange={(value) => setSettings(p => ({...p, fontFamilyEn: value}))}>
-                                <SelectTrigger id="font-en"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {defaultFonts.en.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                <Tabs defaultValue="font-settings" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                         <TabsTrigger value="font-settings">{t('settings.font.title')}</TabsTrigger>
+                         <TabsTrigger value="custom-fonts">Custom Fonts</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="font-settings">
+                        <div className="space-y-6 p-6 border rounded-lg">
+                            <p className="text-sm text-muted-foreground">{t('settings.font.description')}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="font-en">{t('settings.font.en_font_label')}</Label>
+                                    <Select value={settings.fontFamilyEn} onValueChange={(value) => setSettings(p => ({...p, fontFamilyEn: value}))}>
+                                        <SelectTrigger id="font-en"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {defaultFonts.en.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
+                                            {settings.customFontEn && <SelectItem value={`"${settings.customFontEn.name}"`}>{settings.customFontEn.name} (Custom)</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="font-fa">{t('settings.font.fa_font_label')}</Label>
+                                    <Select value={settings.fontFamilyFa} onValueChange={(value) => setSettings(p => ({...p, fontFamilyFa: value}))}>
+                                        <SelectTrigger id="font-fa"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {defaultFonts.fa.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
+                                            {settings.customFontFa && <SelectItem value={`"${settings.customFontFa.name}"`}>{settings.customFontFa.name} (Custom)</SelectItem>}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="font-size">{t('settings.font.size_label')} ({settings.fontSize}%)</Label>
+                                <Slider
+                                    id="font-size"
+                                    min={80}
+                                    max={120}
+                                    step={5}
+                                    value={[settings.fontSize]}
+                                    onValueChange={(value) => setSettings(p => ({...p, fontSize: value[0]}))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="font-color">{t('settings.font.color_label')}</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        id="font-color"
+                                        type="color"
+                                        value={settings.fontColor}
+                                        onChange={(e) => setSettings(p => ({...p, fontColor: e.target.value}))}
+                                        className="w-16 h-10 p-1"
+                                    />
+                                    <span className="text-sm text-muted-foreground">{settings.fontColor}</span>
+                                </div>
+                            </div>
+                             <div className="pt-4">
+                                <Button type="button" variant="ghost" onClick={handleResetFonts}>Reset Font Settings to Default</Button>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="font-fa">{t('settings.font.fa_font_label')}</Label>
-                            <Select value={settings.fontFamilyFa} onValueChange={(value) => setSettings(p => ({...p, fontFamilyFa: value}))}>
-                                <SelectTrigger id="font-fa"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {defaultFonts.fa.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                    </TabsContent>
+                    <TabsContent value="custom-fonts">
+                         <div className="space-y-6 p-6 border rounded-lg">
+                            <p className="text-sm text-muted-foreground">Upload your own font files (.ttf, .otf, .woff, .woff2). Uploading a new font will automatically select it.</p>
+                             <div className="space-y-2">
+                                <Label htmlFor="custom-font-en">Upload English Font</Label>
+                                <Input id="custom-font-en" type="file" accept=".ttf,.otf,.woff,.woff2" onChange={(e) => handleFontFileChange(e, 'en')} />
+                                {fontEnFile && <p className="text-sm text-muted-foreground">Selected: {fontEnFile.name}</p>}
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="custom-font-fa">Upload Persian Font</Label>
+                                <Input id="custom-font-fa" type="file" accept=".ttf,.otf,.woff,.woff2" onChange={(e) => handleFontFileChange(e, 'fa')} />
+                                {fontFaFile && <p className="text-sm text-muted-foreground">Selected: {fontFaFile.name}</p>}
+                            </div>
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="font-size">{t('settings.font.size_label')} ({settings.fontSize}%)</Label>
-                        <Slider
-                            id="font-size"
-                            min={80}
-                            max={120}
-                            step={5}
-                            value={[settings.fontSize]}
-                            onValueChange={(value) => setSettings(p => ({...p, fontSize: value[0]}))}
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="font-color">{t('settings.font.color_label')}</Label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                id="font-color"
-                                type="color"
-                                value={settings.fontColor}
-                                onChange={(e) => setSettings(p => ({...p, fontColor: e.target.value}))}
-                                className="w-16 h-10 p-1"
-                            />
-                            <span className="text-sm text-muted-foreground">{settings.fontColor}</span>
-                        </div>
-                    </div>
-                </div>
+                    </TabsContent>
+                </Tabs>
+
 
             </CardContent>
             <CardFooter>

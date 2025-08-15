@@ -65,13 +65,39 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     // Apply global appearance settings from localStorage
     const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
     if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
-         if (settings.fontFamilyEn) {
+        const settings: AppearanceSettings = JSON.parse(savedSettings);
+
+        const applyCustomFont = (fontData: { name: string, url: string } | null, fontVarName: string) => {
+            if (fontData) {
+                const styleEl = document.createElement('style');
+                styleEl.innerHTML = `
+                    @font-face {
+                        font-family: '${fontData.name}';
+                        src: url(${fontData.url});
+                    }
+                `;
+                document.head.appendChild(styleEl);
+                 document.documentElement.style.setProperty(fontVarName, `"${fontData.name}"`);
+            } else {
+                 document.documentElement.style.removeProperty(fontVarName);
+            }
+        };
+
+        if (settings.fontFamilyEn) {
             document.documentElement.style.setProperty('--font-family-en', settings.fontFamilyEn);
         }
+         if (settings.customFontEn) {
+            applyCustomFont(settings.customFontEn, '--font-family-en');
+        }
+
         if (settings.fontFamilyFa) {
             document.documentElement.style.setProperty('--font-family-fa', settings.fontFamilyFa);
         }
+         if (settings.customFontFa) {
+            applyCustomFont(settings.customFontFa, '--font-family-fa');
+        }
+
+
         if (settings.fontSize) {
             document.documentElement.style.setProperty('--font-size', `${settings.fontSize}%`);
         }
@@ -145,6 +171,8 @@ function DashboardLayoutComponent({
       fontFamilyFa: 'Vazirmatn',
       fontSize: 100,
       fontColor: '#000000',
+      customFontEn: null,
+      customFontFa: null,
   });
   const [user, setUser] = React.useState<User | null>(null);
   const [isClient, setIsClient] = React.useState(false);

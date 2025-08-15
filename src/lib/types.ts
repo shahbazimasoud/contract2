@@ -140,6 +140,8 @@ export type AppearanceSettings = {
     fontFamilyFa: string;
     fontSize: number;
     fontColor: string; // Hex color code
+    customFontEn: { name: string, url: string } | null;
+    customFontFa: { name: string, url: string } | null;
 }
 
 export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';

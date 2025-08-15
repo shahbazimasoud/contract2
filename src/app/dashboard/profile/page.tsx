@@ -57,8 +57,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const [isClient, setIsClient] = React.useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const storedUser = localStorage.getItem(AUTH_USER_KEY);
     if (storedUser) {
       const user = JSON.parse(storedUser);
@@ -107,7 +109,7 @@ export default function ProfilePage() {
   };
 
 
-  if (!currentUser) {
+  if (!isClient || !currentUser) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 

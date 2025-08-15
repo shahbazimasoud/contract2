@@ -10,7 +10,7 @@ import { format as formatDate, parse, setHours, setMinutes, setSeconds, parseISO
 import * as ics from 'ics';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DateObject } from "react-multi-date-picker"
+import DatePicker, { DateObject } from "react-multi-date-picker"
 
 
 import { Button } from '@/components/ui/button';
@@ -382,7 +382,7 @@ export default function TasksPage() {
                 assignees: editingTask.assignees,
                 tags: editingTask.tags?.join(', '),
                 priority: editingTask.priority || 'medium',
-                dueDate: new Date(editingTask.dueDate),
+                dueDate: new DateObject({ date: editingTask.dueDate, calendar: calendar, locale: locale }),
                 recurrenceType: editingTask.recurrence.type,
                 time: editingTask.recurrence.time,
                 dayOfWeek: editingTask.recurrence.dayOfWeek,
@@ -402,7 +402,7 @@ export default function TasksPage() {
                 assignees: [],
                 tags: "",
                 priority: 'medium',
-                dueDate: new Date(),
+                dueDate: new DateObject({ calendar, locale }),
                 recurrenceType: 'none',
                 time: "09:00",
                 reminders: [{ days: 1 }],
@@ -411,7 +411,7 @@ export default function TasksPage() {
                 isCompleted: false,
             });
         }
-    }, [editingTask, form, currentUser, activeBoard]);
+    }, [editingTask, form, currentUser, activeBoard, calendar, locale]);
 
     useEffect(() => {
         if (editingBoard) {
@@ -2882,19 +2882,21 @@ export default function TasksPage() {
                                             <FormLabel>
                                                 {recurrenceType === 'none' ? t('tasks.dialog.date_label') : t('tasks.dialog.start_date_label')}
                                             </FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? format(field.value, "PPP") : <span>{t('contracts.dialog.pick_date_placeholder')}</span>}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                                                </PopoverContent>
-                                            </Popover>
+                                             <FormControl>
+                                                  <DatePicker
+                                                      value={field.value}
+                                                      onChange={field.onChange}
+                                                      calendar={calendar}
+                                                      locale={locale}
+                                                      calendarPosition="bottom-right"
+                                                      render={(value: any, openCalendar: () => void) => (
+                                                          <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
+                                                              <CalendarIcon className="mr-2 h-4 w-4" />
+                                                              {value || <span>{t('contracts.dialog.pick_date_placeholder')}</span>}
+                                                          </Button>
+                                                      )}
+                                                  />
+                                              </FormControl>
                                             <FormDescription>
                                                 {t('tasks.dialog.start_date_desc')}
                                             </FormDescription>

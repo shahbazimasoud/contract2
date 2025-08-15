@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -17,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger, useSidebar } from "./ui/sidebar"
 import { ModeToggle } from "./mode-toggle"
+import { LanguageToggle } from "./language-toggle"
 import type { User as UserType } from "@/lib/types"
 
 const AUTH_USER_KEY = 'current_user';
@@ -44,7 +44,8 @@ export function Header({ user }: HeaderProps) {
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+          <LanguageToggle />
           <ModeToggle />
           <DropdownMenu>
           <DropdownMenuTrigger asChild>

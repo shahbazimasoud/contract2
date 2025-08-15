@@ -1,29 +1,22 @@
 
-import type { Metadata, Viewport } from 'next';
+"use client"
+
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster"
-import { AppearanceSettings } from '@/lib/types';
-import { LanguageProvider } from '@/context/language-context';
+import { LanguageProvider, useLanguage } from '@/context/language-context';
+import { useEffect } from 'react';
 
 
-// This function is illustrative. In a real app, you'd fetch this from a dynamic source
-// or handle it in a client component after fetching from localStorage.
-// Since this is a server component, we can't access localStorage directly.
-// We will manage dynamic titles in a client component wrapper if needed.
-export async function generateMetadata(): Promise<Metadata> {
-  // For the purpose of this example, we assume a default.
-  // A real implementation would involve a mechanism to get settings on the server.
-  const siteName = "ContractWise";
-  const description = 'Advanced Contract Management System';
-  
-  return {
-    title: {
-      default: siteName,
-      template: `%s | ${siteName}`,
-    },
-    description: description,
-  }
+function AppBody({ children }: { children: React.ReactNode }) {
+  const { language } = useLanguage();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
+  }, [language]);
+
+  return <>{children}</>;
 }
 
 
@@ -38,6 +31,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <title>ContractWise</title>
       </head>
       <body className="font-body antialiased">
         <LanguageProvider>
@@ -47,13 +41,13 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
             >
-            {children}
-            <Toaster />
+              <AppBody>
+                {children}
+              </AppBody>
+              <Toaster />
             </ThemeProvider>
         </LanguageProvider>
       </body>
     </html>
   );
 }
-
-    

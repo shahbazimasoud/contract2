@@ -125,4 +125,18 @@ export type AppearanceSettings = {
     primaryColor: string; // HSL value string e.g., "231 48% 48%"
 }
 
+export type ScheduledReport = {
+    id: string;
+    boardId: string;
+    type: 'weekly-summary';
+    schedule: {
+        dayOfWeek: number;
+        time: string; // HH:mm
+    };
+    recipients: string[];
+    subject: string;
+    body?: string;
+    createdBy: string; // User ID
+    lastSentAt?: string; // ISO String
+}
     

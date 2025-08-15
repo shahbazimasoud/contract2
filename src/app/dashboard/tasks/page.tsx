@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -82,7 +82,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -103,9 +103,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import Image from 'next/image';
 
 
 const AUTH_USER_KEY = 'current_user';
+const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'list' | 'board' | 'archived' | 'calendar';
@@ -155,6 +157,14 @@ const copyColumnSchema = z.object({
   title: z.string().min(1, "New list name cannot be empty"),
 });
 
+const weeklyReportSchema = z.object({
+    dayOfWeek: z.string().min(1, "Day of week is required"),
+    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
+    recipients: z.string().min(1, "At least one recipient is required"),
+    subject: z.string().min(1, "Subject is required"),
+    body: z.string().optional(),
+});
+
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
@@ -166,6 +176,7 @@ export default function TasksPage() {
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('board');
+    const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings | null>(null);
 
 
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -177,6 +188,7 @@ export default function TasksPage() {
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
     const [isCopyColumnDialogOpen, setIsCopyColumnDialogOpen] = useState(false);
     const [columnToCopy, setColumnToCopy] = useState<BoardColumn | null>(null);
+    const [isWeeklyReportDialogOpen, setIsWeeklyReportDialogOpen] = useState(false);
     
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState("");
@@ -249,12 +261,29 @@ export default function TasksPage() {
     const copyColumnForm = useForm<z.infer<typeof copyColumnSchema>>({
       resolver: zodResolver(copyColumnSchema),
     });
+    
+    const weeklyReportForm = useForm<z.infer<typeof weeklyReportSchema>>({
+        resolver: zodResolver(weeklyReportSchema),
+        defaultValues: {
+            dayOfWeek: "1", // Monday
+            time: "09:00",
+            recipients: "",
+            subject: "",
+            body: "",
+        },
+    });
+    const reportBody = weeklyReportForm.watch('body');
+
 
     useEffect(() => {
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
         if (storedUser) {
             const user = JSON.parse(storedUser);
             setCurrentUser(user);
+        }
+        const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
+        if (savedSettings) {
+            setAppearanceSettings(JSON.parse(savedSettings));
         }
     }, []);
     
@@ -375,6 +404,18 @@ export default function TasksPage() {
             });
         }
     }, [columnToCopy, copyColumnForm]);
+
+     useEffect(() => {
+        if (isWeeklyReportDialogOpen && activeBoard && appearanceSettings) {
+            weeklyReportForm.reset({
+                dayOfWeek: "1", // Monday
+                time: "09:00",
+                recipients: currentUser?.email || "",
+                subject: `${appearanceSettings.siteName}: Weekly Summary for ${activeBoard.name}`,
+                body: `Here is the weekly status summary for the "${activeBoard.name}" board.`,
+            });
+        }
+    }, [isWeeklyReportDialogOpen, activeBoard, appearanceSettings, weeklyReportForm, currentUser]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -827,6 +868,16 @@ export default function TasksPage() {
         }
         handleCloseTaskDialog();
     };
+    
+    const onWeeklyReportSubmit = (values: z.infer<typeof weeklyReportSchema>) => {
+        console.log("Weekly Report Configured:", values);
+        toast({
+            title: "Report Scheduled",
+            description: `The weekly summary for "${activeBoard?.name}" has been scheduled.`,
+        });
+        setIsWeeklyReportDialogOpen(false);
+    };
+
 
     const handleBulkExport = () => {
         const tasksToExport = tasks.filter(task => selectedTaskIds.includes(task.id));
@@ -1113,7 +1164,7 @@ export default function TasksPage() {
                         <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task); }} disabled={!canEdit}>Edit</DropdownMenuItem>
                             <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
                             <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
                                 <Move className="mr-2 h-4 w-4" />
@@ -1428,6 +1479,126 @@ export default function TasksPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+            
+            <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
+                <DialogContent className="sm:max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Configure Weekly Board Summary</DialogTitle>
+                        <DialogDescription>Schedule a recurring email summary for the "{activeBoard?.name}" board.</DialogDescription>
+                    </DialogHeader>
+                    <Form {...weeklyReportForm}>
+                        <form onSubmit={weeklyReportForm.handleSubmit(onWeeklyReportSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[75vh] overflow-y-auto pr-6">
+                            {/* Left Side: Configuration */}
+                            <div className="space-y-6">
+                                <h3 className="text-lg font-medium">1. Schedule</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                     <FormField
+                                        control={weeklyReportForm.control}
+                                        name="dayOfWeek"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Day of Week</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={weeklyReportForm.control}
+                                        name="time"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Time</FormLabel>
+                                                <FormControl><Input type="time" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                <h3 className="text-lg font-medium">2. Content</h3>
+                                <FormField
+                                    control={weeklyReportForm.control}
+                                    name="recipients"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Recipients</FormLabel>
+                                             <FormControl><Input placeholder="comma,separated@emails.com" {...field} /></FormControl>
+                                            <FormDescription>Enter email addresses separated by commas.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={weeklyReportForm.control}
+                                    name="subject"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email Subject</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={weeklyReportForm.control}
+                                    name="body"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Introduction Text</FormLabel>
+                                            <FormControl><Textarea placeholder="Add an optional message to the email body..." {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            {/* Right Side: Preview */}
+                             <div className="space-y-4">
+                                <h3 className="text-lg font-medium">3. Preview</h3>
+                                <div className="rounded-lg border bg-secondary/50 p-6 space-y-4">
+                                    <div className="text-center space-y-2">
+                                        {appearanceSettings?.logo && (
+                                            <Image src={appearanceSettings.logo} alt="Logo" width={40} height={40} className="mx-auto" />
+                                        )}
+                                        <h4 className="text-xl font-semibold">{appearanceSettings?.siteName}</h4>
+                                    </div>
+                                    <Separator />
+                                    <p className="text-sm text-muted-foreground italic">{reportBody || "No introduction text."}</p>
+                                    <div className="space-y-4">
+                                        {(activeBoard?.columns || []).filter(c => !c.isArchived).map(column => (
+                                            <div key={column.id}>
+                                                <h5 className="font-semibold text-md mb-2 pb-1 border-b">{column.title}</h5>
+                                                <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                                                    {tasks.filter(t => t.columnId === column.id).length > 0 ? (
+                                                        tasks.filter(t => t.columnId === column.id).map(task => (
+                                                            <li key={task.id}>{task.title}</li>
+                                                        ))
+                                                    ) : (
+                                                        <li className="italic">No tasks in this list.</li>
+                                                    )}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <Separator />
+                                    <p className="text-xs text-center text-muted-foreground">
+                                        This is an automated weekly report scheduled to be sent every {weeklyReportForm.getValues('dayOfWeek') ? weekDays[parseInt(weeklyReportForm.getValues('dayOfWeek'))] : ''} at {weeklyReportForm.getValues('time')}.
+                                    </p>
+                                </div>
+                            </div>
+                           <DialogFooter className="md:col-span-2">
+                                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                                <Button type="submit">Save & Schedule</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
 
 
             <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
@@ -1479,61 +1650,79 @@ export default function TasksPage() {
 
                 </div>
                 
-                 <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg min-h-[52px]">
-                    <div className="flex items-center -space-x-2">
-                        {(activeBoard?.sharedWith || []).slice(0, 3).map(share => {
-                            const user = mockUsers.find(u => u.id === share.userId);
-                            return user ? (
-                                <TooltipProvider key={user.id}>
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Avatar className="h-8 w-8 border-2 border-background">
-                                                <AvatarImage src={user.avatar} />
-                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{user.name}</p>
-                                            <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            ) : null;
-                        })}
-
-                        {(activeBoard?.sharedWith || []).length > 3 && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                                        <AvatarFallback>+{(activeBoard?.sharedWith || []).length - 3}</AvatarFallback>
-                                    </Avatar>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuLabel>All Members</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {(activeBoard?.sharedWith || []).map(share => {
-                                        const user = mockUsers.find(u => u.id === share.userId);
-                                        return user ? (
-                                            <DropdownMenuItem key={user.id} className="flex items-center gap-2">
-                                                <Avatar className="h-6 w-6">
+                 <div className="flex items-center justify-between gap-4 mb-4 p-2 bg-muted/50 rounded-lg min-h-[52px]">
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center -space-x-2">
+                            {(activeBoard?.sharedWith || []).slice(0, 3).map(share => {
+                                const user = mockUsers.find(u => u.id === share.userId);
+                                return user ? (
+                                    <TooltipProvider key={user.id}>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Avatar className="h-8 w-8 border-2 border-background">
                                                     <AvatarImage src={user.avatar} />
                                                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                                <div>
-                                                    <p className="text-sm font-medium">{user.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{share.role}</p>
-                                                </div>
-                                            </DropdownMenuItem>
-                                        ) : null;
-                                    })}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{user.name}</p>
+                                                <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ) : null;
+                            })}
+
+                            {(activeBoard?.sharedWith || []).length > 3 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                                            <AvatarFallback>+{(activeBoard?.sharedWith || []).length - 3}</AvatarFallback>
+                                        </Avatar>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuLabel>All Members</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {(activeBoard?.sharedWith || []).map(share => {
+                                            const user = mockUsers.find(u => u.id === share.userId);
+                                            return user ? (
+                                                <DropdownMenuItem key={user.id} className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
+                                                        <AvatarImage src={user.avatar} />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{share.role}</p>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            ) : null;
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share
+                        </Button>
                     </div>
-                     <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                    </Button>
+                     <div className="flex items-center gap-2">
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Email Report
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Scheduled Reports</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => setIsWeeklyReportDialogOpen(true)}>
+                                    Weekly Board Summary
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
 
 
@@ -1790,18 +1979,18 @@ export default function TasksPage() {
                                                                 <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
                                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={userPermissions === 'viewer'}>
+                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
+                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
                                                                         <Move className="mr-2 h-4 w-4" />
                                                                         Move Task
                                                                     </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
                                                                         <CalendarPlus className="mr-2 h-4 w-4" />
                                                                         Add to Calendar
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
                                                         </TableCell>
@@ -2583,7 +2772,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    
-
-

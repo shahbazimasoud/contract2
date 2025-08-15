@@ -314,6 +314,10 @@ export default function TasksPage() {
                     setActiveBoardId(visibleBoards[0]?.id);
                 }
             }
+        } else if (visibleBoards.length > 0 && activeBoardId && !visibleBoards.find(b => b.id === activeBoardId)) {
+           setActiveBoardId(visibleBoards[0]?.id);
+        } else if (visibleBoards.length === 0) {
+            setActiveBoardId(null);
         }
     }, [currentUser, visibleBoards, activeBoardId]);
 
@@ -351,9 +355,9 @@ export default function TasksPage() {
     });
 
     useEffect(() => {
-        if (!currentUser) return;
-        const defaultUnit = activeBoard?.ownerId === currentUser.id ? mockUsers.find(u => u.id === currentUser.id)?.unit || "" : "";
-
+        if (!currentUser || !activeBoard) return;
+        const defaultUnit = activeBoard.ownerId === currentUser.id ? mockUsers.find(u => u.id === currentUser.id)?.unit || "" : "";
+        const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
 
         if (editingTask) {
             form.reset({
@@ -371,16 +375,15 @@ export default function TasksPage() {
                 dayOfMonth: editingTask.recurrence.dayOfMonth,
                 reminders: editingTask.reminders.map(days => ({ days })),
                 checklist: editingTask.checklist || [],
-                attachments: [], // Cannot pre-fill file inputs
+                attachments: [],
             });
              setAttachedFiles([]);
         } else {
-            const activeColumns = activeBoard?.columns.filter(c => !c.isArchived);
             form.reset({
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: columnId || activeColumns?.[0]?.id || "",
+                columnId: form.getValues('columnId') || activeColumns?.[0]?.id || "",
                 assignees: [],
                 tags: "",
                 priority: 'medium',
@@ -1206,7 +1209,7 @@ export default function TasksPage() {
             draggable={canEdit}
             onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
             onDragEnd={handleDragEnd}
-            onClick={() => handleOpenTaskDialog(task)}
+            onClick={() => handleOpenTaskDialog(task, task.columnId)}
         >
           <CardContent className="p-3">
              <div className="flex justify-between items-start gap-2">
@@ -1226,7 +1229,7 @@ export default function TasksPage() {
                         <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task, task.columnId); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                             <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}><ListChecks className="mr-2 h-4 w-4" />Details</DropdownMenuItem>
                             <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
                                 <Move className="mr-2 h-4 w-4" />
@@ -1331,7 +1334,7 @@ export default function TasksPage() {
                                 className="w-auto justify-between text-lg font-semibold"
                             >
                                 <div className='flex items-center gap-2'>
-                                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: activeBoard?.color }} />
+                                {activeBoard && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: activeBoard.color }} />}
                                 {activeBoard ? activeBoard.name : "Select a board..."}
                                 </div>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1347,8 +1350,7 @@ export default function TasksPage() {
                                             <CommandItem
                                                 key={board.id}
                                                 value={board.name}
-                                                onSelect={(e) => {
-                                                     e.stopPropagation();
+                                                onSelect={() => {
                                                     setActiveBoardId(board.id);
                                                     setIsBoardSwitcherOpen(false);
                                                 }}

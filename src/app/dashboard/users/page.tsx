@@ -148,8 +148,8 @@ export default function UsersPage() {
     };
     setUsers([...users, newUser]);
     toast({
-        title: "User Created",
-        description: `User ${newUser.name} has been successfully created.`,
+        title: t('users.toast.created_title'),
+        description: t('users.toast.created_desc', { name: newUser.name }),
     });
     addUserForm.reset();
     setIsAddUserDialogOpen(false);
@@ -160,8 +160,8 @@ export default function UsersPage() {
     
     setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...values } : u));
     toast({
-      title: "User Updated",
-      description: `User ${values.name} has been successfully updated.`
+      title: t('users.toast.updated_title'),
+      description: t('users.toast.updated_desc', { name: values.name })
     });
     setIsEditUserDialogOpen(false);
     setEditingUser(null);
@@ -174,8 +174,8 @@ export default function UsersPage() {
     console.log(`Password for ${editingUser.name} changed to ${values.newPassword}`);
     
     toast({
-      title: "Password Changed",
-      description: `Password for ${editingUser.name} has been successfully changed.`
+      title: t('users.toast.password_changed_title'),
+      description: t('users.toast.password_changed_desc', { name: editingUser.name })
     });
     setIsChangePasswordDialogOpen(false);
     setEditingUser(null);
@@ -195,8 +195,8 @@ export default function UsersPage() {
   const handleDelete = (userId: string) => {
       setUsers(users.filter(u => u.id !== userId));
       toast({
-          title: "User Deleted",
-          description: "The user has been successfully deleted.",
+          title: t('users.toast.deleted_title'),
+          description: t('users.toast.deleted_desc'),
           variant: "destructive"
       });
   }
@@ -238,20 +238,20 @@ export default function UsersPage() {
               <DialogTrigger asChild>
                   <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add New User
+                    {t('users.add_button')}
                   </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-lg">
                   <DialogHeader>
-                      <DialogTitle>Add New User</DialogTitle>
+                      <DialogTitle>{t('users.dialog.add_title')}</DialogTitle>
                       <DialogDescription>
-                          Create a local user or add one from Active Directory.
+                          {t('users.dialog.add_desc')}
                       </DialogDescription>
                   </DialogHeader>
                   <Tabs defaultValue="local" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="local">Local User</TabsTrigger>
-                        <TabsTrigger value="ad">From Active Directory</TabsTrigger>
+                        <TabsTrigger value="local">{t('users.dialog.local_user')}</TabsTrigger>
+                        <TabsTrigger value="ad">{t('users.dialog.ad_user')}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="local">
                          <Form {...addUserForm}>
@@ -261,7 +261,7 @@ export default function UsersPage() {
                               name="name"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Name</FormLabel>
+                                  <FormLabel>{t('users.dialog.name')}</FormLabel>
                                   <FormControl>
                                     <Input placeholder="John Doe" {...field} />
                                   </FormControl>
@@ -274,7 +274,7 @@ export default function UsersPage() {
                               name="email"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Email</FormLabel>
+                                  <FormLabel>{t('users.dialog.email')}</FormLabel>
                                   <FormControl>
                                     <Input type="email" placeholder="john.doe@example.com" {...field} />
                                   </FormControl>
@@ -287,7 +287,7 @@ export default function UsersPage() {
                               name="password"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Password</FormLabel>
+                                  <FormLabel>{t('users.dialog.password')}</FormLabel>
                                   <FormControl>
                                     <Input type="password" placeholder="********" {...field} />
                                   </FormControl>
@@ -300,16 +300,16 @@ export default function UsersPage() {
                               name="role"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Role</FormLabel>
+                                  <FormLabel>{t('users.dialog.role')}</FormLabel>
                                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Select a role" />
+                                        <SelectValue placeholder={t('users.dialog.select_role')} />
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      <SelectItem value="admin">Admin</SelectItem>
-                                      <SelectItem value="super-admin">Super Admin</SelectItem>
+                                      <SelectItem value="admin">{t('users.roles.admin')}</SelectItem>
+                                      <SelectItem value="super-admin">{t('users.roles.super_admin')}</SelectItem>
                                     </SelectContent>
                                   </Select>
                                   <FormMessage />
@@ -321,11 +321,11 @@ export default function UsersPage() {
                               name="unit"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Unit</FormLabel>
+                                  <FormLabel>{t('users.dialog.unit')}</FormLabel>
                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                       <SelectTrigger>
-                                        <SelectValue placeholder="Select a unit" />
+                                        <SelectValue placeholder={t('users.dialog.select_unit')} />
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -340,9 +340,9 @@ export default function UsersPage() {
                             />
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button type="button" variant="ghost">Cancel</Button>
+                                    <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                                 </DialogClose>
-                                <Button type="submit">Create User</Button>
+                                <Button type="submit">{t('users.dialog.create_button')}</Button>
                             </DialogFooter>
                           </form>
                         </Form>
@@ -351,17 +351,17 @@ export default function UsersPage() {
                       <div className="space-y-4 py-4">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                          <Input placeholder="Search for user in Active Directory..." className="pl-10" />
+                          <Input placeholder={t('users.dialog.ad_search_placeholder')} className="pl-10" />
                         </div>
                         <div className="rounded-md border h-48 overflow-y-auto">
                            {/* Search results would be displayed here */}
-                           <p className="p-4 text-sm text-center text-muted-foreground">No users found. Try another search.</p>
+                           <p className="p-4 text-sm text-center text-muted-foreground">{t('users.dialog.ad_no_results')}</p>
                         </div>
                         <div className="space-y-2">
-                           <Label>Assign to Unit</Label>
+                           <Label>{t('users.dialog.assign_unit')}</Label>
                            <Select>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a unit" />
+                                <SelectValue placeholder={t('users.dialog.select_unit')} />
                             </SelectTrigger>
                             <SelectContent>
                                 {mockUnits.map((unit) => (
@@ -371,23 +371,23 @@ export default function UsersPage() {
                            </Select>
                         </div>
                          <div className="space-y-2">
-                           <Label>Assign Role</Label>
+                           <Label>{t('users.dialog.assign_role')}</Label>
                            <Select>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a role" />
+                                <SelectValue placeholder={t('users.dialog.select_role')} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="super-admin">Super Admin</SelectItem>
+                                <SelectItem value="admin">{t('users.roles.admin')}</SelectItem>
+                                <SelectItem value="super-admin">{t('users.roles.super_admin')}</SelectItem>
                             </SelectContent>
                            </Select>
                         </div>
                       </div>
                       <DialogFooter>
                         <DialogClose asChild>
-                            <Button type="button" variant="ghost">Cancel</Button>
+                            <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                         </DialogClose>
-                        <Button type="button">Add Selected User</Button>
+                        <Button type="button">{t('users.dialog.add_selected_button')}</Button>
                       </DialogFooter>
                     </TabsContent>
                   </Tabs>
@@ -400,8 +400,8 @@ export default function UsersPage() {
       <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>Update the details for {editingUser?.name}.</DialogDescription>
+            <DialogTitle>{t('users.dialog.edit_title')}</DialogTitle>
+            <DialogDescription>{t('users.dialog.edit_desc', { name: editingUser?.name })}</DialogDescription>
           </DialogHeader>
           <Form {...editUserForm}>
             <form onSubmit={editUserForm.handleSubmit(onEditUserSubmit)} className="space-y-4 py-4">
@@ -410,7 +410,7 @@ export default function UsersPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t('users.dialog.name')}</FormLabel>
                     <FormControl>
                       <Input {...field} disabled={editingUser?.authType === 'ad'} />
                     </FormControl>
@@ -423,7 +423,7 @@ export default function UsersPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('users.dialog.email')}</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} disabled={editingUser?.authType === 'ad'}/>
                     </FormControl>
@@ -436,7 +436,7 @@ export default function UsersPage() {
                 name="role"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
+                    <FormLabel>{t('users.dialog.role')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -444,8 +444,8 @@ export default function UsersPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                        <SelectItem value="admin">{t('users.roles.admin')}</SelectItem>
+                        <SelectItem value="super-admin">{t('users.roles.super_admin')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -457,7 +457,7 @@ export default function UsersPage() {
                 name="unit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit</FormLabel>
+                    <FormLabel>{t('users.dialog.unit')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -476,9 +476,9 @@ export default function UsersPage() {
               />
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button type="button" variant="ghost">Cancel</Button>
+                  <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                 </DialogClose>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit">{t('common.save_changes')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -489,8 +489,8 @@ export default function UsersPage() {
        <Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-            <DialogDescription>Set a new password for {editingUser?.name}.</DialogDescription>
+            <DialogTitle>{t('users.dialog.change_password_title')}</DialogTitle>
+            <DialogDescription>{t('users.dialog.change_password_desc', { name: editingUser?.name })}</DialogDescription>
           </DialogHeader>
           <Form {...changePasswordForm}>
             <form onSubmit={changePasswordForm.handleSubmit(onChangePasswordSubmit)} className="space-y-4 py-4">
@@ -499,7 +499,7 @@ export default function UsersPage() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>{t('users.dialog.new_password')}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>
@@ -512,7 +512,7 @@ export default function UsersPage() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
+                    <FormLabel>{t('users.dialog.confirm_password')}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>
@@ -522,9 +522,9 @@ export default function UsersPage() {
               />
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button type="button" variant="ghost">Cancel</Button>
+                  <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                 </DialogClose>
-                <Button type="submit">Update Password</Button>
+                <Button type="submit">{t('users.dialog.update_password_button')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -533,13 +533,13 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>User List</CardTitle>
-          <CardDescription>Search, filter, and manage all users in the system.</CardDescription>
+          <CardTitle>{t('users.list_title')}</CardTitle>
+          <CardDescription>{t('users.list_desc')}</CardDescription>
             <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 <div className="relative sm:max-w-xs w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
-                        placeholder="Search by name or email..." 
+                        placeholder={t('users.search_placeholder')}
                         className="pl-10 w-full"
                         value={searchTerm}
                         onChange={(e) => {
@@ -550,20 +550,20 @@ export default function UsersPage() {
                 </div>
                 <Select value={filters.role} onValueChange={(value) => handleFilterChange('role', value)}>
                     <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filter by role" />
+                        <SelectValue placeholder={t('users.filter_role_placeholder')} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Roles</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                        <SelectItem value="all">{t('users.filter_all_roles')}</SelectItem>
+                        <SelectItem value="admin">{t('users.roles.admin')}</SelectItem>
+                        <SelectItem value="super-admin">{t('users.roles.super_admin')}</SelectItem>
                     </SelectContent>
                 </Select>
                  <Select value={filters.unit} onValueChange={(value) => handleFilterChange('unit', value)}>
                     <SelectTrigger className="w-full sm:w-[220px]">
-                        <SelectValue placeholder="Filter by unit" />
+                        <SelectValue placeholder={t('users.filter_unit_placeholder')} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Units</SelectItem>
+                        <SelectItem value="all">{t('users.filter_all_units')}</SelectItem>
                          {mockUnits.map((unit) => (
                             <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
                          ))}
@@ -576,13 +576,13 @@ export default function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[25%]">Name</TableHead>
-                  <TableHead className="w-[25%]">Email</TableHead>
-                  <TableHead className="w-[10%]">Auth Type</TableHead>
-                  <TableHead className="w-[10%]">Role</TableHead>
-                  <TableHead className="w-[20%]">Unit</TableHead>
+                  <TableHead className="w-[25%]">{t('users.table.name')}</TableHead>
+                  <TableHead className="w-[25%]">{t('users.table.email')}</TableHead>
+                  <TableHead className="w-[10%]">{t('users.table.auth_type')}</TableHead>
+                  <TableHead className="w-[10%]">{t('users.table.role')}</TableHead>
+                  <TableHead className="w-[20%]">{t('users.table.unit')}</TableHead>
                   <TableHead className="w-[10%] text-right">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('common.actions')}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -599,7 +599,7 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell>
                         <Badge variant={user.role === 'super-admin' ? 'destructive' : 'secondary'}>
-                            {user.role}
+                            {t(`users.roles.${user.role}`)}
                         </Badge>
                         </TableCell>
                         <TableCell>{user.unit}</TableCell>
@@ -608,17 +608,17 @@ export default function UsersPage() {
                             <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
+                                <span className="sr-only">{t('common.toggle_menu')}</span>
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit User</DropdownMenuItem>
+                            <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openEditDialog(user)}>{t('common.edit')}</DropdownMenuItem>
                             {user.authType === 'local' && (
-                                <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>{t('users.dialog.change_password_title')}</DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-destructive">
-                                Delete User
+                                {t('common.delete')}
                             </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -628,7 +628,7 @@ export default function UsersPage() {
                 ) : (
                     <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
-                            No users found. Try adjusting your search or filters.
+                            {t('users.no_users_found')}
                         </TableCell>
                     </TableRow>
                 )}
@@ -645,10 +645,10 @@ export default function UsersPage() {
                         onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
                     >
-                        Previous
+                        {t('common.previous')}
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
+                        {t('common.page_of', { current: currentPage, total: totalPages })}
                     </span>
                     <Button
                         variant="outline"
@@ -656,7 +656,7 @@ export default function UsersPage() {
                         onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
                     >
-                        Next
+                        {t('common.next')}
                     </Button>
                 </div>
             </CardFooter>
@@ -665,5 +665,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

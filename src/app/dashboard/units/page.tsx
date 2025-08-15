@@ -109,8 +109,8 @@ export default function UnitsPage() {
       const updatedUnit = { ...editingUnit, name: values.name };
       setUnits(units.map(u => u.id === editingUnit.id ? updatedUnit : u));
       toast({
-        title: "Unit Updated",
-        description: `Unit "${updatedUnit.name}" has been successfully updated.`,
+        title: t('units.toast.updated_title'),
+        description: t('units.toast.updated_desc', { name: updatedUnit.name }),
       });
     } else {
       // Create new unit
@@ -121,8 +121,8 @@ export default function UnitsPage() {
       };
       setUnits([...units, newUnit]);
       toast({
-          title: "Unit Created",
-          description: `Unit "${newUnit.name}" has been successfully created.`,
+          title: t('units.toast.created_title'),
+          description: t('units.toast.created_desc', { name: newUnit.name }),
       });
     }
     handleCloseDialog();
@@ -131,8 +131,8 @@ export default function UnitsPage() {
   const handleDelete = (id: string) => {
     setUnits(units.filter(u => u.id !== id));
     toast({
-        title: "Unit Deleted",
-        description: `The unit has been successfully deleted.`,
+        title: t('units.toast.deleted_title'),
+        description: t('units.toast.deleted_desc'),
         variant: "destructive",
     });
   }
@@ -163,7 +163,7 @@ export default function UnitsPage() {
           </div>
           <Button onClick={() => handleOpenDialog(null)}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Add New Unit
+            {t('units.add_button')}
           </Button>
         </div>
       </PageHeader>
@@ -171,9 +171,9 @@ export default function UnitsPage() {
        <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingUnit ? 'Edit Unit' : 'Add New Unit'}</DialogTitle>
+            <DialogTitle>{editingUnit ? t('units.dialog.edit_title') : t('units.dialog.add_title')}</DialogTitle>
             <DialogDescription>
-              {editingUnit ? 'Update the name of the organizational unit.' : 'Create a new organizational unit to group users and contracts.'}
+              {editingUnit ? t('units.dialog.edit_desc') : t('units.dialog.add_desc')}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -183,9 +183,9 @@ export default function UnitsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unit Name</FormLabel>
+                    <FormLabel>{t('units.dialog.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Sales Department" {...field} />
+                      <Input placeholder={t('units.dialog.name_placeholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -193,9 +193,9 @@ export default function UnitsPage() {
               />
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button type="button" variant="ghost">Cancel</Button>
+                  <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                 </DialogClose>
-                <Button type="submit">{editingUnit ? 'Save Changes' : 'Create Unit'}</Button>
+                <Button type="submit">{editingUnit ? t('common.save_changes') : t('units.dialog.create_button')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -205,13 +205,13 @@ export default function UnitsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Unit List</CardTitle>
-           <CardDescription>Search, view, and manage all organizational units.</CardDescription>
+          <CardTitle>{t('units.list_title')}</CardTitle>
+           <CardDescription>{t('units.list_desc')}</CardDescription>
             <div className="mt-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
-                        placeholder="Search by unit name or ID..." 
+                        placeholder={t('units.search_placeholder')}
                         className="pl-10 max-w-sm"
                         value={searchTerm}
                         onChange={(e) => {
@@ -227,11 +227,11 @@ export default function UnitsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[40%]">Unit Name</TableHead>
-                  <TableHead className="w-[30%]">Unit ID</TableHead>
-                  <TableHead className="w-[20%]">User Count</TableHead>
+                  <TableHead className="w-[40%]">{t('units.table.name')}</TableHead>
+                  <TableHead className="w-[30%]">{t('units.table.id')}</TableHead>
+                  <TableHead className="w-[20%]">{t('units.table.user_count')}</TableHead>
                   <TableHead className="w-[10%] text-right">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('common.actions')}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -246,17 +246,17 @@ export default function UnitsPage() {
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
+                            <span className="sr-only">{t('common.toggle_menu')}</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleOpenDialog(unit)}>Edit Unit</DropdownMenuItem>
+                          <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleOpenDialog(unit)}>{t('common.edit')}</DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(unit.id)}
                             className="text-destructive"
                            >
-                            Delete Unit
+                            {t('common.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -265,7 +265,7 @@ export default function UnitsPage() {
                 )) : (
                     <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center">
-                            No units found.
+                            {t('units.no_units_found')}
                         </TableCell>
                     </TableRow>
                 )}
@@ -282,10 +282,10 @@ export default function UnitsPage() {
                         onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
                     >
-                        Previous
+                        {t('common.previous')}
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
+                        {t('common.page_of', { current: currentPage, total: totalPages })}
                     </span>
                     <Button
                         variant="outline"
@@ -293,7 +293,7 @@ export default function UnitsPage() {
                         onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
                     >
-                        Next
+                        {t('common.next')}
                     </Button>
                 </div>
             </CardFooter>
@@ -302,5 +302,3 @@ export default function UnitsPage() {
     </div>
   );
 }
-
-    

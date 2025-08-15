@@ -112,11 +112,6 @@ export default function DashboardLayout({
     }
   }, [router]);
 
-  React.useEffect(() => {
-    document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
-  }, [language]);
-
-
   const handleLogout = () => {
     localStorage.removeItem(AUTH_USER_KEY);
     router.push('/login');
@@ -283,5 +278,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   )
 }
-
-    

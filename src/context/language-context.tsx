@@ -27,22 +27,28 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     const storedLanguage = localStorage.getItem('language') as Language;
     if (storedLanguage && ['en', 'fa'].includes(storedLanguage)) {
       setLanguageState(storedLanguage);
-      document.documentElement.dir = storedLanguage === 'fa' ? 'rtl' : 'ltr';
     }
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('language', lang);
-    document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
   };
 
   const t = useMemo(() => (key: string, options?: { [key: string]: string | number }) => {
     let translation = get(translations[language], key);
 
+    if (!translation) {
+      // Fallback to English if translation is missing
+      translation = get(translations.en, key);
+    }
+
     if (options) {
         Object.keys(options).forEach((k) => {
-            translation = translation.replace(new RegExp(`{{${k}}}`, 'g'), options[k]);
+            const value = options[k];
+            if (value !== undefined) {
+                translation = translation.replace(new RegExp(`{{${k}}}`, 'g'), String(value));
+            }
         });
     }
 
@@ -64,5 +70,3 @@ export const useLanguage = () => {
   }
   return context;
 };
-
-    

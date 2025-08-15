@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/language-context";
 
 const AUTH_USER_KEY = 'current_user';
 
@@ -29,6 +30,7 @@ type Activity = {
 }
 
 export default function DashboardPage() {
+    const { t } = useLanguage();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [stats, setStats] = useState<any[]>([]);
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -80,15 +82,15 @@ export default function DashboardPage() {
         const totalUsers = visibleUsers.length;
 
         const baseStats = [
-            { title: "Total Contracts", value: totalContracts, icon: FileText, description: `${activeContracts} active` },
-            { title: "Expiring Soon", value: expiringSoon, icon: AlertTriangle, description: "In the next 30 days", className: "text-destructive" },
-            { title: "Total Tasks", value: totalTasks, icon: ClipboardCheck, description: `${pendingTasks} pending` },
+            { title: t('dashboard.stats.total_contracts'), value: totalContracts, icon: FileText, description: t('dashboard.stats.active_contracts', { count: activeContracts }) },
+            { title: t('dashboard.stats.expiring_soon'), value: expiringSoon, icon: AlertTriangle, description: t('dashboard.stats.expiring_soon_desc'), className: "text-destructive" },
+            { title: t('dashboard.stats.total_tasks'), value: totalTasks, icon: ClipboardCheck, description: t('dashboard.stats.pending_tasks', { count: pendingTasks }) },
         ];
         
         if (isSuperAdmin) {
-            baseStats.push({ title: "Total Users", value: totalUsers, icon: Users, description: "Across all units" });
+            baseStats.push({ title: t('dashboard.stats.total_users'), value: totalUsers, icon: Users, description: t('dashboard.stats.total_users_desc') });
         } else {
-             baseStats.push({ title: "Users in Unit", value: totalUsers, icon: Users, description: `In ${currentUser.unit}` });
+             baseStats.push({ title: t('dashboard.stats.users_in_unit'), value: totalUsers, icon: Users, description: t('dashboard.stats.users_in_unit_desc', { unit: currentUser.unit }) });
         }
         
         setStats(baseStats);
@@ -141,7 +143,7 @@ export default function DashboardPage() {
         setActivities(allActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 5));
 
         // Set My Tasks (tasks specifically assigned to me)
-        setMyTasks(mockTasks.filter(t => t.assignedTo === currentUser.id && t.status === 'pending').slice(0, 5));
+        setMyTasks(mockTasks.filter(t => t.assignees?.includes(currentUser.id) && t.status === 'pending').slice(0, 5));
 
         // Set Expiring Contracts (already filtered by unit for non-super-admins)
         setExpiringContracts(visibleContracts.filter(c => {
@@ -153,7 +155,7 @@ export default function DashboardPage() {
         }).sort((a,b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime()));
 
 
-    }, [currentUser]);
+    }, [currentUser, t]);
 
     const renderActivity = (activity: Activity) => {
         const { type, item, user, timestamp } = activity;
@@ -162,23 +164,24 @@ export default function DashboardPage() {
         switch (type) {
             case 'new_contract':
                 icon = <Plus className="h-5 w-5" />;
-                title = <>created contract <span className="font-semibold text-primary">{(item as Contract).contractorName}</span></>;
+                title = <>{t('dashboard.activity.created_contract')} <span className="font-semibold text-primary">{(item as Contract).contractorName}</span></>;
                 link = '/dashboard/contracts';
                 break;
             case 'new_task':
                 icon = <ClipboardCheck className="h-5 w-5" />;
-                title = <>created task <span className="font-semibold text-primary">{(item as Task).title}</span></>;
+                title = <>{t('dashboard.activity.created_task')} <span className="font-semibold text-primary">{(item as Task).title}</span></>;
                 link = '/dashboard/tasks';
                 break;
             case 'new_comment':
                  const comment = item as Comment & { parentTitle: string, parentId: string, parentType: 'contract' | 'task' };
                  icon = <MessageSquare className="h-5 w-5" />;
-                 title = <>commented on {comment.parentType} <span className="font-semibold text-primary">{comment.parentTitle}</span></>;
+                 const parentType = t(`dashboard.activity.${comment.parentType}`);
+                 title = <>{t('dashboard.activity.commented_on', { parentType: parentType })} <span className="font-semibold text-primary">{comment.parentTitle}</span></>;
                  link = `/dashboard/${comment.parentType}s`;
                  break;
             case 'task_status':
                  icon = <Edit className="h-5 w-5" />;
-                 title = <>updated status for <span className="font-semibold text-primary">{(item as Task).title}</span></>;
+                 title = <>{t('dashboard.activity.updated_status')} <span className="font-semibold text-primary">{(item as Task).title}</span></>;
                  link = '/dashboard/tasks';
                  break;
         }
@@ -200,14 +203,14 @@ export default function DashboardPage() {
     }
     
     if (!currentUser) {
-        return <div className="flex h-screen items-center justify-center">Loading...</div>;
+        return <div className="flex h-screen items-center justify-center">{t('loading.dashboard')}</div>;
     }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
-        <PageHeaderHeading>Welcome, {currentUser.name}!</PageHeaderHeading>
-        <PageHeaderDescription>Here's a quick overview of what's happening.</PageHeaderDescription>
+        <PageHeaderHeading>{t('dashboard.greeting', { name: currentUser.name })}</PageHeaderHeading>
+        <PageHeaderDescription>{t('dashboard.description')}</PageHeaderDescription>
       </PageHeader>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -229,8 +232,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
             <Card>
             <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>An overview of recent actions across the system.</CardDescription>
+                <CardTitle>{t('dashboard.recent_activity_title')}</CardTitle>
+                <CardDescription>{t('dashboard.recent_activity_desc')}</CardDescription>
             </CardHeader>
             <CardContent>
                 {activities.length > 0 ? (
@@ -239,7 +242,7 @@ export default function DashboardPage() {
                     </ul>
                 ) : (
                     <div className="text-center text-muted-foreground py-6">
-                        <p>No recent activity to display.</p>
+                        <p>{t('dashboard.no_activity')}</p>
                     </div>
                 )}
             </CardContent>
@@ -249,8 +252,8 @@ export default function DashboardPage() {
         <div className="space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle>My Pending Tasks</CardTitle>
-                     <CardDescription>Tasks assigned directly to you.</CardDescription>
+                    <CardTitle>{t('dashboard.my_tasks_title')}</CardTitle>
+                     <CardDescription>{t('dashboard.my_tasks_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                      {myTasks.length > 0 ? (
@@ -263,15 +266,15 @@ export default function DashboardPage() {
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-center text-muted-foreground py-4">You have no pending tasks.</p>
+                        <p className="text-sm text-center text-muted-foreground py-4">{t('dashboard.no_pending_tasks')}</p>
                     )}
                 </CardContent>
             </Card>
 
              <Card>
                 <CardHeader>
-                    <CardTitle>Expiring Contracts</CardTitle>
-                    <CardDescription>Contracts expiring in the next 30 days.</CardDescription>
+                    <CardTitle>{t('dashboard.expiring_contracts_title')}</CardTitle>
+                    <CardDescription>{t('dashboard.expiring_contracts_desc')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                      {expiringContracts.length > 0 ? (
@@ -285,14 +288,14 @@ export default function DashboardPage() {
                                             <p className="text-xs text-muted-foreground">{contract.unit}</p>
                                         </div>
                                         <span className={cn("font-semibold text-xs flex-shrink-0", daysLeft < 7 ? 'text-destructive' : 'text-amber-600')}>
-                                            {daysLeft} days left
+                                            {t('dashboard.days_left', { count: daysLeft })}
                                         </span>
                                     </li>
                                 )
                             })}
                         </ul>
                     ) : (
-                        <p className="text-sm text-center text-muted-foreground py-4">No contracts are expiring soon.</p>
+                        <p className="text-sm text-center text-muted-foreground py-4">{t('dashboard.no_expiring_contracts')}</p>
                     )}
                 </CardContent>
             </Card>

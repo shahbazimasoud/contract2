@@ -179,7 +179,7 @@ const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#
 
 export default function TasksPage() {
     const { t } = useLanguage();
-    const { calendar, locale, format, formatDistance } = useCalendar();
+    const { calendar, locale, format, formatDistance, dateFnsLocale } = useCalendar();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
@@ -3248,3 +3248,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

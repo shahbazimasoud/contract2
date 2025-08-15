@@ -1218,7 +1218,7 @@ export default function TasksPage() {
 
     function formatRecurrence(task: Task): string {
         const { recurrence } = task;
-        const time = format(new Date(`1970-01-01T${recurrence.time}`), 'h:mm a');
+        const time = format(new Date(`1970-01-01T${recurrence.time}`), 'p', { locale: dateFnsLocale });
         switch (recurrence.type) {
             case 'none':
                 return t('tasks.recurrence_types.none');
@@ -1467,7 +1467,7 @@ export default function TasksPage() {
                         {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
                     </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "d MMMM yyyy")}</p>
+                <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "d MMMM yyyy", { locale: dateFnsLocale })}</p>
                 <div className="flex items-center justify-between mt-3 pl-7">
                    <div className="flex items-center gap-3">
                     {(task.attachments?.length || 0) > 0 && (
@@ -2586,14 +2586,16 @@ export default function TasksPage() {
                                 <div className="flex items-center justify-between p-4">
                                     <div className="flex items-center gap-2">
                                         <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
-                                        <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                                        <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale })}</h2>
                                         <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                                     </div>
                                     <Button variant="outline" onClick={goToToday}>{t('tasks.calendar.today_button')}</Button>
                                 </div>
                                 <div className="grid grid-cols-7 border-t border-b">
-                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                        <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
+                                    {Array.from({ length: 7 }).map((_, i) => (
+                                        <div key={i} className="p-2 text-center font-medium text-sm text-muted-foreground">
+                                            {dateFnsLocale.localize?.day(i, { width: 'short' })}
+                                        </div>
                                     ))}
                                 </div>
                                 <div className="grid grid-cols-7">

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -367,7 +366,7 @@ export default function TasksPage() {
 
     useEffect(() => {
         if (!currentUser || !activeBoard) return;
-        const defaultUnit = activeBoard.ownerId === currentUser.id ? mockUsers.find(u => u.id === currentUser.id)?.unit || "" : "";
+        const defaultUnit = currentUser?.unit || "";
         const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
 
         if (editingTask) {
@@ -485,8 +484,7 @@ export default function TasksPage() {
     const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
         if (!task && columnId && activeBoard) {
-            const defaultUnit = currentUser?.role === 'admin' ? currentUser.unit : "";
-            const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
+            const defaultUnit = currentUser?.unit || "";
             form.setValue('columnId', columnId);
             form.setValue('unit', defaultUnit);
         }
@@ -884,15 +882,15 @@ export default function TasksPage() {
         
         if (editingTask) {
             const newLogs: ActivityLog[] = [];
-            // Compare and create logs
+            
             if (editingTask.title !== values.title) {
                 newLogs.push(createLogEntry('updated_title', { from: editingTask.title, to: values.title }));
             }
             if (editingTask.description !== values.description) {
                 newLogs.push(createLogEntry('updated_description', {}));
             }
-            if (editingTask.dueDate !== values.dueDate.toISOString()) {
-                newLogs.push(createLogEntry('updated_dueDate', { from: format(new Date(editingTask.dueDate), 'P'), to: format(values.dueDate, 'P') }));
+            if (parseISO(editingTask.dueDate).getTime() !== values.dueDate.getTime()) {
+                 newLogs.push(createLogEntry('updated_dueDate', { from: format(parseISO(editingTask.dueDate), 'P'), to: format(values.dueDate, 'P') }));
             }
             if (editingTask.columnId !== values.columnId) {
                 const fromColumn = activeBoard?.columns.find(c => c.id === editingTask.columnId)?.title;
@@ -900,7 +898,6 @@ export default function TasksPage() {
                 newLogs.push(createLogEntry('moved_column', { from: fromColumn, to: toColumn }));
             }
             
-            // Checklist changes
             const oldChecklist = editingTask.checklist || [];
             const newChecklist = values.checklist || [];
             oldChecklist.forEach(oldItem => {
@@ -914,8 +911,8 @@ export default function TasksPage() {
                 }
             });
 
-
-            const taskData = {
+            const updatedTask: Task = {
+                ...editingTask,
                 title: values.title,
                 description: values.description,
                 unit: values.unit,
@@ -932,25 +929,24 @@ export default function TasksPage() {
                 },
                 reminders: values.reminders.map(r => r.days),
                 checklist: values.checklist || [],
-                isArchived: false,
                 isCompleted: values.isCompleted,
-            };
-
-            const updatedTask: Task = {
-                ...editingTask,
-                ...taskData,
                 attachments: attachedFiles.length > 0 
                     ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) 
                     : editingTask.attachments,
                 logs: [...(editingTask.logs || []), ...newLogs],
             };
+
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
             toast({
                 title: t('tasks.toast.task_updated_title'),
                 description: t('tasks.toast.task_updated_desc', { name: updatedTask.title }),
             });
         } else {
-             const taskData = {
+             const newLog = createLogEntry('created', { title: values.title });
+             const newTask: Task = {
+                id: `T-${Date.now()}`,
+                boardId: activeBoardId,
+                createdBy: currentUser.name,
                 title: values.title,
                 description: values.description,
                 unit: values.unit,
@@ -969,14 +965,6 @@ export default function TasksPage() {
                 checklist: values.checklist || [],
                 isArchived: false,
                 isCompleted: values.isCompleted,
-            };
-            
-            const newLog = createLogEntry('created', { title: values.title });
-            const newTask: Task = {
-                id: `T-${Date.now()}`,
-                boardId: activeBoardId,
-                createdBy: currentUser.name,
-                ...taskData,
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 comments: [],
                 logs: [newLog],
@@ -1312,42 +1300,40 @@ export default function TasksPage() {
             return;
         }
 
-        const currentTasks = [...tasks];
-        const draggedIndex = currentTasks.findIndex(t => t.id === draggedTaskId);
-        let targetIndex = currentTasks.findIndex(t => t.id === targetTask.id);
+        let newTasks = [...tasks];
+        const draggedTaskIndex = newTasks.findIndex(t => t.id === draggedTaskId);
+        const targetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
 
-        if (draggedIndex === -1 || targetIndex === -1) {
-            handleDragEnd(e as any);
-            return;
+        if (draggedTaskIndex === -1 || targetTaskIndex === -1) return;
+
+        // Remove the dragged task
+        const [draggedTask] = newTasks.splice(draggedTaskIndex, 1);
+        
+        // Update column if moved to a different one
+        if (draggedTask.columnId !== targetTask.columnId) {
+            const oldColumnName = activeBoard?.columns.find(c => c.id === draggedTask.columnId)?.title;
+            const newColumnName = activeBoard?.columns.find(c => c.id === targetTask.columnId)?.title;
+            const newLog = createLogEntry('moved_column', { from: oldColumnName, to: newColumnName });
+            draggedTask.logs = [...(draggedTask.logs || []), newLog];
+            draggedTask.columnId = targetTask.columnId;
         }
 
-        const [draggedItem] = currentTasks.splice(draggedIndex, 1);
-        draggedItem.columnId = targetTask.columnId;
+        // Find the new index of the target task, as it might have shifted
+        const newTargetIndex = newTasks.findIndex(t => t.id === targetTask.id);
 
-        // If the column changed, add a log entry
-        if (draggedItem.columnId !== tasks[draggedIndex].columnId) {
-             const oldColumnName = activeBoard?.columns.find(c => c.id === tasks[draggedIndex].columnId)?.title;
-             const newColumnName = activeBoard?.columns.find(c => c.id === targetTask.columnId)?.title;
-             const newLog = createLogEntry('moved_column', { from: oldColumnName, to: newColumnName });
-             draggedItem.logs = [...(draggedItem.logs || []), newLog];
-        }
-
-
-        // Re-find target index in the modified array
-        targetIndex = currentTasks.findIndex(t => t.id === targetTask.id);
-
+        // Insert the dragged task in the new position
         if (dropPosition === 'top') {
-            currentTasks.splice(targetIndex, 0, draggedItem);
+            newTasks.splice(newTargetIndex, 0, draggedTask);
         } else {
-            currentTasks.splice(targetIndex + 1, 0, draggedItem);
+            newTasks.splice(newTargetIndex + 1, 0, draggedTask);
         }
 
-        setTasks(currentTasks);
+        setTasks(newTasks);
         handleDragEnd(e as any);
     };
-    
+
     if (!currentUser) {
-      return null
+      return null;
     }
 
     const renderTaskCard = (task: Task) => {
@@ -1361,10 +1347,10 @@ export default function TasksPage() {
       return (
         <div 
             key={task.id}
-            className="relative"
             onDragOver={(e) => canEdit && handleDragOverTask(e, task.id)}
             onDragLeave={handleDragLeaveTask}
             onDrop={(e) => canEdit && handleDropOnTask(e, task)}
+            className="relative"
         >
             {dragOverTaskId === task.id && dropPosition === 'top' && (
                  <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full -mt-1 z-10" />
@@ -1374,7 +1360,7 @@ export default function TasksPage() {
                 draggable={canEdit}
                 onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
                 onDragEnd={handleDragEnd}
-                onClick={() => handleOpenTaskDialog(task, task.columnId)}
+                onClick={() => handleOpenDetailsSheet(task)}
             >
               <CardContent className="p-3">
                  <div className="flex justify-between items-start gap-2">
@@ -1598,11 +1584,11 @@ export default function TasksPage() {
                                                         <Check className="h-4 w-4 text-primary" />
                                                     )}
                                                      {currentUser.id === board.ownerId && (
-                                                         <DropdownMenu onOpenChange={(e) => {}}>
+                                                         <DropdownMenu>
                                                              <DropdownMenuTrigger asChild>
                                                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
                                                              </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuContent align="end" onSelect={(e) => e.stopPropagation()}>
                                                                 <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>{t('common.edit')}</DropdownMenuItem>
                                                                 <DropdownMenuItem onSelect={() => {setIsDeleteAlertOpen(true)}} className="text-destructive">{t('common.delete')}</DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -2550,7 +2536,7 @@ export default function TasksPage() {
                                             </div>
 
                                             <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[24rem] overflow-y-auto">
-                                                {tasksInColumn.map(renderTaskCard)}
+                                                {tasksInColumn.map(task => renderTaskCard(task))}
                                             </div>
                                         </div>
                                    </div>
@@ -3133,8 +3119,7 @@ export default function TasksPage() {
                             <TabsTrigger value="checklist">{t('tasks.details.tabs.checklist')}</TabsTrigger>
                             <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
                             <TabsTrigger value="attachments">{t('tasks.details.tabs.attachments')}</TabsTrigger>
-                             <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
-                        </TabsList>
+                             <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                 {(selectedTaskForDetails?.checklist || []).length > 0 ? (
@@ -3258,11 +3243,5 @@ export default function TasksPage() {
         </div>
     );
 }
-
-
-    
-
-
-
 
     

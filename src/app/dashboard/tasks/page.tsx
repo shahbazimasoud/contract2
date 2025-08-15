@@ -135,7 +135,7 @@ const taskSchema = z.object({
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     dueDate: z.date({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
-    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
+    time: z.string().regex(/^([01]\d|2[0-5]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     dayOfWeek: z.number().optional(),
     dayOfMonth: z.number().optional(),
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
@@ -164,7 +164,7 @@ const copyColumnSchema = z.object({
 const weeklyReportSchema = z.object({
     name: z.string().min(1, "Report name is required."),
     dayOfWeek: z.string().min(1, "Day of week is required"),
-    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
+    time: z.string().regex(/^([01]\d|2[0-5]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     recipients: z.string().min(1, "At least one recipient is required"),
     subject: z.string().min(1, "Subject is required"),
     body: z.string().optional(),
@@ -1301,16 +1301,14 @@ export default function TasksPage() {
             return;
         }
 
-        let newTasks = [...tasks];
+        const newTasks = [...tasks];
         const draggedTaskIndex = newTasks.findIndex(t => t.id === draggedTaskId);
         const targetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
 
         if (draggedTaskIndex === -1 || targetTaskIndex === -1) return;
-
-        // Remove the dragged task
+        
         const [draggedTask] = newTasks.splice(draggedTaskIndex, 1);
         
-        // Update column if moved to a different one
         if (draggedTask.columnId !== targetTask.columnId) {
             const oldColumnName = activeBoard?.columns.find(c => c.id === draggedTask.columnId)?.title;
             const newColumnName = activeBoard?.columns.find(c => c.id === targetTask.columnId)?.title;
@@ -1319,10 +1317,8 @@ export default function TasksPage() {
             draggedTask.columnId = targetTask.columnId;
         }
 
-        // Find the new index of the target task, as it might have shifted
         const newTargetIndex = newTasks.findIndex(t => t.id === targetTask.id);
 
-        // Insert the dragged task in the new position
         if (dropPosition === 'top') {
             newTasks.splice(newTargetIndex, 0, draggedTask);
         } else {
@@ -1332,7 +1328,75 @@ export default function TasksPage() {
         setTasks(newTasks);
         handleDragEnd(e as any);
     };
+    
+    if (!currentUser) {
+      return null;
+    }
+    
+    const renderLog = (log: ActivityLog) => {
+        let text;
+        switch (log.action) {
+            case 'created':
+                text = t('tasks.logs.created', { title: log.details.title });
+                break;
+            case 'updated_title':
+                text = t('tasks.logs.updated_title', { from: log.details.from, to: log.details.to });
+                break;
+            case 'updated_description':
+                text = t('tasks.logs.updated_description');
+                break;
+             case 'updated_dueDate':
+                text = t('tasks.logs.updated_dueDate', { from: log.details.from, to: log.details.to });
+                break;
+            case 'completed_checklist_item':
+                text = t('tasks.logs.completed_checklist_item', { text: log.details.text });
+                break;
+            case 'uncompleted_checklist_item':
+                text = t('tasks.logs.uncompleted_checklist_item', { text: log.details.text });
+                break;
+            case 'added_checklist_item':
+                text = t('tasks.logs.added_checklist_item', { text: log.details.text });
+                break;
+            case 'removed_checklist_item':
+                text = t('tasks.logs.removed_checklist_item', { text: log.details.text });
+                break;
+            case 'commented':
+                text = t('tasks.logs.commented', { text: log.details.text });
+                break;
+             case 'completed_task':
+                text = t('tasks.logs.completed_task', { title: log.details.title });
+                break;
+            case 'uncompleted_task':
+                text = t('tasks.logs.uncompleted_task', { title: log.details.title });
+                break;
+            case 'moved_column':
+                 text = t('tasks.logs.moved_column', { from: log.details.from, to: log.details.to });
+                 break;
+             case 'moved_task':
+                 text = t('tasks.logs.moved_task', { from: log.details.from, to: log.details.to });
+                 break;
+            default:
+                text = `performed action: ${log.action}`;
+        }
 
+        return (
+            <div key={log.id} className="flex items-start gap-3">
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={log.userAvatar} alt={log.userName}/>
+                    <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <p className="text-sm">
+                        <span className="font-semibold">{log.userName}</span> {text}
+                    </p>
+                     <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                    </p>
+                </div>
+            </div>
+        )
+    };
+    
     const renderTaskCard = (task: Task) => {
       const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
       const checklistItems = task.checklist || [];
@@ -1472,75 +1536,7 @@ export default function TasksPage() {
         </div>
       );
     }
-
-    const renderLog = (log: ActivityLog) => {
-        let text;
-        switch (log.action) {
-            case 'created':
-                text = t('tasks.logs.created', { title: log.details.title });
-                break;
-            case 'updated_title':
-                text = t('tasks.logs.updated_title', { from: log.details.from, to: log.details.to });
-                break;
-            case 'updated_description':
-                text = t('tasks.logs.updated_description');
-                break;
-             case 'updated_dueDate':
-                text = t('tasks.logs.updated_dueDate', { from: log.details.from, to: log.details.to });
-                break;
-            case 'completed_checklist_item':
-                text = t('tasks.logs.completed_checklist_item', { text: log.details.text });
-                break;
-            case 'uncompleted_checklist_item':
-                text = t('tasks.logs.uncompleted_checklist_item', { text: log.details.text });
-                break;
-            case 'added_checklist_item':
-                text = t('tasks.logs.added_checklist_item', { text: log.details.text });
-                break;
-            case 'removed_checklist_item':
-                text = t('tasks.logs.removed_checklist_item', { text: log.details.text });
-                break;
-            case 'commented':
-                text = t('tasks.logs.commented', { text: log.details.text });
-                break;
-             case 'completed_task':
-                text = t('tasks.logs.completed_task', { title: log.details.title });
-                break;
-            case 'uncompleted_task':
-                text = t('tasks.logs.uncompleted_task', { title: log.details.title });
-                break;
-            case 'moved_column':
-                 text = t('tasks.logs.moved_column', { from: log.details.from, to: log.details.to });
-                 break;
-             case 'moved_task':
-                 text = t('tasks.logs.moved_task', { from: log.details.from, to: log.details.to });
-                 break;
-            default:
-                text = `performed action: ${log.action}`;
-        }
-
-        return (
-            <div key={log.id} className="flex items-start gap-3">
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={log.userAvatar} alt={log.userName}/>
-                    <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <p className="text-sm">
-                        <span className="font-semibold">{log.userName}</span> {text}
-                    </p>
-                     <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
-                    </p>
-                </div>
-            </div>
-        )
-    }
-
-    if (!currentUser) {
-      return null;
-    }
-
+    
     return (
         <div className="container mx-auto px-4 py-8">
             <PageHeader className="pb-4">
@@ -2496,7 +2492,7 @@ export default function TasksPage() {
                                                 )}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions !== 'viewer'}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions === 'viewer'}>
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
@@ -3112,7 +3108,7 @@ export default function TasksPage() {
                     <SheetHeader>
                         <SheetTitle>{t('tasks.details.title', { name: selectedTaskForDetails?.title })}</SheetTitle>
                         <SheetDescription>
-                            {t('tasks.details.task_id', { name: selectedTaskForDetails?.id })}
+                            {t('tasks.details.task_id', { id: selectedTaskForDetails?.id })}
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
@@ -3244,4 +3240,3 @@ export default function TasksPage() {
         </div>
     );
 }
-

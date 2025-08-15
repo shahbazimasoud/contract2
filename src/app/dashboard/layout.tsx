@@ -67,12 +67,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (isClient) {
       document.documentElement.lang = language;
-      document.documentElement.dir = 'ltr'; // Always LTR
-      
       if (language === 'fa') {
-        document.body.style.fontFamily = 'Vazirmatn, sans-serif';
+        document.body.classList.add('font-vazir');
       } else {
-        document.body.style.fontFamily = 'Inter, sans-serif';
+        document.body.classList.remove('font-vazir');
       }
     }
   }, [language, isClient]);

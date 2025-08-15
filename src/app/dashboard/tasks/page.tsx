@@ -1362,13 +1362,13 @@ export default function TasksPage() {
                                                         <Check className="h-4 w-4 text-primary" />
                                                     )}
                                                      {currentUser.id === board.ownerId && (
-                                                        <DropdownMenu onOpenChange={(e) => e.stopPropagation()}>
+                                                        <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                                 <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={(e) => {e.stopPropagation(); setIsBoardSwitcherOpen(false);setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => {setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                      )}
@@ -2169,18 +2169,18 @@ export default function TasksPage() {
                                                             <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
                                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
+                                                                <DropdownMenuItem onSelect={() => { handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => { handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => { handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
                                                                     <Move className="mr-2 h-4 w-4" />
                                                                     Move Task
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
+                                                                <DropdownMenuItem onSelect={() => { handleAddToCalendar(task); }}>
                                                                     <CalendarPlus className="mr-2 h-4 w-4" />
                                                                     Add to Calendar
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => { handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
@@ -2963,3 +2963,4 @@ export default function TasksPage() {
 
 
     
+

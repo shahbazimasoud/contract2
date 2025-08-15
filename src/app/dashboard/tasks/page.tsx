@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,6 +67,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -224,12 +226,17 @@ export default function TasksPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ status: 'all', unit: 'all', tags: [] as string[], priority: 'all' });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
+    const [columnSorting, setColumnSorting] = useState<Record<string, { field: SortableTaskField, direction: SortDirection }>>({});
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
     
     // Calendar State
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
+    // Drag and Drop state
+    const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
+    const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
 
     const form = useForm<z.infer<typeof taskSchema>>({
         resolver: zodResolver(taskSchema),
@@ -1028,6 +1035,17 @@ export default function TasksPage() {
         setSorting({ field, direction: newDirection });
     };
 
+    const handleColumnSort = (columnId: string, field: SortableTaskField) => {
+        setColumnSorting(prev => {
+            const currentSort = prev[columnId];
+            const newDirection = currentSort?.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
+            return {
+                ...prev,
+                [columnId]: { field, direction: newDirection }
+            };
+        });
+    };
+
     const recurrenceType = form.watch('recurrenceType');
 
     const allTags = useMemo(() => {
@@ -1153,38 +1171,90 @@ export default function TasksPage() {
         return mockUsers.find(u => u.id === authorId);
     }
     
+    // Drag and Drop handlers
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, taskId: string) => {
-        e.dataTransfer.setData("taskId", taskId);
+        setDraggedTaskId(taskId);
         e.currentTarget.classList.add('dragging-card');
     };
 
     const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
         e.currentTarget.classList.remove('dragging-card');
+        setDraggedTaskId(null);
+        setDragOverTaskId(null);
+        setDropPosition(null);
     };
 
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const handleDragOverColumn = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.currentTarget.classList.add('bg-primary/10');
     };
-    
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.currentTarget.classList.remove('bg-primary/10');
-    }
 
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newColumnId: string) => {
+    const handleDragLeaveColumn = (e: React.DragEvent<HTMLDivElement>) => {
+        e.currentTarget.classList.remove('bg-primary/10');
+    };
+
+    const handleDropOnColumn = (e: React.DragEvent<HTMLDivElement>, newColumnId: string) => {
         e.preventDefault();
         e.currentTarget.classList.remove('bg-primary/10');
-        const taskId = e.dataTransfer.getData("taskId");
-        const task = tasks.find(t => t.id === taskId);
-        
+        if (!draggedTaskId) return;
+
+        const task = tasks.find(t => t.id === draggedTaskId);
         if (task && task.columnId !== newColumnId) {
-            setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, columnId: newColumnId } : t));
+            setTasks(prevTasks => prevTasks.map(t => t.id === draggedTaskId ? { ...t, columnId: newColumnId } : t));
             const columnName = activeBoard?.columns.find(c => c.id === newColumnId)?.title;
             toast({
                 title: "Task Moved",
                 description: `Task "${task.title}" moved to ${columnName}.`,
             });
         }
+    };
+    
+    const handleDragOverTask = (e: React.DragEvent, targetTaskId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOverTaskId(targetTaskId);
+
+        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+        const middleY = rect.top + rect.height / 2;
+        setDropPosition(e.clientY < middleY ? 'top' : 'bottom');
+    };
+
+    const handleDragLeaveTask = (e: React.DragEvent) => {
+        e.stopPropagation();
+        setDragOverTaskId(null);
+        setDropPosition(null);
+    };
+
+    const handleDropOnTask = (e: React.DragEvent, targetTask: Task) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!draggedTaskId || draggedTaskId === targetTask.id) {
+            return;
+        }
+
+        const newTasks = [...tasks];
+        const draggedTaskIndex = newTasks.findIndex(t => t.id === draggedTaskId);
+        const targetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
+
+        if (draggedTaskIndex === -1 || targetTaskIndex === -1) return;
+
+        // Remove the dragged task
+        const [draggedTask] = newTasks.splice(draggedTaskIndex, 1);
+        
+        // Update its columnId to the target's columnId
+        draggedTask.columnId = targetTask.columnId;
+
+        // Find the new index to insert
+        const newTargetIndex = newTasks.findIndex(t => t.id === targetTask.id);
+
+        if (dropPosition === 'top') {
+            newTasks.splice(newTargetIndex, 0, draggedTask);
+        } else {
+            newTasks.splice(newTargetIndex + 1, 0, draggedTask);
+        }
+
+        setTasks(newTasks);
+        handleDragEnd(e as any);
     };
     
     if (!currentUser) {
@@ -1200,121 +1270,134 @@ export default function TasksPage() {
       const { isCompleted } = task;
 
       return (
-        <Card 
-            key={task.id} 
-            className="mb-2 cursor-pointer transition-shadow hover:shadow-md"
-            draggable={canEdit}
-            onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
-            onDragEnd={handleDragEnd}
-            onClick={() => handleOpenTaskDialog(task, task.columnId)}
+        <div 
+            key={task.id}
+            className="relative"
+            onDragOver={(e) => canEdit && handleDragOverTask(e, task.id)}
+            onDragLeave={handleDragLeaveTask}
+            onDrop={(e) => canEdit && handleDropOnTask(e, task)}
         >
-          <CardContent className="p-3">
-             <div className="flex justify-between items-start gap-2">
-                <Checkbox
-                    id={`card-check-${task.id}`}
-                    checked={isCompleted}
-                    onCheckedChange={(checked) => {
-                        handleToggleStatus(task)
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-1"
-                    disabled={!canEdit}
-                />
-                <label htmlFor={`card-check-${task.id}`} className={cn("flex-1 font-semibold text-sm leading-tight cursor-pointer", isCompleted && "line-through text-muted-foreground")}>{task.title}</label>
-                <div onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task, task.columnId); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}><ListChecks className="mr-2 h-4 w-4" />Details</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
-                                <Move className="mr-2 h-4 w-4" />
-                                Move Task
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
-                                <CalendarPlus className="mr-2 h-4 w-4" />
-                                Add to Calendar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-            {task.tags && task.tags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1 pl-7">
-                    {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
-                </div>
+            {dragOverTaskId === task.id && dropPosition === 'top' && (
+                 <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full -mt-1 z-10" />
             )}
-            <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
-            <div className="flex items-center justify-between mt-3 pl-7">
-               <div className="flex items-center gap-3">
-                {(task.attachments?.length || 0) > 0 && (
-                    <TooltipProvider>
-                      <Tooltip>
-                          <TooltipTrigger>
-                              <Paperclip className="h-4 w-4 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                              <p>{task.attachments?.length} attachment(s)</p>
-                          </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                )}
-                {(task.comments?.length || 0) > 0 && (
-                     <TooltipProvider>
-                      <Tooltip>
-                          <TooltipTrigger>
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <MessageSquare className="h-4 w-4" />
-                                <span className="text-xs">{task.comments?.length}</span>
-                              </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                              <p>{task.comments?.length} comment(s)</p>
-                          </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                )}
-                {checklistItems.length > 0 && (
-                      <TooltipProvider>
-                      <Tooltip>
-                          <TooltipTrigger>
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                  <ListChecks className="h-4 w-4" />
-                                  <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
-                              </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                              <p>Checklist progress</p>
-                          </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                )}
-               </div>
-              {assignedUsers.length > 0 && (
-                <div className="flex -space-x-2 overflow-hidden">
-                    {assignedUsers.map(user => (
-                        <TooltipProvider key={user.id}>
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <Avatar className="h-7 w-7 border-2 border-background">
-                                        <AvatarImage src={user.avatar} alt={user.name} />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Assigned to {user.name}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    ))}
+            <Card 
+                className="mb-2 cursor-pointer transition-shadow hover:shadow-md"
+                draggable={canEdit}
+                onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
+                onDragEnd={handleDragEnd}
+                onClick={() => handleOpenTaskDialog(task, task.columnId)}
+            >
+              <CardContent className="p-3">
+                 <div className="flex justify-between items-start gap-2">
+                    <Checkbox
+                        id={`card-check-${task.id}`}
+                        checked={isCompleted}
+                        onCheckedChange={(checked) => {
+                            handleToggleStatus(task)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-1"
+                        disabled={!canEdit}
+                    />
+                    <label htmlFor={`card-check-${task.id}`} className={cn("flex-1 font-semibold text-sm leading-tight cursor-pointer", isCompleted && "line-through text-muted-foreground")}>{task.title}</label>
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenTaskDialog(task, task.columnId); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenDetailsSheet(task); }}><ListChecks className="mr-2 h-4 w-4" />Details</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
+                                    <Move className="mr-2 h-4 w-4" />
+                                    Move Task
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCalendar(task); }}>
+                                    <CalendarPlus className="mr-2 h-4 w-4" />
+                                    Add to Calendar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {task.tags && task.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1 pl-7">
+                        {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+                <div className="flex items-center justify-between mt-3 pl-7">
+                   <div className="flex items-center gap-3">
+                    {(task.attachments?.length || 0) > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger>
+                                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>{task.attachments?.length} attachment(s)</p>
+                              </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                    )}
+                    {(task.comments?.length || 0) > 0 && (
+                         <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger>
+                                  <div className="flex items-center gap-1 text-muted-foreground">
+                                    <MessageSquare className="h-4 w-4" />
+                                    <span className="text-xs">{task.comments?.length}</span>
+                                  </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>{task.comments?.length} comment(s)</p>
+                              </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                    )}
+                    {checklistItems.length > 0 && (
+                          <TooltipProvider>
+                          <Tooltip>
+                              <TooltipTrigger>
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                      <ListChecks className="h-4 w-4" />
+                                      <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                                  </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                  <p>Checklist progress</p>
+                              </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                    )}
+                   </div>
+                  {assignedUsers.length > 0 && (
+                    <div className="flex -space-x-2 overflow-hidden">
+                        {assignedUsers.map(user => (
+                            <TooltipProvider key={user.id}>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Avatar className="h-7 w-7 border-2 border-background">
+                                            <AvatarImage src={user.avatar} alt={user.name} />
+                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Assigned to {user.name}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+             {dragOverTaskId === task.id && dropPosition === 'bottom' && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full z-10" />
+            )}
+        </div>
       );
     }
 
@@ -1875,7 +1958,7 @@ export default function TasksPage() {
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner' && userPermissions !== 'editor' && currentUser?.role !== 'super-admin'}>
+                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
                                         <Share2 className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
@@ -1890,13 +1973,13 @@ export default function TasksPage() {
                     <DropdownMenu>
                         <TooltipProvider>
                             <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
+                                <DropdownMenuTrigger asChild>
+                                    <TooltipTrigger asChild>
                                         <Button variant="outline" size="icon">
                                             <Mail className="h-4 w-4" />
                                         </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
+                                    </TooltipTrigger>
+                                </DropdownMenuTrigger>
                                 <TooltipContent>
                                     <p>Email Reports</p>
                                 </TooltipContent>
@@ -2063,7 +2146,7 @@ export default function TasksPage() {
                                                 const { isCompleted } = task;
 
                                                 return (
-                                                <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
+                                                <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id)} className={cn(isCompleted && 'text-muted-foreground line-through')}>
                                                     <TableCell>
                                                         <Checkbox
                                                             onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
@@ -2202,13 +2285,38 @@ export default function TasksPage() {
                             </div>
                         ) : viewMode === 'board' ? (
                             <div className="flex gap-4 overflow-x-auto pb-4">
-                               {activeBoard?.columns.filter(c => !c.isArchived).map(column => (
+                               {activeBoard?.columns.filter(c => !c.isArchived).map(column => {
+                                   const columnSort = columnSorting[column.id];
+                                   let tasksInColumn = filteredTasks.filter(t => t.columnId === column.id);
+
+                                    if (columnSort) {
+                                        tasksInColumn.sort((a, b) => {
+                                            const { field, direction } = columnSort;
+                                            const dir = direction === 'asc' ? 1 : -1;
+
+                                            if (field === 'priority') {
+                                                const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+                                                const priorityA = priorityOrder[a.priority || 'medium'];
+                                                const priorityB = priorityOrder[b.priority || 'medium'];
+                                                return (priorityA - priorityB) * dir;
+                                            }
+
+                                            if (field === 'dueDate') {
+                                                return (parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime()) * dir;
+                                            }
+
+                                            // Default to title sort
+                                            return a.title.localeCompare(b.title) * dir;
+                                        });
+                                    }
+
+                                   return (
                                    <div key={column.id} className="w-72 flex-shrink-0">
                                         <div 
                                             id={column.id}
-                                            onDrop={(e) => handleDrop(e, column.id)}
-                                            onDragOver={handleDragOver}
-                                            onDragLeave={handleDragLeave}
+                                            onDrop={(e) => handleDropOnColumn(e, column.id)}
+                                            onDragOver={handleDragOverColumn}
+                                            onDragLeave={handleDragLeaveColumn}
                                             className="rounded-lg p-2 h-full bg-muted/50 transition-colors"
                                         >
                                             <div className="flex items-center justify-between px-2 py-1 mb-2">
@@ -2225,20 +2333,34 @@ export default function TasksPage() {
                                                         className="h-8"
                                                     />
                                                 ) : (
-                                                    <h3
-                                                        className="text-md font-semibold cursor-pointer"
-                                                        onClick={() => {
-                                                            if (userPermissions !== 'viewer') {
-                                                                setEditingColumnId(column.id);
-                                                                setEditingColumnTitle(column.title);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {column.title}
-                                                        <span className="text-sm font-normal text-muted-foreground ml-2">
-                                                            {filteredTasks.filter(t => t.columnId === column.id).length}
+                                                    <div className='flex items-center gap-2'>
+                                                        <h3
+                                                            className="text-md font-semibold cursor-pointer"
+                                                            onClick={() => {
+                                                                if (userPermissions !== 'viewer') {
+                                                                    setEditingColumnId(column.id);
+                                                                    setEditingColumnTitle(column.title);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {column.title}
+                                                        </h3>
+                                                        <span className="text-sm font-normal text-muted-foreground">
+                                                                {tasksInColumn.length}
                                                         </span>
-                                                    </h3>
+                                                        {columnSort && (
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        {columnSort.direction === 'asc' ? <SortAsc className="h-4 w-4 text-muted-foreground" /> : <SortDesc className="h-4 w-4 text-muted-foreground" />}
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Sorted by {columnSort.field} ({columnSort.direction})</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </div>
                                                 )}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -2251,6 +2373,24 @@ export default function TasksPage() {
                                                         <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
                                                             <PlusCircle className="mr-2 h-4 w-4" /> Add new task
                                                         </DropdownMenuItem>
+                                                         <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>
+                                                                <SortAsc className="mr-2 h-4 w-4" />
+                                                                <span>Sort by</span>
+                                                            </DropdownMenuSubTrigger>
+                                                            <DropdownMenuPortal>
+                                                                <DropdownMenuSubContent>
+                                                                    <DropdownMenuRadioGroup 
+                                                                        value={columnSort?.field} 
+                                                                        onValueChange={(field) => handleColumnSort(column.id, field as SortableTaskField)}
+                                                                    >
+                                                                        <DropdownMenuRadioItem value="dueDate">Due Date</DropdownMenuRadioItem>
+                                                                        <DropdownMenuRadioItem value="priority">Priority</DropdownMenuRadioItem>
+                                                                        <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
+                                                                    </DropdownMenuRadioGroup>
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuPortal>
+                                                        </DropdownMenuSub>
                                                         <DropdownMenuItem onSelect={() => handleOpenCopyColumnDialog(column)}>
                                                             <Copy className="mr-2 h-4 w-4" /> Copy list
                                                         </DropdownMenuItem>
@@ -2265,11 +2405,11 @@ export default function TasksPage() {
                                             </div>
 
                                             <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[24rem] overflow-y-auto">
-                                                {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
+                                                {tasksInColumn.map(renderTaskCard)}
                                             </div>
                                         </div>
                                    </div>
-                               ))}
+                                )})}
                                 {userPermissions !== 'viewer' && (
                                 <div className="w-72 flex-shrink-0">
                                     {showAddColumnForm ? (
@@ -2963,4 +3103,5 @@ export default function TasksPage() {
 
 
     
+
 

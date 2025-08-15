@@ -1093,42 +1093,38 @@ export default function TasksPage() {
             draggable={canEdit}
             onDragStart={(e) => canEdit && handleDragStart(e, task.id)}
             onDragEnd={handleDragEnd}
-            onClick={(e) => {
-                if ((e.target as HTMLElement).closest('[data-no-dnd]')) {
-                    return;
-                }
-                handleOpenTaskDialog(task);
-            }}
+            onClick={() => handleOpenTaskDialog(task)}
         >
           <CardContent className="p-3">
              <div className="flex justify-between items-start gap-2">
-                <div data-no-dnd>
-                    <Checkbox
-                        id={`card-check-${task.id}`}
-                        checked={isCompleted}
-                        onCheckedChange={() => handleToggleStatusInList(task)}
-                        className="mt-1"
-                        disabled={!canEdit}
-                    />
-                </div>
+                <Checkbox
+                    id={`card-check-${task.id}`}
+                    checked={isCompleted}
+                    onCheckedChange={(checked) => {
+                        handleToggleStatusInList(task)
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1"
+                    disabled={!canEdit}
+                />
                 <label htmlFor={`card-check-${task.id}`} className="flex-1 font-semibold text-sm leading-tight cursor-pointer">{task.title}</label>
-                <div data-no-dnd>
+                <div onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)} disabled={!canEdit}>
+                            <DropdownMenuItem onSelect={() => handleOpenTaskDialog(task)} disabled={!canEdit}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
                                 <Move className="mr-2 h-4 w-4" />
                                 Move Task
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAddToCalendar(task)}>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
                                 <CalendarPlus className="mr-2 h-4 w-4" />
                                 Add to Calendar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -1483,64 +1479,62 @@ export default function TasksPage() {
 
                 </div>
                 
-                 {activeBoard && (
-                    <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg min-h-[52px]">
-                       <div className="flex items-center -space-x-2">
-                            {(activeBoard.sharedWith || []).slice(0, 3).map(share => {
-                                const user = mockUsers.find(u => u.id === share.userId);
-                                return user ? (
-                                    <TooltipProvider key={user.id}>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Avatar className="h-8 w-8 border-2 border-background">
+                 <div className="flex items-center gap-4 mb-4 p-3 bg-muted/50 rounded-lg min-h-[52px]">
+                    <div className="flex items-center -space-x-2">
+                        {(activeBoard?.sharedWith || []).slice(0, 3).map(share => {
+                            const user = mockUsers.find(u => u.id === share.userId);
+                            return user ? (
+                                <TooltipProvider key={user.id}>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Avatar className="h-8 w-8 border-2 border-background">
+                                                <AvatarImage src={user.avatar} />
+                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{user.name}</p>
+                                            <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : null;
+                        })}
+
+                        {(activeBoard?.sharedWith || []).length > 3 && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                                        <AvatarFallback>+{(activeBoard?.sharedWith || []).length - 3}</AvatarFallback>
+                                    </Avatar>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuLabel>All Members</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {(activeBoard?.sharedWith || []).map(share => {
+                                        const user = mockUsers.find(u => u.id === share.userId);
+                                        return user ? (
+                                            <DropdownMenuItem key={user.id} className="flex items-center gap-2">
+                                                <Avatar className="h-6 w-6">
                                                     <AvatarImage src={user.avatar} />
                                                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{user.name}</p>
-                                                <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                ) : null;
-                            })}
-
-                            {(activeBoard.sharedWith || []).length > 3 && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                                            <AvatarFallback>+{(activeBoard.sharedWith || []).length - 3}</AvatarFallback>
-                                        </Avatar>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuLabel>All Members</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {(activeBoard.sharedWith || []).map(share => {
-                                            const user = mockUsers.find(u => u.id === share.userId);
-                                            return user ? (
-                                                <DropdownMenuItem key={user.id} className="flex items-center gap-2">
-                                                    <Avatar className="h-6 w-6">
-                                                        <AvatarImage src={user.avatar} />
-                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="text-sm font-medium">{user.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{share.role}</p>
-                                                    </div>
-                                                </DropdownMenuItem>
-                                            ) : null;
-                                        })}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
-                        </div>
-                         <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
-                            <Share2 className="mr-2 h-4 w-4" />
-                            Share
-                        </Button>
+                                                <div>
+                                                    <p className="text-sm font-medium">{user.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{share.role}</p>
+                                                </div>
+                                            </DropdownMenuItem>
+                                        ) : null;
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                     </div>
-                )}
+                     <Button variant="outline" size="sm" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share
+                    </Button>
+                </div>
 
 
                 {visibleBoards.map(board => (
@@ -2591,4 +2585,5 @@ export default function TasksPage() {
 }
 
     
+
 

@@ -6,7 +6,7 @@ import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format as formatDate, parse, setHours, setMinutes, setSeconds, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday, nextDay, Day } from 'date-fns';
+import { setHours, setMinutes, setSeconds, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday, nextDay, Day } from 'date-fns';
 import * as ics from 'ics';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1196,20 +1196,20 @@ export default function TasksPage() {
             date: null,
             key: `placeholder-${i}`
         }));
-        return [...placeholders, ...days.map(d => ({date:d, key: formatDate(d, 'yyyy-MM-dd')}))];
-    }, [currentMonth]);
+        return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
+    }, [currentMonth, format]);
 
     const tasksByDate = useMemo(() => {
         const tasksForBoard = tasks.filter(task => task.boardId === activeBoardId);
         return tasksForBoard.reduce((acc, task) => {
-            const dueDate = formatDate(parseISO(task.dueDate), 'yyyy-MM-dd');
+            const dueDate = format(parseISO(task.dueDate), 'yyyy-MM-dd');
             if (!acc[dueDate]) {
                 acc[dueDate] = [];
             }
             acc[dueDate].push(task);
             return acc;
         }, {} as Record<string, Task[]>);
-    }, [tasks, activeBoardId]);
+    }, [tasks, activeBoardId, format]);
 
     const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
     const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
@@ -1218,7 +1218,7 @@ export default function TasksPage() {
 
     function formatRecurrence(task: Task): string {
         const { recurrence } = task;
-        const time = formatDate(parse(recurrence.time, 'HH:mm', new Date()), 'h:mm a');
+        const time = format(new Date(`1970-01-01T${recurrence.time}`), 'h:mm a');
         switch (recurrence.type) {
             case 'none':
                 return t('tasks.recurrence_types.none');
@@ -1229,7 +1229,7 @@ export default function TasksPage() {
             case 'monthly':
                 return t('tasks.recurrence_types.monthly', { day: recurrence.dayOfMonth, time });
             case 'yearly':
-                return t('tasks.recurrence_types.yearly', { date: formatDate(new Date(task.dueDate), 'MMM d'), time });
+                return t('tasks.recurrence_types.yearly', { date: format(new Date(task.dueDate), 'MMM d'), time });
             default:
                 return 'N/A';
         }
@@ -1467,7 +1467,7 @@ export default function TasksPage() {
                         {task.tags.map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
                     </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "MMM d, yyyy")}</p>
+                <p className="text-xs text-muted-foreground mt-2 pl-7">{format(new Date(task.dueDate), "d MMMM yyyy")}</p>
                 <div className="flex items-center justify-between mt-3 pl-7">
                    <div className="flex items-center gap-3">
                     {(task.attachments?.length || 0) > 0 && (
@@ -2586,7 +2586,7 @@ export default function TasksPage() {
                                 <div className="flex items-center justify-between p-4">
                                     <div className="flex items-center gap-2">
                                         <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
-                                        <h2 className="text-lg font-semibold w-36 text-center">{formatDate(currentMonth, 'MMMM yyyy', { locale: locale?.dateFnsLocale })}</h2>
+                                        <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
                                         <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                                     </div>
                                     <Button variant="outline" onClick={goToToday}>{t('tasks.calendar.today_button')}</Button>
@@ -2598,12 +2598,12 @@ export default function TasksPage() {
                                 </div>
                                 <div className="grid grid-cols-7">
                                     {calendarDays.map((dayObj) => {
-                                        const tasksOnDay = dayObj.date ? tasksByDate[formatDate(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                                        const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
                                         return (
                                         <div key={dayObj.key} className={cn("h-48 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
                                             {dayObj.date && (
                                                 <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
-                                                    {formatDate(dayObj.date, 'd')}
+                                                    {format(dayObj.date, 'd')}
                                                 </span>
                                             )}
                                             <div className="space-y-1 mt-1">

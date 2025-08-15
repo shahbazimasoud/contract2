@@ -88,6 +88,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useLanguage } from '@/context/language-context';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -139,6 +140,7 @@ const commentSchema = z.object({
 
 
 export default function ContractsPage() {
+  const { t } = useLanguage();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const router = useRouter();
 
@@ -554,9 +556,9 @@ export default function ContractsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
-        <PageHeaderHeading>Contracts</PageHeaderHeading>
+        <PageHeaderHeading>{t('contracts.title')}</PageHeaderHeading>
         <PageHeaderDescription>
-          Manage, view, and organize all your contracts.
+          {t('contracts.description')}
         </PageHeaderDescription>
       </PageHeader>
       
@@ -1507,5 +1509,7 @@ export default function ContractsPage() {
     </div>
   );
 }
+
+    
 
     

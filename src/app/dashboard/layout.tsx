@@ -48,6 +48,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useLanguage } from "@/context/language-context"
+
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
@@ -55,13 +57,14 @@ const AUTH_USER_KEY = 'current_user';
 
 function CustomSidebarTrigger() {
   const { state, toggleSidebar, isMobile } = useSidebar();
+  const { t } = useLanguage();
 
   if (isMobile) return null;
 
   return (
     <Button variant="ghost" className="w-full justify-start" onClick={toggleSidebar}>
       {state === 'expanded' ? <PanelLeftClose /> : <PanelLeft />}
-      <span className="group-data-[collapsible=icon]:hidden">Collapse</span>
+      <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.collapse')}</span>
     </Button>
   );
 }
@@ -77,6 +80,7 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter();
   const isActive = (path: string) => pathname === path;
+  const { t, language } = useLanguage();
   
   const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({
       siteName: 'ContractWise',
@@ -108,6 +112,11 @@ export default function DashboardLayout({
     }
   }, [router]);
 
+  React.useEffect(() => {
+    document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
+  }, [language]);
+
+
   const handleLogout = () => {
     localStorage.removeItem(AUTH_USER_KEY);
     router.push('/login');
@@ -120,7 +129,7 @@ export default function DashboardLayout({
         <div className="flex h-screen w-full items-center justify-center">
             <div className="flex flex-col items-center gap-4">
                 <Building className="h-10 w-10 animate-pulse text-muted-foreground" />
-                <p className="text-muted-foreground">Loading Dashboard...</p>
+                <p className="text-muted-foreground">{t('loading.dashboard')}</p>
             </div>
         </div>
     );
@@ -143,10 +152,10 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip="Dashboard">
+              <SidebarMenuButton asChild isActive={isActive("/dashboard")} tooltip={t('sidebar.dashboard')}>
                 <Link href="/dashboard">
                   <Home />
-                  <span className="group-data-[collapsible=icon]:hidden">Dashboard</span>
+                  <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.dashboard')}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -154,11 +163,11 @@ export default function DashboardLayout({
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith("/dashboard/contracts")}
-                tooltip="Contracts"
+                tooltip={t('sidebar.contracts')}
               >
                 <Link href="/dashboard/contracts">
                   <FileText />
-                  <span className="group-data-[collapsible=icon]:hidden">Contracts</span>
+                  <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.contracts')}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -166,11 +175,11 @@ export default function DashboardLayout({
               <SidebarMenuButton
                 asChild
                 isActive={pathname.startsWith("/dashboard/tasks")}
-                 tooltip="Tasks"
+                 tooltip={t('sidebar.tasks')}
               >
                 <Link href="/dashboard/tasks">
                   <ClipboardCheck />
-                  <span className="group-data-[collapsible=icon]:hidden">Tasks</span>
+                  <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.tasks')}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -180,11 +189,11 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith("/dashboard/users")}
-                    tooltip="Users"
+                    tooltip={t('sidebar.users')}
                   >
                     <Link href="/dashboard/users">
                       <Users />
-                      <span className="group-data-[collapsible=icon]:hidden">Users</span>
+                      <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.users')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -192,11 +201,11 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith("/dashboard/units")}
-                    tooltip="Units"
+                    tooltip={t('sidebar.units')}
                   >
                     <Link href="/dashboard/units">
                       <Building />
-                      <span className="group-data-[collapsible=icon]:hidden">Units</span>
+                      <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.units')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -211,11 +220,11 @@ export default function DashboardLayout({
                 <SidebarMenuButton
                 asChild
                 isActive={isActive("/dashboard/profile")}
-                tooltip="Profile"
+                tooltip={t('sidebar.profile')}
                 >
                 <Link href="/dashboard/profile">
                     <UserIcon />
-                    <span className="group-data-[collapsible=icon]:hidden">Profile</span>
+                    <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.profile')}</span>
                 </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
@@ -225,11 +234,11 @@ export default function DashboardLayout({
                   <SidebarMenuButton
                     asChild
                     isActive={isActive("/dashboard/settings")}
-                    tooltip="Settings"
+                    tooltip={t('sidebar.settings')}
                   >
                     <Link href="/dashboard/settings">
                       <Settings />
-                      <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+                      <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.settings')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -245,21 +254,21 @@ export default function DashboardLayout({
             <SidebarMenuItem>
                <AlertDialog>
                   <AlertDialogTrigger asChild>
-                      <SidebarMenuButton tooltip="Logout">
+                      <SidebarMenuButton tooltip={t('sidebar.logout')}>
                           <LogOut />
-                          <span className="group-data-[collapsible=icon]:hidden">Logout</span>
+                          <span className="group-data-[collapsible=icon]:hidden">{t('sidebar.logout')}</span>
                       </SidebarMenuButton>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                       <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
+                      <AlertDialogTitle>{t('logout_alert.title')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                          You will be returned to the login page.
+                          {t('logout_alert.description')}
                       </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleLogout}>Log Out</AlertDialogAction>
+                      <AlertDialogCancel>{t('logout_alert.cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleLogout}>{t('logout_alert.confirm')}</AlertDialogAction>
                       </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -274,3 +283,5 @@ export default function DashboardLayout({
     </SidebarProvider>
   )
 }
+
+    

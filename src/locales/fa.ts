@@ -1,0 +1,123 @@
+
+export const fa = {
+  loading: {
+      dashboard: 'در حال بارگذاری داشبورد...',
+  },
+  sidebar: {
+    dashboard: 'داشبورد',
+    contracts: 'قراردادها',
+    tasks: 'وظایف',
+    users: 'کاربران',
+    units: 'واحدها',
+    profile: 'پروفایل',
+    settings: 'تنظیمات',
+    logout: 'خروج',
+    collapse: 'جمع‌کردن',
+  },
+  logout_alert: {
+      title: 'آیا برای خروج مطمئن هستید؟',
+      description: 'شما به صفحه ورود بازگردانده خواهید شد.',
+      cancel: 'انصراف',
+      confirm: 'خروج',
+  },
+  settings: {
+    title: 'تنظیمات',
+    description: 'تنظیمات سیستم خود را مدیریت کنید. این صفحه فقط برای مدیران کل قابل مشاهده است.',
+    save_changes_button: 'ذخیره تغییرات',
+    save_test_button: 'ذخیره و تست اتصال',
+    toast_settings_saved_title: 'تنظیمات ذخیره شد',
+    toast_appearance_saved_desc: 'تنظیمات ظاهری شما به‌روزرسانی شد.',
+    tabs: {
+      appearance: 'ظاهر',
+      language: 'زبان',
+      mail: 'سرور ایمیل',
+      ad: 'Active Directory',
+      sms: 'پنل پیامک',
+      security: 'امنیت',
+    },
+    appearance: {
+      title: 'ظاهر و برندینگ',
+      description: 'ظاهر، حس و حال و برندینگ کل برنامه را سفارشی کنید.',
+      global_branding_title: 'برندینگ سراسری',
+      site_name_label: 'نام سایت',
+      site_name_desc: 'این نام در تب مرورگر و هدر سایدبار نمایش داده می‌شود.',
+      app_logo_label: 'لوگوی برنامه',
+      app_logo_desc: 'در صفحه ورود و سایدبار استفاده می‌شود. پیشنهادی: مربع، حداکثر ۵۱۲×۵۱۲ پیکسل.',
+      login_page_title: 'سفارشی‌سازی صفحه ورود',
+      login_title_label: 'عنوان صفحه ورود',
+      login_title_desc: 'عنوان اصلی در پنل اسپلش صفحه ورود.',
+      login_subtitle_label: 'زیرعنوان صفحه ورود',
+      login_subtitle_desc: 'متن توصیفی زیر عنوان اصلی.',
+      theme_colors_title: 'تم و رنگ‌ها',
+      primary_color_label: 'رنگ اصلی',
+      primary_color_desc: 'رنگ اصلی برای دکمه‌ها، لینک‌ها و هایلایت‌ها را در سراسر برنامه تنظیم می‌کند.',
+    },
+    language: {
+        title: 'زبان',
+        description: 'زبان نمایش رابط کاربری برنامه را تنظیم کنید.',
+        select_label: 'زبان برنامه'
+    },
+    mail: {
+      title: 'سرور ایمیل (SMTP)',
+      description: 'سرور SMTP را برای ارسال اعلان‌ها و یادآوری‌های ایمیلی پیکربندی کنید.',
+      smtp_host_label: 'هاست SMTP',
+      smtp_port_label: 'پورت SMTP',
+      username_label: 'نام کاربری',
+      password_label: 'رمز عبور',
+    },
+    ad: {
+      title: 'Active Directory',
+      description: 'ادغام با Active Directory را برای همگام‌سازی کاربران و گروه‌ها پیکربندی کنید.',
+      enable_label: 'فعال‌سازی ادغام با Active Directory',
+      server_url_label: 'آدرس سرور',
+      base_dn_label: 'Base DN',
+      base_dn_desc: 'نقطه شروع برای جستجوهای دایرکتوری.',
+      bind_dn_label: 'Bind DN / نام کاربری',
+      bind_password_label: 'رمز عبور Bind',
+      save_sync_button: 'ذخیره و همگام‌سازی',
+      test_connection_button: 'تست اتصال',
+    },
+    sms: {
+      title: 'پنل پیامک',
+      description: 'ارائه‌دهنده پیامک خود را برای ارسال اعلان‌ها پیکربندی کنید.',
+      provider_label: 'نام ارائه‌دهنده / آدرس API',
+      api_key_label: 'کلید API',
+      sender_number_label: 'شماره فرستنده',
+      save_button: 'ذخیره تنظیمات پیامک',
+    },
+    security: {
+      title: 'امنیت',
+      description: 'تنظیمات امنیتی برنامه را مدیریت کنید.',
+      session_timeout_label: 'زمان انقضای نشست (ثانیه)',
+      session_timeout_desc: 'مدت زمان به ثانیه قبل از خروج خودکار کاربر به دلیل عدم فعالیت.',
+      change_password_label: 'تغییر رمز عبور شما',
+      new_password_placeholder: 'رمز عبور جدید',
+      save_button: 'ذخیره تنظیمات امنیتی',
+    },
+    colors: {
+      indigo: 'نیلی',
+      blue: 'آبی',
+      green: 'سبز',
+      orange: 'نارنجی',
+      rose: 'رز',
+    },
+  },
+  users: {
+      title: 'کاربران',
+      description: 'تمام کاربران، نقش‌ها و واحدهای آن‌ها را مدیریت کنید.',
+  },
+  units: {
+      title: 'واحدها',
+      description: 'واحدهای سازمانی را تعریف و مدیریت کنید.',
+  },
+  contracts: {
+    title: 'قراردادها',
+    description: 'تمام قراردادهای خود را مدیریت، مشاهده و سازماندهی کنید.',
+  },
+  tasks: {
+    title: 'وظایف',
+    description: 'وظایف تکرارشونده و یک‌باره خود را مدیریت کنید.',
+  }
+};
+
+    

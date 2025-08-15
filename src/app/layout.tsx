@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster"
 import { AppearanceSettings } from '@/lib/types';
+import { LanguageProvider } from '@/context/language-context';
 
 
 // This function is illustrative. In a real app, you'd fetch this from a dynamic source
@@ -39,16 +40,20 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        <LanguageProvider>
+            <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+            >
+            {children}
+            <Toaster />
+            </ThemeProvider>
+        </LanguageProvider>
       </body>
     </html>
   );
 }
+
+    

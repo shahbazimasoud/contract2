@@ -54,6 +54,7 @@ import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/componen
 import { units as mockUnits } from '@/lib/mock-data';
 import type { Unit } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from '@/context/language-context';
 
 const unitSchema = z.object({
   name: z.string().min(1, { message: "Unit name is required" }),
@@ -62,6 +63,7 @@ const unitSchema = z.object({
 const ITEMS_PER_PAGE = 10;
 
 export default function UnitsPage() {
+  const { t } = useLanguage();
   const [units, setUnits] = useState<Unit[]>(mockUnits);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
@@ -154,9 +156,9 @@ export default function UnitsPage() {
       <PageHeader>
         <div className="flex items-center justify-between">
           <div>
-            <PageHeaderHeading>Units</PageHeaderHeading>
+            <PageHeaderHeading>{t('units.title')}</PageHeaderHeading>
             <PageHeaderDescription>
-              Define and manage organizational units.
+              {t('units.description')}
             </PageHeaderDescription>
           </div>
           <Button onClick={() => handleOpenDialog(null)}>
@@ -300,3 +302,5 @@ export default function UnitsPage() {
     </div>
   );
 }
+
+    

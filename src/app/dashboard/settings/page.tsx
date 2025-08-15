@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { AppearanceSettings } from "@/lib/types"
+import { useLanguage } from "@/context/language-context"
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const defaultColors = [
@@ -44,6 +45,7 @@ const defaultColors = [
 
 
 export default function SettingsPage() {
+    const { t, language, setLanguage } = useLanguage();
     const { toast } = useToast();
 
     const [settings, setSettings] = React.useState<AppearanceSettings>({
@@ -100,8 +102,8 @@ export default function SettingsPage() {
              };
             localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(finalSettings));
             toast({
-                title: "Settings Saved",
-                description: "Your appearance settings have been updated.",
+                title: t('settings.toast_settings_saved_title'),
+                description: t('settings.toast_appearance_saved_desc'),
             });
              // Force a reload of the page to update all components
             window.location.reload();
@@ -122,71 +124,72 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
-        <PageHeaderHeading>Settings</PageHeaderHeading>
+        <PageHeaderHeading>{t('settings.title')}</PageHeaderHeading>
         <PageHeaderDescription>
-          Manage your system settings. This page is only visible to Super Admins.
+          {t('settings.description')}
         </PageHeaderDescription>
       </PageHeader>
 
       <Tabs defaultValue="appearance" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="mail">Mail Server</TabsTrigger>
-          <TabsTrigger value="ad">Active Directory</TabsTrigger>
-          <TabsTrigger value="sms">SMS Panel</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="appearance">{t('settings.tabs.appearance')}</TabsTrigger>
+          <TabsTrigger value="language">{t('settings.tabs.language')}</TabsTrigger>
+          <TabsTrigger value="mail">{t('settings.tabs.mail')}</TabsTrigger>
+          <TabsTrigger value="ad">{t('settings.tabs.ad')}</TabsTrigger>
+          <TabsTrigger value="sms">{t('settings.tabs.sms')}</TabsTrigger>
+          <TabsTrigger value="security">{t('settings.tabs.security')}</TabsTrigger>
         </TabsList>
         
         <TabsContent value="appearance">
           <Card>
             <CardHeader>
-              <CardTitle>Appearance & Branding</CardTitle>
+              <CardTitle>{t('settings.appearance.title')}</CardTitle>
               <CardDescription>
-                Customize the look, feel, and branding of the entire application.
+                {t('settings.appearance.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
               {/* Site-wide Settings */}
               <div className="space-y-6 p-6 border rounded-lg">
-                <h3 className="text-lg font-medium">Global Branding</h3>
+                <h3 className="text-lg font-medium">{t('settings.appearance.global_branding_title')}</h3>
                  <div className="space-y-2">
-                    <Label htmlFor="siteName">Site Name</Label>
+                    <Label htmlFor="siteName">{t('settings.appearance.site_name_label')}</Label>
                     <Input id="siteName" value={settings.siteName} onChange={handleInputChange} />
-                    <p className="text-sm text-muted-foreground">This name appears in the browser tab and sidebar header.</p>
+                    <p className="text-sm text-muted-foreground">{t('settings.appearance.site_name_desc')}</p>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="logo">Application Logo</Label>
+                    <Label htmlFor="logo">{t('settings.appearance.app_logo_label')}</Label>
                     <Input id="logo" type="file" accept="image/*" onChange={handleLogoChange} />
                     {logoPreview && <img src={logoPreview} alt="Logo Preview" className="h-16 mt-2 rounded-md object-contain bg-muted p-1" />}
-                    <p className="text-sm text-muted-foreground">Used on the login page and in the sidebar. Recommended: square, max 512x512px.</p>
+                    <p className="text-sm text-muted-foreground">{t('settings.appearance.app_logo_desc')}</p>
                 </div>
               </div>
 
                {/* Login Page Settings */}
               <div className="space-y-6 p-6 border rounded-lg">
-                <h3 className="text-lg font-medium">Login Page Customization</h3>
+                <h3 className="text-lg font-medium">{t('settings.appearance.login_page_title')}</h3>
                  <div className="space-y-2">
-                    <Label htmlFor="loginTitle">Login Page Title</Label>
+                    <Label htmlFor="loginTitle">{t('settings.appearance.login_title_label')}</Label>
                     <Input id="loginTitle" value={settings.loginTitle} onChange={handleInputChange} />
-                    <p className="text-sm text-muted-foreground">The main headline on the login screen's splash panel.</p>
+                    <p className="text-sm text-muted-foreground">{t('settings.appearance.login_title_desc')}</p>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="loginSubtitle">Login Page Subtitle</Label>
+                    <Label htmlFor="loginSubtitle">{t('settings.appearance.login_subtitle_label')}</Label>
                     <Textarea id="loginSubtitle" value={settings.loginSubtitle} onChange={handleInputChange} />
-                    <p className="text-sm text-muted-foreground">The descriptive text below the main headline.</p>
+                    <p className="text-sm text-muted-foreground">{t('settings.appearance.login_subtitle_desc')}</p>
                 </div>
               </div>
 
               {/* Theme Settings */}
               <div className="space-y-6 p-6 border rounded-lg">
-                 <h3 className="text-lg font-medium">Theme & Colors</h3>
+                 <h3 className="text-lg font-medium">{t('settings.appearance.theme_colors_title')}</h3>
                 <div className="space-y-2">
-                    <Label>Primary Color</Label>
-                    <p className="text-sm text-muted-foreground pb-2">Sets the main color for buttons, links, and highlights across the app.</p>
+                    <Label>{t('settings.appearance.primary_color_label')}</Label>
+                    <p className="text-sm text-muted-foreground pb-2">{t('settings.appearance.primary_color_desc')}</p>
                     <div className="flex flex-wrap items-center gap-2">
                         {defaultColors.map(color => (
                             <button key={color.name} type="button" onClick={() => handleColorChange(color.value)} className={cn("h-10 w-20 rounded-md border-2 flex items-center justify-center text-sm font-medium", settings.primaryColor === color.value ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-muted')}>
-                                {color.name}
+                                {t(`settings.colors.${color.name.toLowerCase()}`)}
                             </button>
                         ))}
                     </div>
@@ -195,41 +198,64 @@ export default function SettingsPage() {
 
             </CardContent>
             <CardFooter>
-              <Button onClick={handleAppearanceSave}>Save Changes</Button>
+              <Button onClick={handleAppearanceSave}>{t('settings.save_changes_button')}</Button>
             </CardFooter>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="language">
+            <Card>
+                <CardHeader>
+                    <CardTitle>{t('settings.language.title')}</CardTitle>
+                    <CardDescription>{t('settings.language.description')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="w-full max-w-xs">
+                        <Label htmlFor="language-select">{t('settings.language.select_label')}</Label>
+                        <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'fa')}>
+                            <SelectTrigger id="language-select" className="mt-2">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="en">English</SelectItem>
+                                <SelectItem value="fa">فارسی</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
         </TabsContent>
 
         <TabsContent value="mail">
           <Card>
             <CardHeader>
-              <CardTitle>Mail Server (SMTP)</CardTitle>
+              <CardTitle>{t('settings.mail.title')}</CardTitle>
               <CardDescription>
-                Configure the SMTP server for sending email notifications and reminders.
+                {t('settings.mail.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="smtp-host">SMTP Host</Label>
+                  <Label htmlFor="smtp-host">{t('settings.mail.smtp_host_label')}</Label>
                   <Input id="smtp-host" placeholder="smtp.example.com" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="smtp-port">SMTP Port</Label>
+                  <Label htmlFor="smtp-port">{t('settings.mail.smtp_port_label')}</Label>
                   <Input id="smtp-port" placeholder="587" type="number" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtp-user">Username</Label>
+                <Label htmlFor="smtp-user">{t('settings.mail.username_label')}</Label>
                 <Input id="smtp-user" placeholder="user@example.com" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtp-pass">Password</Label>
+                <Label htmlFor="smtp-pass">{t('settings.mail.password_label')}</Label>
                 <Input id="smtp-pass" type="password" />
               </div>
             </CardContent>
             <CardFooter>
-              <Button>Save & Test Connection</Button>
+              <Button>{t('settings.save_test_button')}</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -237,37 +263,37 @@ export default function SettingsPage() {
         <TabsContent value="ad">
           <Card>
             <CardHeader>
-              <CardTitle>Active Directory</CardTitle>
+              <CardTitle>{t('settings.ad.title')}</CardTitle>
               <CardDescription>
-                Configure Active Directory integration for user and group synchronization.
+                {t('settings.ad.description')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                <div className="flex items-center space-x-2">
                 <Switch id="ad-enabled" />
-                <Label htmlFor="ad-enabled">Enable Active Directory Integration</Label>
+                <Label htmlFor="ad-enabled">{t('settings.ad.enable_label')}</Label>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-host">Server URL</Label>
+                <Label htmlFor="ad-host">{t('settings.ad.server_url_label')}</Label>
                 <Input id="ad-host" placeholder="ldaps://ad.example.com" />
               </div>
                <div className="space-y-2">
-                <Label htmlFor="ad-basedn">Base DN</Label>
+                <Label htmlFor="ad-basedn">{t('settings.ad.base_dn_label')}</Label>
                 <Input id="ad-basedn" placeholder="dc=example,dc=com" />
-                 <p className="text-sm text-muted-foreground">The starting point for directory searches.</p>
+                 <p className="text-sm text-muted-foreground">{t('settings.ad.base_dn_desc')}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-user">Bind DN / Username</Label>
+                <Label htmlFor="ad-user">{t('settings.ad.bind_dn_label')}</Label>
                 <Input id="ad-user" placeholder="cn=admin,dc=example,dc=com" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ad-pass">Bind Password</Label>
+                <Label htmlFor="ad-pass">{t('settings.ad.bind_password_label')}</Label>
                 <Input id="ad-pass" type="password" />
               </div>
             </CardContent>
             <CardFooter className="justify-between">
-              <Button>Save & Sync</Button>
-              <Button variant="outline">Test Connection</Button>
+              <Button>{t('settings.ad.save_sync_button')}</Button>
+              <Button variant="outline">{t('settings.ad.test_connection_button')}</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -275,27 +301,27 @@ export default function SettingsPage() {
         <TabsContent value="sms">
             <Card>
                 <CardHeader>
-                    <CardTitle>SMS Panel</CardTitle>
+                    <CardTitle>{t('settings.sms.title')}</CardTitle>
                     <CardDescription>
-                        Configure your SMS provider to send notifications.
+                        {t('settings.sms.description')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="sms-api-url">Provider Name / API URL</Label>
+                        <Label htmlFor="sms-api-url">{t('settings.sms.provider_label')}</Label>
                         <Input id="sms-api-url" placeholder="e.g., KavehNegar or https://api.smsprovider.com/v1/send" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="sms-apikey">API Key</Label>
+                        <Label htmlFor="sms-apikey">{t('settings.sms.api_key_label')}</Label>
                         <Input id="sms-apikey" type="password" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="sms-sender">Sender Number</Label>
+                        <Label htmlFor="sms-sender">{t('settings.sms.sender_number_label')}</Label>
                         <Input id="sms-sender" placeholder="e.g., 10008000" />
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button>Save SMS Settings</Button>
+                    <Button>{t('settings.sms.save_button')}</Button>
                 </CardFooter>
             </Card>
         </TabsContent>
@@ -304,24 +330,24 @@ export default function SettingsPage() {
         <TabsContent value="security">
           <Card>
             <CardHeader>
-              <CardTitle>Security</CardTitle>
-              <CardDescription>Manage security settings for the application.</CardDescription>
+              <CardTitle>{t('settings.security.title')}</CardTitle>
+              <CardDescription>{t('settings.security.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="session-timeout">Session Timeout (seconds)</Label>
+                <Label htmlFor="session-timeout">{t('settings.security.session_timeout_label')}</Label>
                 <Input id="session-timeout" type="number" defaultValue="3600" />
                 <p className="text-sm text-muted-foreground">
-                    Time in seconds before a user is automatically logged out due to inactivity.
+                    {t('settings.security.session_timeout_desc')}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="my-password">Change Your Password</Label>
-                <Input id="my-password" type="password" placeholder="New Password" />
+                <Label htmlFor="my-password">{t('settings.security.change_password_label')}</Label>
+                <Input id="my-password" type="password" placeholder={t('settings.security.new_password_placeholder')} />
               </div>
             </CardContent>
             <CardFooter>
-              <Button>Save Security Settings</Button>
+              <Button>{t('settings.security.save_button')}</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -329,3 +355,5 @@ export default function SettingsPage() {
     </div>
   )
 }
+
+    

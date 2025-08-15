@@ -1,0 +1,123 @@
+
+export const en = {
+  loading: {
+      dashboard: 'Loading Dashboard...',
+  },
+  sidebar: {
+    dashboard: 'Dashboard',
+    contracts: 'Contracts',
+    tasks: 'Tasks',
+    users: 'Users',
+    units: 'Units',
+    profile: 'Profile',
+    settings: 'Settings',
+    logout: 'Logout',
+    collapse: 'Collapse',
+  },
+  logout_alert: {
+      title: 'Are you sure you want to log out?',
+      description: 'You will be returned to the login page.',
+      cancel: 'Cancel',
+      confirm: 'Log Out',
+  },
+  settings: {
+    title: 'Settings',
+    description: 'Manage your system settings. This page is only visible to Super Admins.',
+    save_changes_button: 'Save Changes',
+    save_test_button: 'Save & Test Connection',
+    toast_settings_saved_title: 'Settings Saved',
+    toast_appearance_saved_desc: 'Your appearance settings have been updated.',
+    tabs: {
+      appearance: 'Appearance',
+      language: 'Language',
+      mail: 'Mail Server',
+      ad: 'Active Directory',
+      sms: 'SMS Panel',
+      security: 'Security',
+    },
+    appearance: {
+      title: 'Appearance & Branding',
+      description: 'Customize the look, feel, and branding of the entire application.',
+      global_branding_title: 'Global Branding',
+      site_name_label: 'Site Name',
+      site_name_desc: 'This name appears in the browser tab and sidebar header.',
+      app_logo_label: 'Application Logo',
+      app_logo_desc: 'Used on the login page and in the sidebar. Recommended: square, max 512x512px.',
+      login_page_title: 'Login Page Customization',
+      login_title_label: 'Login Page Title',
+      login_title_desc: 'The main headline on the login screen\'s splash panel.',
+      login_subtitle_label: 'Login Page Subtitle',
+      login_subtitle_desc: 'The descriptive text below the main headline.',
+      theme_colors_title: 'Theme & Colors',
+      primary_color_label: 'Primary Color',
+      primary_color_desc: 'Sets the main color for buttons, links, and highlights across the app.',
+    },
+    language: {
+        title: 'Language',
+        description: 'Set the display language for the application UI.',
+        select_label: 'Application Language'
+    },
+    mail: {
+      title: 'Mail Server (SMTP)',
+      description: 'Configure the SMTP server for sending email notifications and reminders.',
+      smtp_host_label: 'SMTP Host',
+      smtp_port_label: 'SMTP Port',
+      username_label: 'Username',
+      password_label: 'Password',
+    },
+    ad: {
+      title: 'Active Directory',
+      description: 'Configure Active Directory integration for user and group synchronization.',
+      enable_label: 'Enable Active Directory Integration',
+      server_url_label: 'Server URL',
+      base_dn_label: 'Base DN',
+      base_dn_desc: 'The starting point for directory searches.',
+      bind_dn_label: 'Bind DN / Username',
+      bind_password_label: 'Bind Password',
+      save_sync_button: 'Save & Sync',
+      test_connection_button: 'Test Connection',
+    },
+    sms: {
+      title: 'SMS Panel',
+      description: 'Configure your SMS provider to send notifications.',
+      provider_label: 'Provider Name / API URL',
+      api_key_label: 'API Key',
+      sender_number_label: 'Sender Number',
+      save_button: 'Save SMS Settings',
+    },
+    security: {
+      title: 'Security',
+      description: 'Manage security settings for the application.',
+      session_timeout_label: 'Session Timeout (seconds)',
+      session_timeout_desc: 'Time in seconds before a user is automatically logged out due to inactivity.',
+      change_password_label: 'Change Your Password',
+      new_password_placeholder: 'New Password',
+      save_button: 'Save Security Settings',
+    },
+    colors: {
+      indigo: 'Indigo',
+      blue: 'Blue',
+      green: 'Green',
+      orange: 'Orange',
+      rose: 'Rose',
+    },
+  },
+  users: {
+      title: 'Users',
+      description: 'Manage all users, their roles, and units.',
+  },
+  units: {
+      title: 'Units',
+      description: 'Define and manage organizational units.',
+  },
+  contracts: {
+    title: 'Contracts',
+    description: 'Manage, view, and organize all your contracts.',
+  },
+  tasks: {
+    title: 'Tasks',
+    description: 'Manage your recurring and one-time tasks.',
+  }
+};
+
+    

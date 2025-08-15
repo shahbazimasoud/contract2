@@ -69,6 +69,7 @@ import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/componen
 import { users as mockUsers, units as mockUnits } from '@/lib/mock-data';
 import type { User, Unit } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from '@/context/language-context';
 
 const userSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -92,6 +93,7 @@ const changePasswordSchema = z.object({
 const ITEMS_PER_PAGE = 10;
 
 export default function UsersPage() {
+  const { t } = useLanguage();
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
@@ -227,9 +229,9 @@ export default function UsersPage() {
       <PageHeader>
         <div className="flex items-center justify-between">
           <div>
-            <PageHeaderHeading>Users</PageHeaderHeading>
+            <PageHeaderHeading>{t('users.title')}</PageHeaderHeading>
             <PageHeaderDescription>
-              Manage all users, their roles, and units.
+              {t('users.description')}
             </PageHeaderDescription>
           </div>
             <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
@@ -663,3 +665,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    

@@ -107,6 +107,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import Image from 'next/image';
+import { useLanguage } from '@/context/language-context';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -176,6 +177,7 @@ const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#
 
 
 export default function TasksPage() {
+    const { t } = useLanguage();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
@@ -1231,28 +1233,25 @@ export default function TasksPage() {
         if (!draggedTaskId || draggedTaskId === targetTask.id) {
             return;
         }
-
+    
         const newTasks = [...tasks];
         const draggedTaskIndex = newTasks.findIndex(t => t.id === draggedTaskId);
         const targetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
-
+    
         if (draggedTaskIndex === -1 || targetTaskIndex === -1) return;
-
-        // Remove the dragged task
+    
         const [draggedTask] = newTasks.splice(draggedTaskIndex, 1);
-        
-        // Update its columnId to the target's columnId
         draggedTask.columnId = targetTask.columnId;
-
-        // Find the new index to insert
-        const newTargetIndex = newTasks.findIndex(t => t.id === targetTask.id);
-
+    
+        // Recalculate target index after splice
+        const newTargetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
+    
         if (dropPosition === 'top') {
-            newTasks.splice(newTargetIndex, 0, draggedTask);
+            newTasks.splice(newTargetTaskIndex, 0, draggedTask);
         } else {
-            newTasks.splice(newTargetIndex + 1, 0, draggedTask);
+            newTasks.splice(newTargetTaskIndex + 1, 0, draggedTask);
         }
-
+    
         setTasks(newTasks);
         handleDragEnd(e as any);
     };
@@ -1473,7 +1472,7 @@ export default function TasksPage() {
                         </PopoverContent>
                     </Popover>
                     <div>
-                        <PageHeaderDescription>Manage your recurring and one-time tasks.</PageHeaderDescription>
+                        <PageHeaderDescription>{t('tasks.description')}</PageHeaderDescription>
                     </div>
                 </div>
             </PageHeader>
@@ -1971,20 +1970,20 @@ export default function TasksPage() {
                  </div>
                  <div className="flex items-center gap-2">
                     <DropdownMenu>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <DropdownMenuTrigger asChild>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="outline" size="icon">
-                                            <Mail className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                </DropdownMenuTrigger>
-                                <TooltipContent>
-                                    <p>Email Reports</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon">
+                                <Mail className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Email Reports</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
                             <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>Weekly - Board Summary</DropdownMenuItem>
@@ -3105,3 +3104,6 @@ export default function TasksPage() {
     
 
 
+
+
+    

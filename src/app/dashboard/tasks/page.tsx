@@ -1329,10 +1329,6 @@ export default function TasksPage() {
         handleDragEnd(e as any);
     };
     
-    if (!currentUser) {
-      return null;
-    }
-    
     const renderLog = (log: ActivityLog) => {
         let text;
         switch (log.action) {
@@ -1396,7 +1392,7 @@ export default function TasksPage() {
             </div>
         )
     };
-    
+
     const renderTaskCard = (task: Task) => {
       const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
       const checklistItems = task.checklist || [];
@@ -1535,6 +1531,10 @@ export default function TasksPage() {
             )}
         </div>
       );
+    }
+    
+    if (!currentUser) {
+      return null;
     }
     
     return (
@@ -3240,3 +3240,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

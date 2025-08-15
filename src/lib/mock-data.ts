@@ -1,6 +1,6 @@
 
 
-import type { Contract, User, Unit, Task, TaskBoard, BoardColumn, ScheduledReport } from './types';
+import type { Contract, User, Unit, Task, TaskBoard, BoardColumn, ScheduledReport, ActivityLog } from './types';
 
 export const avatars = [
     {
@@ -330,6 +330,11 @@ export const tasks: Task[] = [
         ],
         isArchived: false,
         isCompleted: false,
+        logs: [
+            { id: 'LOG-1', timestamp: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), userId: 'U-002', userName: 'John Doe', action: 'created', details: { title: 'Weekly IT Backup Check'} },
+            { id: 'LOG-2', timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), userId: 'U-001', userName: 'Super Admin', action: 'commented', details: { text: 'Please ensure the off-site backup is also checked.'} },
+            { id: 'LOG-3', timestamp: new Date().toISOString(), userId: 'U-006', userName: 'IT Staff Member', action: 'completed_checklist_item', details: { text: 'Check local server backup status'} },
+        ],
     },
     {
         id: 'T-002',
@@ -354,6 +359,7 @@ export const tasks: Task[] = [
         checklist: [],
         isArchived: false,
         isCompleted: false,
+        logs: [],
     },
     {
         id: 'T-003',
@@ -382,6 +388,7 @@ export const tasks: Task[] = [
         ],
         isArchived: false,
         isCompleted: false,
+        logs: [],
     },
     {
         id: 'T-004',
@@ -405,6 +412,7 @@ export const tasks: Task[] = [
         checklist: [],
         isArchived: false,
         isCompleted: true, // Example of a completed task
+        logs: [],
     },
      {
         id: 'T-005',
@@ -428,6 +436,7 @@ export const tasks: Task[] = [
         checklist: [],
         isArchived: false,
         isCompleted: false,
+        logs: [],
     },
     {
         id: 'T-006',
@@ -451,6 +460,7 @@ export const tasks: Task[] = [
         checklist: [],
         isArchived: false,
         isCompleted: false,
+        logs: [],
     },
      {
         id: 'T-007',
@@ -474,5 +484,6 @@ export const tasks: Task[] = [
         checklist: [],
         isArchived: true, // This task belongs to an archived column
         isCompleted: true,
+        logs: [],
     },
 ];

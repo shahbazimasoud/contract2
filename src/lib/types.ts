@@ -74,6 +74,17 @@ export type ChecklistItem = {
     completed: boolean;
 };
 
+export type ActivityLog = {
+  id: string;
+  timestamp: string; // ISO String
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  action: string; // e.g., 'created', 'updated_title', 'completed_checklist_item'
+  details: Record<string, any>; // e.g., { from: 'old', to: 'new' } or { text: 'item text' }
+};
+
+
 export type Task = {
     id: string;
     boardId: string;
@@ -93,6 +104,7 @@ export type Task = {
     attachments?: { name: string; url: string }[];
     isArchived: boolean;
     isCompleted: boolean;
+    logs?: ActivityLog[];
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';

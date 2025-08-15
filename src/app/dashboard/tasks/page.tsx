@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -85,7 +85,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards, scheduledReports as mockScheduledReports } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType, ActivityLog } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
 import { Calendar } from '@/components/ui/calendar';
@@ -469,12 +469,25 @@ export default function TasksPage() {
         };
     }, []);
 
+    const createLogEntry = (action: string, details: Record<string, any>): ActivityLog => {
+        if (!currentUser) throw new Error("User not found");
+        return {
+            id: `LOG-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            userId: currentUser.id,
+            userName: currentUser.name,
+            userAvatar: currentUser.avatar,
+            action,
+            details,
+        };
+    };
+
     const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
         if (!task && columnId && activeBoard) {
             const defaultUnit = currentUser?.role === 'admin' ? currentUser.unit : "";
             const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
-            form.setValue('columnId', columnId || activeColumns?.[0]?.id || "");
+            form.setValue('columnId', columnId);
             form.setValue('unit', defaultUnit);
         }
         setIsTaskDialogOpen(true);
@@ -765,7 +778,7 @@ export default function TasksPage() {
         commentForm.reset();
     };
 
-     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
+    const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
         if (!currentUser || !selectedTaskForDetails) return;
 
         const newComment: Comment = {
@@ -776,9 +789,12 @@ export default function TasksPage() {
             createdAt: new Date().toISOString(),
         };
 
+        const newLog = createLogEntry('commented', { text: values.text });
+
         const updatedTask = {
             ...selectedTaskForDetails,
             comments: [...(selectedTaskForDetails.comments || []), newComment],
+            logs: [...(selectedTaskForDetails.logs || []), newLog],
         };
 
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
@@ -791,28 +807,40 @@ export default function TasksPage() {
     };
     
     const handleChecklistItemToggle = (taskId: string, itemId: string, completed: boolean) => {
+        let updatedTask: Task | undefined;
         const updatedTasks = tasks.map(task => {
             if (task.id === taskId) {
-                const updatedChecklist = task.checklist?.map(item =>
-                    item.id === itemId ? { ...item, completed } : item
+                const item = task.checklist?.find(i => i.id === itemId);
+                if (!item) return task;
+
+                const newLog = createLogEntry(
+                    completed ? 'completed_checklist_item' : 'uncompleted_checklist_item',
+                    { text: item.text }
                 );
-                return { ...task, checklist: updatedChecklist };
+                
+                const updatedChecklist = task.checklist?.map(i =>
+                    i.id === itemId ? { ...i, completed } : i
+                );
+
+                updatedTask = { ...task, checklist: updatedChecklist, logs: [...(task.logs || []), newLog] };
+                return updatedTask;
             }
             return task;
         });
         setTasks(updatedTasks);
         
-        if (selectedTaskForDetails?.id === taskId) {
-             const updatedChecklist = selectedTaskForDetails.checklist?.map(item =>
-                item.id === itemId ? { ...item, completed } : item
-            );
-            setSelectedTaskForDetails(prev => prev ? {...prev, checklist: updatedChecklist} : null);
+        if (selectedTaskForDetails?.id === taskId && updatedTask) {
+            setSelectedTaskForDetails(updatedTask);
         }
     };
 
 
     const handleToggleStatus = (task: Task) => {
-        const updatedTask = { ...task, isCompleted: !task.isCompleted };
+        const newLog = createLogEntry(
+            !task.isCompleted ? 'completed_task' : 'uncompleted_task',
+            { title: task.title }
+        );
+        const updatedTask = { ...task, isCompleted: !task.isCompleted, logs: [...(task.logs || []), newLog] };
         setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
         toast({
             title: t(updatedTask.isCompleted ? 'tasks.toast.task_completed_title' : 'tasks.toast.task_incomplete_title'),
@@ -838,7 +866,9 @@ export default function TasksPage() {
             return;
         }
 
-        const updatedTask = { ...movingTask, boardId: moveTargetBoardId, columnId: targetBoard.columns[0].id };
+        const newLog = createLogEntry('moved_task', { from: activeBoard?.name, to: targetBoard.name });
+
+        const updatedTask = { ...movingTask, boardId: moveTargetBoardId, columnId: targetBoard.columns[0].id, logs: [...(movingTask.logs || []), newLog] };
         setTasks(tasks.map(t => t.id === movingTask.id ? updatedTask : t));
         
         toast({
@@ -851,35 +881,68 @@ export default function TasksPage() {
 
     const onTaskSubmit = (values: z.infer<typeof taskSchema>) => {
         if (!currentUser || !activeBoardId) return;
-
-        const taskData = {
-            title: values.title,
-            description: values.description,
-            unit: values.unit,
-            columnId: values.columnId,
-            assignees: values.assignees,
-            tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
-            priority: values.priority,
-            dueDate: values.dueDate.toISOString(),
-            recurrence: {
-                type: values.recurrenceType,
-                time: values.time,
-                dayOfWeek: values.recurrenceType === 'weekly' ? values.dayOfWeek : undefined,
-                dayOfMonth: values.recurrenceType === 'monthly' ? values.dayOfMonth : undefined,
-            },
-            reminders: values.reminders.map(r => r.days),
-            checklist: values.checklist || [],
-            isArchived: false,
-            isCompleted: values.isCompleted,
-        };
         
         if (editingTask) {
+            const newLogs: ActivityLog[] = [];
+            // Compare and create logs
+            if (editingTask.title !== values.title) {
+                newLogs.push(createLogEntry('updated_title', { from: editingTask.title, to: values.title }));
+            }
+            if (editingTask.description !== values.description) {
+                newLogs.push(createLogEntry('updated_description', {}));
+            }
+            if (editingTask.dueDate !== values.dueDate.toISOString()) {
+                newLogs.push(createLogEntry('updated_dueDate', { from: format(new Date(editingTask.dueDate), 'P'), to: format(values.dueDate, 'P') }));
+            }
+            if (editingTask.columnId !== values.columnId) {
+                const fromColumn = activeBoard?.columns.find(c => c.id === editingTask.columnId)?.title;
+                const toColumn = activeBoard?.columns.find(c => c.id === values.columnId)?.title;
+                newLogs.push(createLogEntry('moved_column', { from: fromColumn, to: toColumn }));
+            }
+            
+            // Checklist changes
+            const oldChecklist = editingTask.checklist || [];
+            const newChecklist = values.checklist || [];
+            oldChecklist.forEach(oldItem => {
+                if (!newChecklist.find(newItem => newItem.id === oldItem.id)) {
+                    newLogs.push(createLogEntry('removed_checklist_item', { text: oldItem.text }));
+                }
+            });
+             newChecklist.forEach(newItem => {
+                if (!oldChecklist.find(oldItem => oldItem.id === newItem.id)) {
+                    newLogs.push(createLogEntry('added_checklist_item', { text: newItem.text }));
+                }
+            });
+
+
+            const taskData = {
+                title: values.title,
+                description: values.description,
+                unit: values.unit,
+                columnId: values.columnId,
+                assignees: values.assignees,
+                tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
+                priority: values.priority,
+                dueDate: values.dueDate.toISOString(),
+                recurrence: {
+                    type: values.recurrenceType,
+                    time: values.time,
+                    dayOfWeek: values.recurrenceType === 'weekly' ? values.dayOfWeek : undefined,
+                    dayOfMonth: values.recurrenceType === 'monthly' ? values.dayOfMonth : undefined,
+                },
+                reminders: values.reminders.map(r => r.days),
+                checklist: values.checklist || [],
+                isArchived: false,
+                isCompleted: values.isCompleted,
+            };
+
             const updatedTask: Task = {
                 ...editingTask,
                 ...taskData,
                 attachments: attachedFiles.length > 0 
                     ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) 
                     : editingTask.attachments,
+                logs: [...(editingTask.logs || []), ...newLogs],
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
             toast({
@@ -887,6 +950,28 @@ export default function TasksPage() {
                 description: t('tasks.toast.task_updated_desc', { name: updatedTask.title }),
             });
         } else {
+             const taskData = {
+                title: values.title,
+                description: values.description,
+                unit: values.unit,
+                columnId: values.columnId,
+                assignees: values.assignees,
+                tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
+                priority: values.priority,
+                dueDate: values.dueDate.toISOString(),
+                recurrence: {
+                    type: values.recurrenceType,
+                    time: values.time,
+                    dayOfWeek: values.recurrenceType === 'weekly' ? values.dayOfWeek : undefined,
+                    dayOfMonth: values.recurrenceType === 'monthly' ? values.dayOfMonth : undefined,
+                },
+                reminders: values.reminders.map(r => r.days),
+                checklist: values.checklist || [],
+                isArchived: false,
+                isCompleted: values.isCompleted,
+            };
+            
+            const newLog = createLogEntry('created', { title: values.title });
             const newTask: Task = {
                 id: `T-${Date.now()}`,
                 boardId: activeBoardId,
@@ -894,6 +979,7 @@ export default function TasksPage() {
                 ...taskData,
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 comments: [],
+                logs: [newLog],
             };
             setTasks([newTask, ...tasks]);
             toast({
@@ -1188,11 +1274,15 @@ export default function TasksPage() {
 
         const task = tasks.find(t => t.id === draggedTaskId);
         if (task && task.columnId !== newColumnId) {
-            setTasks(prevTasks => prevTasks.map(t => t.id === draggedTaskId ? { ...t, columnId: newColumnId } : t));
-            const columnName = activeBoard?.columns.find(c => c.id === newColumnId)?.title;
+            const oldColumnName = activeBoard?.columns.find(c => c.id === task.columnId)?.title;
+            const newColumnName = activeBoard?.columns.find(c => c.id === newColumnId)?.title;
+            const newLog = createLogEntry('moved_column', { from: oldColumnName, to: newColumnName });
+
+            setTasks(prevTasks => prevTasks.map(t => t.id === draggedTaskId ? { ...t, columnId: newColumnId, logs: [...(t.logs || []), newLog] } : t));
+            
             toast({
                 title: t('tasks.toast.task_moved_title'),
-                description: `Task "${task.title}" moved to ${columnName}.`,
+                description: `Task "${task.title}" moved to ${newColumnName}.`,
             });
         }
     };
@@ -1234,6 +1324,16 @@ export default function TasksPage() {
         const [draggedItem] = currentTasks.splice(draggedIndex, 1);
         draggedItem.columnId = targetTask.columnId;
 
+        // If the column changed, add a log entry
+        if (draggedItem.columnId !== tasks[draggedIndex].columnId) {
+             const oldColumnName = activeBoard?.columns.find(c => c.id === tasks[draggedIndex].columnId)?.title;
+             const newColumnName = activeBoard?.columns.find(c => c.id === targetTask.columnId)?.title;
+             const newLog = createLogEntry('moved_column', { from: oldColumnName, to: newColumnName });
+             draggedItem.logs = [...(draggedItem.logs || []), newLog];
+        }
+
+
+        // Re-find target index in the modified array
         targetIndex = currentTasks.findIndex(t => t.id === targetTask.id);
 
         if (dropPosition === 'top') {
@@ -1390,6 +1490,70 @@ export default function TasksPage() {
       );
     }
 
+    const renderLog = (log: ActivityLog) => {
+        let text;
+        switch (log.action) {
+            case 'created':
+                text = t('tasks.logs.created', { title: log.details.title });
+                break;
+            case 'updated_title':
+                text = t('tasks.logs.updated_title', { from: log.details.from, to: log.details.to });
+                break;
+            case 'updated_description':
+                text = t('tasks.logs.updated_description');
+                break;
+             case 'updated_dueDate':
+                text = t('tasks.logs.updated_dueDate', { from: log.details.from, to: log.details.to });
+                break;
+            case 'completed_checklist_item':
+                text = t('tasks.logs.completed_checklist_item', { text: log.details.text });
+                break;
+            case 'uncompleted_checklist_item':
+                text = t('tasks.logs.uncompleted_checklist_item', { text: log.details.text });
+                break;
+            case 'added_checklist_item':
+                text = t('tasks.logs.added_checklist_item', { text: log.details.text });
+                break;
+            case 'removed_checklist_item':
+                text = t('tasks.logs.removed_checklist_item', { text: log.details.text });
+                break;
+            case 'commented':
+                text = t('tasks.logs.commented', { text: log.details.text });
+                break;
+             case 'completed_task':
+                text = t('tasks.logs.completed_task', { title: log.details.title });
+                break;
+            case 'uncompleted_task':
+                text = t('tasks.logs.uncompleted_task', { title: log.details.title });
+                break;
+            case 'moved_column':
+                 text = t('tasks.logs.moved_column', { from: log.details.from, to: log.details.to });
+                 break;
+             case 'moved_task':
+                 text = t('tasks.logs.moved_task', { from: log.details.from, to: log.details.to });
+                 break;
+            default:
+                text = `performed action: ${log.action}`;
+        }
+
+        return (
+            <div key={log.id} className="flex items-start gap-3">
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={log.userAvatar} alt={log.userName}/>
+                    <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <p className="text-sm">
+                        <span className="font-semibold">{log.userName}</span> {text}
+                    </p>
+                     <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="container mx-auto px-4 py-8">
             <PageHeader className="pb-4">
@@ -1434,7 +1598,7 @@ export default function TasksPage() {
                                                         <Check className="h-4 w-4 text-primary" />
                                                     )}
                                                      {currentUser.id === board.ownerId && (
-                                                         <DropdownMenu>
+                                                         <DropdownMenu onOpenChange={(e) => {}}>
                                                              <DropdownMenuTrigger asChild>
                                                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
                                                              </DropdownMenuTrigger>
@@ -2965,10 +3129,11 @@ export default function TasksPage() {
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
-                         <TabsList className="grid w-full grid-cols-3">
+                         <TabsList className="grid w-full grid-cols-4">
                             <TabsTrigger value="checklist">{t('tasks.details.tabs.checklist')}</TabsTrigger>
                             <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
                             <TabsTrigger value="attachments">{t('tasks.details.tabs.attachments')}</TabsTrigger>
+                             <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
                         </TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
@@ -3074,6 +3239,18 @@ export default function TasksPage() {
                                     </div>
                                  )}
                             </div>
+                        </TabsContent>
+                        <TabsContent value="activity" className="flex-1 overflow-y-auto">
+                           <div className="space-y-4 py-4">
+                                {(selectedTaskForDetails?.logs || []).length > 0 ? (
+                                    [...(selectedTaskForDetails?.logs || [])].reverse().map(renderLog)
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
+                                        <History className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">{t('tasks.details.no_activity_title')}</p>
+                                    </div>
+                                )}
+                           </div>
                         </TabsContent>
                     </Tabs>
                 </SheetContent>

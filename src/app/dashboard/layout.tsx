@@ -59,9 +59,15 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { language } = useLanguage();
 
   React.useEffect(() => {
-    // We only set the lang attribute, not the dir attribute.
     document.documentElement.lang = language;
     document.documentElement.dir = 'ltr'; // Always LTR
+    
+    // Add font class to body for Persian
+    if (language === 'fa') {
+      document.body.classList.add('font-vazir');
+    } else {
+      document.body.classList.remove('font-vazir');
+    }
   }, [language]);
 
   return <>{children}</>;

@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, MoreHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { PlusCircle, MoreHorizontal, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -47,6 +47,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardFooter
 } from '@/components/ui/card';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { units as mockUnits } from '@/lib/mock-data';
@@ -57,11 +59,16 @@ const unitSchema = z.object({
   name: z.string().min(1, { message: "Unit name is required" }),
 });
 
+const ITEMS_PER_PAGE = 10;
+
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>(mockUnits);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const { toast } = useToast();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const form = useForm<z.infer<typeof unitSchema>>({
     resolver: zodResolver(unitSchema),
@@ -128,6 +135,20 @@ export default function UnitsPage() {
     });
   }
 
+  const filteredUnits = useMemo(() => {
+    return units.filter(unit => 
+        unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        unit.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [units, searchTerm]);
+
+  const paginatedUnits = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredUnits.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredUnits, currentPage]);
+
+  const totalPages = Math.ceil(filteredUnits.length / ITEMS_PER_PAGE);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
@@ -183,27 +204,42 @@ export default function UnitsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Unit List</CardTitle>
+           <CardDescription>Search, view, and manage all organizational units.</CardDescription>
+            <div className="mt-4">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search by unit name or ID..." 
+                        className="pl-10 max-w-sm"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+            </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Unit Name</TableHead>
-                  <TableHead>Unit ID</TableHead>
-                  <TableHead>User Count</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[40%]">Unit Name</TableHead>
+                  <TableHead className="w-[30%]">Unit ID</TableHead>
+                  <TableHead className="w-[20%]">User Count</TableHead>
+                  <TableHead className="w-[10%] text-right">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {units.map((unit) => (
+                {paginatedUnits.length > 0 ? paginatedUnits.map((unit) => (
                   <TableRow key={unit.id}>
                     <TableCell className="font-medium">{unit.name}</TableCell>
                     <TableCell>{unit.id}</TableCell>
                     <TableCell>{unit.userCount}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -224,11 +260,42 @@ export default function UnitsPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                            No units found.
+                        </TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
+        {totalPages > 1 && (
+            <CardFooter>
+                <div className="flex w-full items-center justify-end space-x-2 pt-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );

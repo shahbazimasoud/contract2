@@ -1875,7 +1875,7 @@ export default function TasksPage() {
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
+                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner' && userPermissions !== 'editor' && currentUser?.role !== 'super-admin'}>
                                         <Share2 className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>

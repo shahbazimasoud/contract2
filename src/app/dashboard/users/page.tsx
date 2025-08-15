@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, MoreHorizontal, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -62,6 +62,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
+  CardFooter
 } from '@/components/ui/card';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { users as mockUsers, units as mockUnits } from '@/lib/mock-data';
@@ -87,6 +89,7 @@ const changePasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const ITEMS_PER_PAGE = 10;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -95,6 +98,10 @@ export default function UsersPage() {
   const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({ role: 'all', unit: 'all' });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const addUserForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
@@ -191,6 +198,29 @@ export default function UsersPage() {
           variant: "destructive"
       });
   }
+
+  const filteredUsers = useMemo(() => {
+    return users
+      .filter(user => 
+          (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+      .filter(user => filters.role === 'all' || user.role === filters.role)
+      .filter(user => filters.unit === 'all' || user.unit === filters.unit);
+  }, [users, searchTerm, filters]);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredUsers, currentPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+
+  const handleFilterChange = (filterType: 'role' | 'unit', value: string) => {
+      setFilters(prev => ({ ...prev, [filterType]: value }));
+      setCurrentPage(1);
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -502,64 +532,133 @@ export default function UsersPage() {
       <Card>
         <CardHeader>
           <CardTitle>User List</CardTitle>
+          <CardDescription>Search, filter, and manage all users in the system.</CardDescription>
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+                <div className="relative sm:max-w-xs w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search by name or email..." 
+                        className="pl-10 w-full"
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+                <Select value={filters.role} onValueChange={(value) => handleFilterChange('role', value)}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filter by role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                    </SelectContent>
+                </Select>
+                 <Select value={filters.unit} onValueChange={(value) => handleFilterChange('unit', value)}>
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                        <SelectValue placeholder="Filter by unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Units</SelectItem>
+                         {mockUnits.map((unit) => (
+                            <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                         ))}
+                    </SelectContent>
+                </Select>
+            </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Auth Type</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[25%]">Name</TableHead>
+                  <TableHead className="w-[25%]">Email</TableHead>
+                  <TableHead className="w-[10%]">Auth Type</TableHead>
+                  <TableHead className="w-[10%]">Role</TableHead>
+                  <TableHead className="w-[20%]">Unit</TableHead>
+                  <TableHead className="w-[10%] text-right">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                        <Badge variant={user.authType === 'ad' ? 'outline' : 'default'}>
-                            {user.authType.toUpperCase()}
+                {paginatedUsers.length > 0 ? (
+                  paginatedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                            <Badge variant={user.authType === 'ad' ? 'outline' : 'default'}>
+                                {user.authType.toUpperCase()}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>
+                        <Badge variant={user.role === 'super-admin' ? 'destructive' : 'secondary'}>
+                            {user.role}
                         </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'super-admin' ? 'destructive' : 'secondary'}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.unit}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit User</DropdownMenuItem>
-                          {user.authType === 'local' && (
-                            <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-destructive">
-                            Delete User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        </TableCell>
+                        <TableCell>{user.unit}</TableCell>
+                        <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openEditDialog(user)}>Edit User</DropdownMenuItem>
+                            {user.authType === 'local' && (
+                                <DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleDelete(user.id)} className="text-destructive">
+                                Delete User
+                            </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                            No users found. Try adjusting your search or filters.
+                        </TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
+        {totalPages > 1 && (
+             <CardFooter>
+                <div className="flex w-full items-center justify-end space-x-2 pt-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </Button>
+                </div>
+            </CardFooter>
+        )}
       </Card>
     </div>
   );

@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -305,18 +305,20 @@ export default function TasksPage() {
     }, [boards, currentUser]);
     
     useEffect(() => {
-        if (currentUser && visibleBoards.length > 0 && !activeBoardId) {
-            const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-            if (ownedBoard) {
-                setActiveBoardId(ownedBoard.id);
-            } else {
-                setActiveBoardId(visibleBoards[0]?.id);
+        if (visibleBoards.length > 0 && !activeBoardId) {
+            if (currentUser) {
+                const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
+                if (ownedBoard) {
+                    setActiveBoardId(ownedBoard.id);
+                } else {
+                    setActiveBoardId(visibleBoards[0]?.id);
+                }
             }
         }
     }, [currentUser, visibleBoards, activeBoardId]);
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
-    
+
     const userPermissions = useMemo((): BoardPermissionRole | 'owner' | 'none' => {
         if (!currentUser || !activeBoard) return 'none';
         if (activeBoard.ownerId === currentUser.id) return 'owner';
@@ -378,7 +380,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: activeColumns?.[0]?.id || "",
+                columnId: columnId || activeColumns?.[0]?.id || "",
                 assignees: [],
                 tags: "",
                 priority: 'medium',
@@ -1326,9 +1328,12 @@ export default function TasksPage() {
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isBoardSwitcherOpen}
-                                className="w-[250px] justify-between text-lg font-semibold"
+                                className="w-auto justify-between text-lg font-semibold"
                             >
+                                <div className='flex items-center gap-2'>
+                                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: activeBoard?.color }} />
                                 {activeBoard ? activeBoard.name : "Select a board..."}
+                                </div>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
@@ -1342,7 +1347,8 @@ export default function TasksPage() {
                                             <CommandItem
                                                 key={board.id}
                                                 value={board.name}
-                                                onSelect={() => {
+                                                onSelect={(e) => {
+                                                     e.stopPropagation();
                                                     setActiveBoardId(board.id);
                                                     setIsBoardSwitcherOpen(false);
                                                 }}
@@ -1352,9 +1358,22 @@ export default function TasksPage() {
                                                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: board.color }} />
                                                     {board.name}
                                                 </div>
-                                                 {activeBoardId === board.id && (
-                                                    <CheckCircle className="h-4 w-4 text-primary" />
-                                                )}
+                                                 <div className='flex items-center gap-2'>
+                                                    {activeBoardId === board.id && (
+                                                        <Check className="h-4 w-4 text-primary" />
+                                                    )}
+                                                     {currentUser.id === board.ownerId && (
+                                                        <DropdownMenu onOpenChange={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuTrigger asChild>
+                                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>Edit</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false);setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                     )}
+                                                 </div>
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -1362,7 +1381,7 @@ export default function TasksPage() {
                                 <Separator />
                                 <CommandList>
                                      <CommandGroup>
-                                        <CommandItem onSelect={() => handleOpenBoardDialog(null)}>
+                                        <CommandItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(null);}}>
                                             <PlusCircle className="mr-2 h-4 w-4" />
                                             Create New Board
                                         </CommandItem>
@@ -1872,16 +1891,16 @@ export default function TasksPage() {
                     <DropdownMenu>
                         <TooltipProvider>
                             <Tooltip>
-                            <TooltipTrigger asChild>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon">
-                                    <Mail className="h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Email Reports</p>
-                            </TooltipContent>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="icon">
+                                            <Mail className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Email Reports</p>
+                                </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
                         <DropdownMenuContent align="end">
@@ -2832,7 +2851,7 @@ export default function TasksPage() {
                             <TabsTrigger value="comments">Comments</TabsTrigger>
                             <TabsTrigger value="attachments">Attachments</TabsTrigger>
                         </TabsList>
-                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
+                        <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                 {(selectedTaskForDetails?.checklist || []).length > 0 ? (
                                     <>
@@ -2944,3 +2963,6 @@ export default function TasksPage() {
     );
 }
 
+
+
+    

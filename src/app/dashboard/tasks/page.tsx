@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -181,7 +181,7 @@ export default function TasksPage() {
     const [viewMode, setViewMode] = useState<ViewMode>('board');
     const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings | null>(null);
 
-
+    const [isBoardSwitcherOpen, setIsBoardSwitcherOpen] = useState(false);
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -460,7 +460,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: activeColumns?.[0]?.id || "",
+                columnId: columnId || activeColumns?.[0]?.id || "",
                 assignees: [],
                 tags: "",
                 priority: 'medium',
@@ -584,28 +584,26 @@ export default function TasksPage() {
       handleCloseBoardDialog();
     };
 
-    const handleDeleteBoard = () => {
-        if (!activeBoardId || !currentUser) return;
-        const boardToDelete = boards.find(b => b.id === activeBoardId);
+    const handleDeleteBoard = (boardId: string) => {
+        const boardToDelete = boards.find(b => b.id === boardId);
+        if (!boardToDelete || !currentUser || boardToDelete.ownerId !== currentUser.id) return;
 
-        if (boardToDelete?.ownerId !== currentUser.id) {
-            toast({ title: "Permission Denied", description: "Only the board owner can delete it.", variant: "destructive" });
-            return;
-        }
-        
-        const remainingBoards = boards.filter(b => b.id !== activeBoardId);
-        const remainingTasks = tasks.filter(t => t.boardId !== activeBoardId);
+        const remainingBoards = boards.filter(b => b.id !== boardId);
+        const remainingTasks = tasks.filter(t => t.boardId !== boardId);
 
         setBoards(remainingBoards);
         setTasks(remainingTasks);
-        setActiveBoardId(remainingBoards[0]?.id || null);
+        
+        if (activeBoardId === boardId) {
+            setActiveBoardId(remainingBoards[0]?.id || null);
+        }
 
         toast({
             title: "Board Deleted",
-            description: `Board "${boardToDelete?.name}" and all its tasks have been deleted.`,
+            description: `Board "${boardToDelete.name}" and all its tasks have been deleted.`,
             variant: "destructive",
         });
-        setIsDeleteAlertOpen(false);
+        setIsBoardSwitcherOpen(false); // Close switcher after deletion
     };
     
     const handleAddColumn = (values: z.infer<typeof columnSchema>) => {
@@ -1322,8 +1320,58 @@ export default function TasksPage() {
         <div className="container mx-auto px-4 py-8">
             <PageHeader className="pb-4">
                 <div className="flex items-center justify-between">
+                     <Popover open={isBoardSwitcherOpen} onOpenChange={setIsBoardSwitcherOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isBoardSwitcherOpen}
+                                className="w-[250px] justify-between text-lg font-semibold"
+                            >
+                                {activeBoard ? activeBoard.name : "Select a board..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0">
+                            <Command>
+                                <CommandInput placeholder="Search boards..." />
+                                <CommandList>
+                                    <CommandEmpty>No board found.</CommandEmpty>
+                                    <CommandGroup>
+                                        {visibleBoards.map((board) => (
+                                            <CommandItem
+                                                key={board.id}
+                                                value={board.name}
+                                                onSelect={() => {
+                                                    setActiveBoardId(board.id);
+                                                    setIsBoardSwitcherOpen(false);
+                                                }}
+                                                className="flex justify-between items-center"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 rounded-full" style={{ backgroundColor: board.color }} />
+                                                    {board.name}
+                                                </div>
+                                                 {activeBoardId === board.id && (
+                                                    <CheckCircle className="h-4 w-4 text-primary" />
+                                                )}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                                <Separator />
+                                <CommandList>
+                                     <CommandGroup>
+                                        <CommandItem onSelect={() => handleOpenBoardDialog(null)}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Create New Board
+                                        </CommandItem>
+                                     </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                     <div>
-                        <PageHeaderHeading>Tasks & Reminders</PageHeaderHeading>
                         <PageHeaderDescription>Manage your recurring and one-time tasks.</PageHeaderDescription>
                     </div>
                 </div>
@@ -1458,7 +1506,7 @@ export default function TasksPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteBoard} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    <AlertDialogAction onClick={() => { if(activeBoard) handleDeleteBoard(activeBoard.id)}} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -1751,662 +1799,610 @@ export default function TasksPage() {
             </Dialog>
 
 
-            <Tabs value={activeBoardId || ''} onValueChange={setActiveBoardId} className="w-full">
-                <div className="flex items-center gap-2 mb-4">
-                    <TabsList className="rounded-lg p-1.5">
-                        {visibleBoards.map(board => (
-                             <TabsTrigger key={board.id} value={board.id} style={{'--board-color': board.color} as React.CSSProperties} className="data-[state=active]:bg-[--board-color] data-[state=active]:text-white rounded-md px-3 py-1.5 text-sm font-medium flex items-center gap-2">
-                                <span>{board.name}</span>
-                                {board.sharedWith && board.sharedWith.length > 0 && (
-                                    <TooltipProvider>
+             <div className="flex items-center justify-between gap-4 mb-4 p-2 bg-muted/50 rounded-lg min-h-[52px]">
+                <div className="flex items-center gap-2">
+                     <div className="flex items-center">
+                        {(activeBoard?.sharedWith && activeBoard.sharedWith.length > 0) && (
+                            <div className="flex items-center -space-x-2 mr-2">
+                            {(activeBoard?.sharedWith || []).slice(0, 3).map(share => {
+                                const user = mockUsers.find(u => u.id === share.userId);
+                                return user ? (
+                                    <TooltipProvider key={user.id}>
                                         <Tooltip>
-                                            <TooltipTrigger asChild>
-                                               <UsersIcon className="h-4 w-4" />
+                                            <TooltipTrigger>
+                                                <Avatar className="h-8 w-8 border-2 border-background">
+                                                    <AvatarImage src={user.avatar} />
+                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Shared with {board.sharedWith.length} user(s)</p>
+                                                <p>{user.name}</p>
+                                                <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
-                                )}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon"><Settings className="h-5 w-5" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                            <DropdownMenuLabel>Board Actions</DropdownMenuLabel>
-                             <DropdownMenuItem onSelect={() => handleOpenBoardDialog(null)}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create New Board
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                             <DropdownMenuItem onSelect={() => { if (activeBoard) handleOpenBoardDialog(activeBoard); }} disabled={!activeBoardId || userPermissions !== 'owner'}>
-                                <Edit className="mr-2 h-4 w-4"/>
-                                Edit Current Board
-                            </DropdownMenuItem>
-                             <DropdownMenuItem onSelect={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={!activeBoardId || userPermissions !== 'owner'}>
-                                <Share2 className="mr-2 h-4 w-4"/>
-                                Share Current Board
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsDeleteAlertOpen(true); }} className="text-destructive" disabled={!activeBoardId || userPermissions !== 'owner'}>
-                                <Trash2 className="mr-2 h-4 w-4"/>
-                                Delete Current Board
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                ) : null;
+                            })}
 
-                </div>
-                
-                 <div className="flex items-center justify-between gap-4 mb-4 p-2 bg-muted/50 rounded-lg min-h-[52px]">
-                    <div className="flex items-center gap-2">
-                         <div className="flex items-center">
-                            {(activeBoard?.sharedWith && activeBoard.sharedWith.length > 0) && (
-                                <div className="flex items-center -space-x-2 mr-2">
-                                {(activeBoard?.sharedWith || []).slice(0, 3).map(share => {
-                                    const user = mockUsers.find(u => u.id === share.userId);
-                                    return user ? (
-                                        <TooltipProvider key={user.id}>
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <Avatar className="h-8 w-8 border-2 border-background">
+                            {(activeBoard?.sharedWith || []).length > 3 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
+                                            <AvatarFallback>+{(activeBoard?.sharedWith || []).length - 3}</AvatarFallback>
+                                        </Avatar>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuLabel>All Members</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {(activeBoard?.sharedWith || []).map(share => {
+                                            const user = mockUsers.find(u => u.id === share.userId);
+                                            return user ? (
+                                                <DropdownMenuItem key={user.id} className="flex items-center gap-2">
+                                                    <Avatar className="h-6 w-6">
                                                         <AvatarImage src={user.avatar} />
                                                         <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                                     </Avatar>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{user.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ) : null;
-                                })}
-
-                                {(activeBoard?.sharedWith || []).length > 3 && (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Avatar className="h-8 w-8 border-2 border-background cursor-pointer">
-                                                <AvatarFallback>+{(activeBoard?.sharedWith || []).length - 3}</AvatarFallback>
-                                            </Avatar>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuLabel>All Members</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {(activeBoard?.sharedWith || []).map(share => {
-                                                const user = mockUsers.find(u => u.id === share.userId);
-                                                return user ? (
-                                                    <DropdownMenuItem key={user.id} className="flex items-center gap-2">
-                                                        <Avatar className="h-6 w-6">
-                                                            <AvatarImage src={user.avatar} />
-                                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <p className="text-sm font-medium">{user.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{share.role}</p>
-                                                        </div>
-                                                    </DropdownMenuItem>
-                                                ) : null;
-                                            })}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                                </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{user.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{share.role}</p>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            ) : null;
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             )}
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
-                                            <Share2 className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Share board</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                            <TooltipProvider>
-                                <Tooltip>
+                            </div>
+                        )}
+                        <TooltipProvider>
+                            <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon">
-                                        <Mail className="h-4 w-4" />
+                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={!activeBoard || userPermissions !== 'owner'}>
+                                        <Share2 className="h-4 w-4" />
                                     </Button>
-                                    </DropdownMenuTrigger>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Email Reports</p>
+                                    <p>Share board</p>
                                 </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>Weekly - Board Summary</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-my-tasks')}>Weekly - My Tasks</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-in-progress')}>Weekly - In Progress Tasks</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={() => setIsReportManagerOpen(true)}>
-                                    <ListVideo className="mr-2 h-4 w-4" />
-                                    View Scheduled Reports
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                        <TooltipProvider>
+                            <Tooltip>
+                            <TooltipTrigger asChild>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <Mail className="h-4 w-4" />
+                                </Button>
+                                </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Email Reports</p>
+                            </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>Weekly - Board Summary</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-my-tasks')}>Weekly - My Tasks</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-in-progress')}>Weekly - In Progress Tasks</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setIsReportManagerOpen(true)}>
+                                <ListVideo className="mr-2 h-4 w-4" />
+                                View Scheduled Reports
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
+            </div>
 
 
-                {visibleBoards.map(board => (
-                <TabsContent key={board.id} value={board.id} className="mt-0">
-                    <Card>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                 <div className="flex items-center gap-2">
-                                    <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
-                                        <List className="h-5 w-5" />
+            {activeBoard && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-2">
+                                <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
+                                    <List className="h-5 w-5" />
+                                </Button>
+                                 <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}>
+                                    <LayoutGrid className="h-5 w-5" />
+                                </Button>
+                                <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}>
+                                    <CalendarViewIcon className="h-5 w-5" />
+                                </Button>
+                                <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}>
+                                    <Archive className="h-5 w-5" />
+                                </Button>
+                            </div>
+                             <div className="flex items-center gap-2">
+                                {selectedTaskIds.length > 0 && viewMode === 'list' && (
+                                    <Button onClick={handleBulkExport} variant="outline">
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export Selected ({selectedTaskIds.length})
                                     </Button>
-                                     <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}>
-                                        <LayoutGrid className="h-5 w-5" />
-                                    </Button>
-                                    <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}>
-                                        <CalendarViewIcon className="h-5 w-5" />
-                                    </Button>
-                                    <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}>
-                                        <Archive className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    {selectedTaskIds.length > 0 && viewMode === 'list' && (
-                                        <Button onClick={handleBulkExport} variant="outline">
-                                            <Download className="mr-2 h-4 w-4" />
-                                            Export Selected ({selectedTaskIds.length})
+                                )}
+                                <Button onClick={() => handleOpenTaskDialog(null)} disabled={userPermissions === 'viewer'}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add New Task
+                                </Button>
+                            </div>
+                        </div>
+                         {viewMode === 'list' && (
+                            <div className="flex flex-wrap items-center gap-2 pt-4">
+                                <Input
+                                    placeholder="Search tasks by title..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="max-w-sm"
+                                />
+                                {currentUser.role === 'super-admin' && (
+                                    <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Filter by unit" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Units</SelectItem>
+                                            {mockUnits.map(unit => (
+                                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full sm:w-auto">
+                                            <Tag className="mr-2 h-4 w-4" />
+                                            Filter by Tags
+                                            {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Filter tags..." />
+                                            <CommandList>
+                                                <CommandEmpty>No tags found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {allTags.map((tag) => (
+                                                        <CommandItem
+                                                            key={tag}
+                                                            onSelect={() => {
+                                                                const newTags = filters.tags.includes(tag)
+                                                                    ? filters.tags.filter(t => t !== tag)
+                                                                    : [...filters.tags, tag];
+                                                                setFilters(prev => ({ ...prev, tags: newTags }));
+                                                            }}
+                                                        >
+                                                            <Checkbox
+                                                                className="mr-2"
+                                                                checked={filters.tags.includes(tag)}
+                                                            />
+                                                            <span>{tag}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+
+                            </div>
+                        )}
+                    </CardHeader>
+                    <CardContent>
+                       {viewMode === 'list' ? (
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[50px]">
+                                                <Checkbox
+                                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                                    checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                                                    aria-label="Select all rows"
+                                                />
+                                            </TableHead>
+                                            <TableHead className="w-[60px] text-center border-r">Done</TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('title')}>
+                                                    Task
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>
+                                                 <Button variant="ghost" onClick={() => handleSort('columnId')}>
+                                                    Status
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('priority')}>
+                                                    Priority
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>Assigned To</TableHead>
+                                            <TableHead>
+                                                <Button variant="ghost" onClick={() => handleSort('dueDate')}>
+                                                    Next Due
+                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead>Recurrence</TableHead>
+                                            <TableHead>Info</TableHead>
+                                            <TableHead><span className="sr-only">Actions</span></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredTasks.length > 0 ? (
+                                            filteredTasks.map((task) => {
+                                                const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
+                                                const checklistItems = task.checklist || [];
+                                                const completedItems = checklistItems.filter(item => item.completed).length;
+                                                const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
+                                                const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
+
+                                                return (
+                                                <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
+                                                    <TableCell>
+                                                        <Checkbox
+                                                            onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
+                                                            checked={selectedTaskIds.includes(task.id)}
+                                                            aria-label={`Select row for task "${task.title}"`}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="px-2 text-center border-r">
+                                                        <Checkbox
+                                                            checked={isCompleted}
+                                                            onCheckedChange={() => handleToggleStatusInList(task)}
+                                                            aria-label={`Mark task "${task.title}" as completed/pending`}
+                                                            className="rounded-full h-5 w-5 mx-auto"
+                                                            disabled={userPermissions === 'viewer'}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">
+                                                        <div>{task.title}</div>
+                                                        <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
+                                                        {task.tags && task.tags.length > 0 && (
+                                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                                {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                                                            </div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                         <Badge variant={'outline'}>
+                                                            {activeBoard?.columns.find(c => c.id === task.columnId)?.title || 'N/A'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                     <TableCell>
+                                                        <Badge variant="outline" className={cn(
+                                                            task.priority === 'critical' && 'border-red-500 text-red-500',
+                                                            task.priority === 'high' && 'border-orange-500 text-orange-500',
+                                                            task.priority === 'medium' && 'border-yellow-500 text-yellow-500',
+                                                            task.priority === 'low' && 'border-blue-500 text-blue-500',
+                                                        )}>
+                                                            {task.priority || 'medium'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex -space-x-2 overflow-hidden">
+                                                            {assignedUsers.map(user => (
+                                                                <TooltipProvider key={user.id}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <Avatar className="h-7 w-7 border-2 border-background">
+                                                                                <AvatarImage src={user.avatar} alt={user.name} />
+                                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                                            </Avatar>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Assigned to {user.name}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
+                                                    <TableCell>{formatRecurrence(task)}</TableCell>
+                                                    <TableCell>
+                                                        <TooltipProvider>
+                                                            <div className="flex items-center gap-2">
+                                                                {(task.attachments?.length || 0) > 0 && (
+                                                                     <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{task.attachments?.length} attachment(s)</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                                {(task.comments?.length || 0) > 0 && (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Has comments</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                                {checklistItems.length > 0 && (
+                                                                     <Tooltip>
+                                                                        <TooltipTrigger>
+                                                                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                                                <ListChecks className="h-4 w-4" />
+                                                                                <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Checklist progress</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </div>
+                                                        </TooltipProvider>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
+                                                                    <Move className="mr-2 h-4 w-4" />
+                                                                    Move Task
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
+                                                                    <CalendarPlus className="mr-2 h-4 w-4" />
+                                                                    Add to Calendar
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            )})
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={10} className="h-24 text-center">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
+                                                        <p className="font-semibold">No tasks found.</p>
+                                                        <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        ) : viewMode === 'board' ? (
+                            <div className="flex gap-4 overflow-x-auto pb-4">
+                               {activeBoard?.columns.filter(c => !c.isArchived).map(column => (
+                                   <div key={column.id} className="w-72 flex-shrink-0">
+                                        <div 
+                                            id={column.id}
+                                            onDrop={(e) => handleDrop(e, column.id)}
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            className="rounded-lg p-2 h-full bg-muted/50 transition-colors"
+                                        >
+                                            <div className="flex items-center justify-between px-2 py-1 mb-2">
+                                                {editingColumnId === column.id ? (
+                                                    <Input
+                                                        autoFocus
+                                                        value={editingColumnTitle}
+                                                        onChange={(e) => setEditingColumnTitle(e.target.value)}
+                                                        onBlur={() => handleEditColumn(column.id, editingColumnTitle)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleEditColumn(column.id, editingColumnTitle);
+                                                            if (e.key === 'Escape') setEditingColumnId(null);
+                                                        }}
+                                                        className="h-8"
+                                                    />
+                                                ) : (
+                                                    <h3
+                                                        className="text-md font-semibold cursor-pointer"
+                                                        onClick={() => {
+                                                            if (userPermissions !== 'viewer') {
+                                                                setEditingColumnId(column.id);
+                                                                setEditingColumnTitle(column.title);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {column.title}
+                                                        <span className="text-sm font-normal text-muted-foreground ml-2">
+                                                            {filteredTasks.filter(t => t.columnId === column.id).length}
+                                                        </span>
+                                                    </h3>
+                                                )}
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions === 'viewer'}>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent>
+                                                        <DropdownMenuLabel>List Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add new task
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => handleOpenCopyColumnDialog(column)}>
+                                                            <Copy className="mr-2 h-4 w-4" /> Copy list
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onSelect={() => handleArchiveColumn(column.id)}
+                                                        >
+                                                            <Archive className="mr-2 h-4 w-4" /> Archive list
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+
+                                            <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[24rem] overflow-y-auto">
+                                                {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
+                                            </div>
+                                        </div>
+                                   </div>
+                               ))}
+                                {userPermissions !== 'viewer' && (
+                                <div className="w-72 flex-shrink-0">
+                                    {showAddColumnForm ? (
+                                        <div className="bg-muted rounded-lg p-2" ref={newColumnFormRef}>
+                                            <Form {...columnForm}>
+                                                <form onSubmit={columnForm.handleSubmit(handleAddColumn)}>
+                                                    <FormField
+                                                        control={columnForm.control}
+                                                        name="title"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Input autoFocus placeholder="Enter list title..." {...field} className="h-9"/>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <Button type="submit" size="sm">Add list</Button>
+                                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4"/></Button>
+                                                    </div>
+                                                </form>
+                                            </Form>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full h-10 bg-primary/5 hover:bg-primary/10 text-primary justify-start"
+                                            onClick={() => setShowAddColumnForm(true)}
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4"/>
+                                            Add another list
                                         </Button>
                                     )}
-                                    <Button onClick={() => handleOpenTaskDialog(null)} disabled={userPermissions === 'viewer'}>
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Add New Task
-                                    </Button>
                                 </div>
+                                )}
                             </div>
-                             {viewMode === 'list' && (
-                                <div className="flex flex-wrap items-center gap-2 pt-4">
-                                    <Input
-                                        placeholder="Search tasks by title..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="max-w-sm"
-                                    />
-                                    {currentUser.role === 'super-admin' && (
-                                        <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
-                                            <SelectTrigger className="w-[180px]">
-                                                <SelectValue placeholder="Filter by unit" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">All Units</SelectItem>
-                                                {mockUnits.map(unit => (
-                                                    <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full sm:w-auto">
-                                                <Tag className="mr-2 h-4 w-4" />
-                                                Filter by Tags
-                                                {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-64 p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Filter tags..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No tags found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {allTags.map((tag) => (
-                                                            <CommandItem
-                                                                key={tag}
-                                                                onSelect={() => {
-                                                                    const newTags = filters.tags.includes(tag)
-                                                                        ? filters.tags.filter(t => t !== tag)
-                                                                        : [...filters.tags, tag];
-                                                                    setFilters(prev => ({ ...prev, tags: newTags }));
-                                                                }}
-                                                            >
-                                                                <Checkbox
-                                                                    className="mr-2"
-                                                                    checked={filters.tags.includes(tag)}
-                                                                />
-                                                                <span>{tag}</span>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
-
+                         ) : viewMode === 'calendar' ? (
+                            <div className="border rounded-lg">
+                                <div className="flex items-center justify-between p-4">
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
+                                        <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                                        <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
+                                    </div>
+                                    <Button variant="outline" onClick={goToToday}>Today</Button>
                                 </div>
-                            )}
-                        </CardHeader>
-                        <CardContent>
-                           {viewMode === 'list' ? (
-                                <div className="rounded-md border">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-[50px]">
-                                                    <Checkbox
-                                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                                        checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
-                                                        aria-label="Select all rows"
-                                                    />
-                                                </TableHead>
-                                                <TableHead className="w-[60px] text-center border-r">Done</TableHead>
-                                                <TableHead>
-                                                    <Button variant="ghost" onClick={() => handleSort('title')}>
-                                                        Task
-                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </TableHead>
-                                                <TableHead>
-                                                     <Button variant="ghost" onClick={() => handleSort('columnId')}>
-                                                        Status
-                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </TableHead>
-                                                <TableHead>
-                                                    <Button variant="ghost" onClick={() => handleSort('priority')}>
-                                                        Priority
-                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </TableHead>
-                                                <TableHead>Assigned To</TableHead>
-                                                <TableHead>
-                                                    <Button variant="ghost" onClick={() => handleSort('dueDate')}>
-                                                        Next Due
-                                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </TableHead>
-                                                <TableHead>Recurrence</TableHead>
-                                                <TableHead>Info</TableHead>
-                                                <TableHead><span className="sr-only">Actions</span></TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredTasks.length > 0 ? (
-                                                filteredTasks.map((task) => {
+                                <div className="grid grid-cols-7 border-t border-b">
+                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                        <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-7">
+                                    {calendarDays.map((dayObj) => {
+                                        const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                                        return (
+                                        <div key={dayObj.key} className={cn("h-48 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
+                                            {dayObj.date && (
+                                                <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
+                                                    {format(dayObj.date, 'd')}
+                                                </span>
+                                            )}
+                                            <div className="space-y-1 mt-1">
+                                                {tasksOnDay.map(task => {
                                                     const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
                                                     const checklistItems = task.checklist || [];
                                                     const completedItems = checklistItems.filter(item => item.completed).length;
-                                                    const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
-                                                    const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
-
                                                     return (
-                                                    <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
-                                                        <TableCell>
-                                                            <Checkbox
-                                                                onCheckedChange={(checked) => handleSelectRow(task.id, !!checked)}
-                                                                checked={selectedTaskIds.includes(task.id)}
-                                                                aria-label={`Select row for task "${task.title}"`}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="px-2 text-center border-r">
-                                                            <Checkbox
-                                                                checked={isCompleted}
-                                                                onCheckedChange={() => handleToggleStatusInList(task)}
-                                                                aria-label={`Mark task "${task.title}" as completed/pending`}
-                                                                className="rounded-full h-5 w-5 mx-auto"
-                                                                disabled={userPermissions === 'viewer'}
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell className="font-medium">
-                                                            <div>{task.title}</div>
-                                                            <div className="text-xs text-muted-foreground">{task.unit} Unit</div>
-                                                            {task.tags && task.tags.length > 0 && (
-                                                                <div className="mt-1 flex flex-wrap gap-1">
-                                                                    {task.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-                                                                </div>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                             <Badge variant={'outline'}>
-                                                                {activeBoard?.columns.find(c => c.id === task.columnId)?.title || 'N/A'}
-                                                            </Badge>
-                                                        </TableCell>
-                                                         <TableCell>
-                                                            <Badge variant="outline" className={cn(
-                                                                task.priority === 'critical' && 'border-red-500 text-red-500',
-                                                                task.priority === 'high' && 'border-orange-500 text-orange-500',
-                                                                task.priority === 'medium' && 'border-yellow-500 text-yellow-500',
-                                                                task.priority === 'low' && 'border-blue-500 text-blue-500',
-                                                            )}>
-                                                                {task.priority || 'medium'}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex -space-x-2 overflow-hidden">
-                                                                {assignedUsers.map(user => (
-                                                                    <TooltipProvider key={user.id}>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger>
-                                                                                <Avatar className="h-7 w-7 border-2 border-background">
-                                                                                    <AvatarImage src={user.avatar} alt={user.name} />
-                                                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                                                </Avatar>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Assigned to {user.name}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                ))}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>{format(new Date(task.dueDate), "PP")}</TableCell>
-                                                        <TableCell>{formatRecurrence(task)}</TableCell>
-                                                        <TableCell>
-                                                            <TooltipProvider>
-                                                                <div className="flex items-center gap-2">
-                                                                    {(task.attachments?.length || 0) > 0 && (
-                                                                         <Tooltip>
-                                                                            <TooltipTrigger>
-                                                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>{task.attachments?.length} attachment(s)</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    )}
-                                                                    {(task.comments?.length || 0) > 0 && (
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger>
-                                                                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Has comments</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    )}
+                                                         <Card key={task.id} onClick={() => handleOpenDetailsSheet(task)} className="cursor-pointer hover:bg-muted/80">
+                                                            <CardContent className="p-2 text-xs">
+                                                                 <p className="font-semibold text-primary truncate mb-1">{task.title}</p>
+                                                                {task.tags && task.tags.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-1 mb-1">
+                                                                        {task.tags.slice(0, 2).map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex items-center justify-between text-muted-foreground">
                                                                     {checklistItems.length > 0 && (
-                                                                         <Tooltip>
-                                                                            <TooltipTrigger>
-                                                                                <div className="flex items-center gap-1.5 text-muted-foreground">
-                                                                                    <ListChecks className="h-4 w-4" />
-                                                                                    <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
-                                                                                </div>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Checklist progress</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    )}
-                                                                </div>
-                                                            </TooltipProvider>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
-                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
-                                                                        <Move className="mr-2 h-4 w-4" />
-                                                                        Move Task
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); handleAddToCalendar(task); }}>
-                                                                        <CalendarPlus className="mr-2 h-4 w-4" />
-                                                                        Add to Calendar
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )})
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={10} className="h-24 text-center">
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
-                                                            <p className="font-semibold">No tasks found.</p>
-                                                            <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            ) : viewMode === 'board' ? (
-                                <div className="flex gap-4 overflow-x-auto pb-4">
-                                   {activeBoard?.columns.filter(c => !c.isArchived).map(column => (
-                                       <div key={column.id} className="w-72 flex-shrink-0">
-                                            <div 
-                                                id={column.id}
-                                                onDrop={(e) => handleDrop(e, column.id)}
-                                                onDragOver={handleDragOver}
-                                                onDragLeave={handleDragLeave}
-                                                className="rounded-lg p-2 h-full bg-muted/50 transition-colors"
-                                            >
-                                                <div className="flex items-center justify-between px-2 py-1 mb-2">
-                                                    {editingColumnId === column.id ? (
-                                                        <Input
-                                                            autoFocus
-                                                            value={editingColumnTitle}
-                                                            onChange={(e) => setEditingColumnTitle(e.target.value)}
-                                                            onBlur={() => handleEditColumn(column.id, editingColumnTitle)}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') handleEditColumn(column.id, editingColumnTitle);
-                                                                if (e.key === 'Escape') setEditingColumnId(null);
-                                                            }}
-                                                            className="h-8"
-                                                        />
-                                                    ) : (
-                                                        <h3
-                                                            className="text-md font-semibold cursor-pointer"
-                                                            onClick={() => {
-                                                                if (userPermissions !== 'viewer') {
-                                                                    setEditingColumnId(column.id);
-                                                                    setEditingColumnTitle(column.title);
-                                                                }
-                                                            }}
-                                                        >
-                                                            {column.title}
-                                                            <span className="text-sm font-normal text-muted-foreground ml-2">
-                                                                {filteredTasks.filter(t => t.columnId === column.id).length}
-                                                            </span>
-                                                        </h3>
-                                                    )}
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions === 'viewer'}>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuLabel>List Actions</DropdownMenuLabel>
-                                                            <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
-                                                                <PlusCircle className="mr-2 h-4 w-4" /> Add new task
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onSelect={() => handleOpenCopyColumnDialog(column)}>
-                                                                <Copy className="mr-2 h-4 w-4" /> Copy list
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onSelect={() => handleArchiveColumn(column.id)}
-                                                            >
-                                                                <Archive className="mr-2 h-4 w-4" /> Archive list
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
-
-                                                <div className="space-y-2 px-1 max-h-[calc(100vh-28rem)] min-h-[24rem] overflow-y-auto">
-                                                    {filteredTasks.filter(t => t.columnId === column.id).map(renderTaskCard)}
-                                                </div>
-                                            </div>
-                                       </div>
-                                   ))}
-                                    {userPermissions !== 'viewer' && (
-                                    <div className="w-72 flex-shrink-0">
-                                        {showAddColumnForm ? (
-                                            <div className="bg-muted rounded-lg p-2" ref={newColumnFormRef}>
-                                                <Form {...columnForm}>
-                                                    <form onSubmit={columnForm.handleSubmit(handleAddColumn)}>
-                                                        <FormField
-                                                            control={columnForm.control}
-                                                            name="title"
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormControl>
-                                                                        <Input autoFocus placeholder="Enter list title..." {...field} className="h-9"/>
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                        <div className="flex items-center gap-2 mt-2">
-                                                            <Button type="submit" size="sm">Add list</Button>
-                                                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4"/></Button>
-                                                        </div>
-                                                    </form>
-                                                </Form>
-                                            </div>
-                                        ) : (
-                                            <Button
-                                                variant="ghost"
-                                                className="w-full h-10 bg-primary/5 hover:bg-primary/10 text-primary justify-start"
-                                                onClick={() => setShowAddColumnForm(true)}
-                                            >
-                                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                                Add another list
-                                            </Button>
-                                        )}
-                                    </div>
-                                    )}
-                                </div>
-                             ) : viewMode === 'calendar' ? (
-                                <div className="border rounded-lg">
-                                    <div className="flex items-center justify-between p-4">
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
-                                            <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
-                                            <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
-                                        </div>
-                                        <Button variant="outline" onClick={goToToday}>Today</Button>
-                                    </div>
-                                    <div className="grid grid-cols-7 border-t border-b">
-                                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                            <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
-                                        ))}
-                                    </div>
-                                    <div className="grid grid-cols-7">
-                                        {calendarDays.map((dayObj) => {
-                                            const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
-                                            return (
-                                            <div key={dayObj.key} className={cn("h-48 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
-                                                {dayObj.date && (
-                                                    <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
-                                                        {format(dayObj.date, 'd')}
-                                                    </span>
-                                                )}
-                                                <div className="space-y-1 mt-1">
-                                                    {tasksOnDay.map(task => {
-                                                        const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
-                                                        const checklistItems = task.checklist || [];
-                                                        const completedItems = checklistItems.filter(item => item.completed).length;
-                                                        return (
-                                                             <Card key={task.id} onClick={() => handleOpenDetailsSheet(task)} className="cursor-pointer hover:bg-muted/80">
-                                                                <CardContent className="p-2 text-xs">
-                                                                     <p className="font-semibold text-primary truncate mb-1">{task.title}</p>
-                                                                    {task.tags && task.tags.length > 0 && (
-                                                                        <div className="flex flex-wrap gap-1 mb-1">
-                                                                            {task.tags.slice(0, 2).map(tag => <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>)}
+                                                                        <div className="flex items-center gap-1">
+                                                                            <ListChecks className="h-3 w-3" />
+                                                                            <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
                                                                         </div>
                                                                     )}
-                                                                    <div className="flex items-center justify-between text-muted-foreground">
-                                                                        {checklistItems.length > 0 && (
-                                                                            <div className="flex items-center gap-1">
-                                                                                <ListChecks className="h-3 w-3" />
-                                                                                <span className="text-xs font-semibold">{completedItems}/{checklistItems.length}</span>
-                                                                            </div>
-                                                                        )}
-                                                                        {assignedUsers.length > 0 && (
-                                                                            <div className="flex -space-x-1 overflow-hidden">
-                                                                                {assignedUsers.slice(0,2).map(user => (
-                                                                                     <TooltipProvider key={user.id}>
-                                                                                        <Tooltip>
-                                                                                            <TooltipTrigger>
-                                                                                                <Avatar className="h-5 w-5 border border-background">
-                                                                                                    <AvatarImage src={user.avatar} alt={user.name} />
-                                                                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                                                                </Avatar>
-                                                                                            </TooltipTrigger>
-                                                                                            <TooltipContent>
-                                                                                                <p>Assigned to {user.name}</p>
-                                                                                            </TooltipContent>
-                                                                                        </Tooltip>
-                                                                                    </TooltipProvider>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </CardContent>
-                                                            </Card>
-                                                        )
-                                                    })}
-                                                </div>
+                                                                    {assignedUsers.length > 0 && (
+                                                                        <div className="flex -space-x-1 overflow-hidden">
+                                                                            {assignedUsers.slice(0,2).map(user => (
+                                                                                 <TooltipProvider key={user.id}>
+                                                                                    <Tooltip>
+                                                                                        <TooltipTrigger>
+                                                                                            <Avatar className="h-5 w-5 border border-background">
+                                                                                                <AvatarImage src={user.avatar} alt={user.name} />
+                                                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                                                            </Avatar>
+                                                                                        </TooltipTrigger>
+                                                                                        <TooltipContent>
+                                                                                            <p>Assigned to {user.name}</p>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TooltipProvider>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    )
+                                                })}
                                             </div>
-                                        )})}
-                                    </div>
-                                </div>
-                             ) : ( // Archived View
-                                 <div className="space-y-4">
-                                    {archivedColumns.length > 0 ? (
-                                        archivedColumns.map(column => (
-                                            <Card key={column.id} className="bg-muted/50">
-                                                <CardHeader className="flex flex-row items-center justify-between pb-4">
-                                                    <div>
-                                                        <CardTitle className="text-lg">{column.title}</CardTitle>
-                                                        <CardDescription>
-                                                            {tasks.filter(t => t.columnId === column.id).length} tasks in this list.
-                                                        </CardDescription>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button variant="outline" size="sm" onClick={() => handleRestoreColumn(column.id)}>
-                                                            <ArchiveRestore className="mr-2 h-4 w-4" />
-                                                            Restore
-                                                        </Button>
-                                                        <Button variant="destructive" size="sm" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}>
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete Permanently
-                                                        </Button>
-                                                    </div>
-                                                </CardHeader>
-                                            </Card>
-                                        ))
-                                    ) : (
-                                        <div className="text-center text-muted-foreground py-10">
-                                            <Archive className="mx-auto h-12 w-12" />
-                                            <p className="mt-4 font-semibold">No archived lists.</p>
-                                            <p>You can archive lists from the board view.</p>
                                         </div>
-                                    )}
-                                 </div>
-                             )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                ))}
-            </Tabs>
+                                    )})}
+                                </div>
+                            </div>
+                         ) : ( // Archived View
+                             <div className="space-y-4">
+                                {archivedColumns.length > 0 ? (
+                                    archivedColumns.map(column => (
+                                        <Card key={column.id} className="bg-muted/50">
+                                            <CardHeader className="flex flex-row items-center justify-between pb-4">
+                                                <div>
+                                                    <CardTitle className="text-lg">{column.title}</CardTitle>
+                                                    <CardDescription>
+                                                        {tasks.filter(t => t.columnId === column.id).length} tasks in this list.
+                                                    </CardDescription>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => handleRestoreColumn(column.id)}>
+                                                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                        Restore
+                                                    </Button>
+                                                    <Button variant="destructive" size="sm" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}>
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete Permanently
+                                                    </Button>
+                                                </div>
+                                            </CardHeader>
+                                        </Card>
+                                    ))
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10">
+                                        <Archive className="mx-auto h-12 w-12" />
+                                        <p className="mt-4 font-semibold">No archived lists.</p>
+                                        <p>You can archive lists from the board view.</p>
+                                    </div>
+                                )}
+                             </div>
+                         )}
+                    </CardContent>
+                </Card>
+            )}
 
 
             <Dialog open={isTaskDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseTaskDialog()}>

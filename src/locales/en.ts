@@ -125,7 +125,7 @@ export const en = {
     toast_appearance_saved_desc: 'Your appearance settings have been updated.',
     tabs: {
       appearance: 'Appearance',
-      language: 'Language',
+      language: 'Language & Region',
       mail: 'Mail Server',
       ad: 'Active Directory',
       sms: 'SMS Panel',
@@ -160,6 +160,12 @@ export const en = {
         title: 'Language',
         description: 'Set the display language for the application UI.',
         select_label: 'Application Language'
+    },
+    calendar: {
+        title: 'Calendar System',
+        description: 'Choose the default calendar system for displaying dates.',
+        gregorian: 'Gregorian',
+        persian: 'Persian (Shamsi)',
     },
     mail: {
       title: 'Mail Server (SMTP)',

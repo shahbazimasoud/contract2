@@ -49,6 +49,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { LanguageProvider, useLanguage } from "@/context/language-context"
+import { CalendarProvider } from "@/context/calendar-context"
 
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
@@ -173,6 +174,7 @@ function DashboardLayoutComponent({
       fontColor: '#000000',
       customFontEn: null,
       customFontFa: null,
+      calendarSystem: 'gregorian',
   });
   const [user, setUser] = React.useState<User | null>(null);
   const [isClient, setIsClient] = React.useState(false);
@@ -372,11 +374,13 @@ export default function DashboardLayout({
 }) {
   return (
     <LanguageProvider>
-      <DashboardContent>
-        <DashboardLayoutComponent>
-          {children}
-        </DashboardLayoutComponent>
-      </DashboardContent>
+        <CalendarProvider>
+            <DashboardContent>
+                <DashboardLayoutComponent>
+                {children}
+                </DashboardLayoutComponent>
+            </DashboardContent>
+        </CalendarProvider>
     </LanguageProvider>
   )
 }

@@ -6,11 +6,10 @@ import { PlusCircle, MoreHorizontal, FileText, Calendar as CalendarIcon, X, Pape
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, formatDistanceToNow, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday } from "date-fns"
+import { format as formatDate, formatDistanceToNow, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday } from "date-fns"
 import DatePicker, { DateObject } from "react-multi-date-picker";
 import persian from "react-date-object/calendars/persian"
-import PersianCalendar from "react-date-object/calendars/persian"
-import { format as formatPersian, differenceInDays } from "date-fns-jalali";
+import gregorian from "react-date-object/calendars/gregorian"
 import { useRouter } from "next/navigation";
 
 
@@ -89,6 +88,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useLanguage } from '@/context/language-context';
+import { useCalendar } from '@/context/calendar-context';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -141,6 +141,7 @@ const commentSchema = z.object({
 
 export default function ContractsPage() {
   const { t } = useLanguage();
+  const { calendar, locale, format, formatDistance, differenceInDays } = useCalendar();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const router = useRouter();
 
@@ -205,15 +206,12 @@ export default function ContractsPage() {
     const defaultUnit = currentUser.role === 'admin' ? currentUser.unit : "";
 
     if (editingContract) {
-      const [sy, sm, sd] = editingContract.startDate.split('-').map(Number);
-      const [ey, em, ed] = editingContract.endDate.split('-').map(Number);
-
       form.reset({
         contractorName: editingContract.contractorName,
         type: editingContract.type,
         description: editingContract.description,
-        startDate: new DateObject({ year: sy, month: sm, day: sd, calendar: persian }),
-        endDate: new DateObject({ year: ey, month: em, day: ed, calendar: persian }),
+        startDate: new DateObject({ date: editingContract.startDate, calendar: calendar, locale: locale }),
+        endDate: new DateObject({ date: editingContract.endDate, calendar: calendar, locale: locale }),
         renewal: editingContract.renewal,
         status: editingContract.status,
         unit: editingContract.unit,
@@ -237,7 +235,7 @@ export default function ContractsPage() {
         attachments: [],
       });
     }
-  }, [editingContract, form, currentUser]);
+  }, [editingContract, form, currentUser, calendar, locale]);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -350,6 +348,9 @@ export default function ContractsPage() {
   const onSubmit = (values: z.infer<typeof contractSchema>) => {
     if(!currentUser) return;
     
+    const startDate = (values.startDate as DateObject).toDate();
+    const endDate = (values.endDate as DateObject).toDate();
+    
     if (editingContract) {
        // Create a version snapshot before updating
        const currentVersion: ContractVersion = {
@@ -374,8 +375,8 @@ export default function ContractsPage() {
       const updatedContract: Contract = {
         ...editingContract,
         ...values,
-        startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
-        endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         reminders: values.reminders.map(r => r.days),
         reminderEmails: values.reminderEmails.map(e => e.email),
         reminderPhones: values.reminderPhones ? values.reminderPhones.map(p => p.phone).filter(Boolean) : [],
@@ -396,8 +397,8 @@ export default function ContractsPage() {
         description: values.description,
         renewal: values.renewal,
         unit: values.unit,
-        startDate: format(new Date(values.startDate.valueOf()), "yyyy-MM-dd"),
-        endDate: format(new Date(values.endDate.valueOf()), "yyyy-MM-dd"),
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
         status: values.status,
         attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
         reminders: values.reminders.map(r => r.days),
@@ -502,10 +503,10 @@ export default function ContractsPage() {
     });
   }
 
-  const getDaysLeft = (endDate: string) => {
+  const getDaysLeft = (endDateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
+    const end = new Date(endDateStr);
     return differenceInDays(end, today);
   };
 
@@ -523,12 +524,12 @@ export default function ContractsPage() {
             date: null,
             key: `placeholder-${i}`
         }));
-        return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
+        return [...placeholders, ...days.map(d => ({date:d, key: formatDate(d, 'yyyy-MM-dd')}))];
     }, [currentMonth]);
 
     const contractsByDate = useMemo(() => {
         return filteredContracts.reduce((acc, contract) => {
-            const endDate = format(new Date(contract.endDate), 'yyyy-MM-dd');
+            const endDate = formatDate(new Date(contract.endDate), 'yyyy-MM-dd');
             if (!acc[endDate]) {
                 acc[endDate] = [];
             }
@@ -608,8 +609,9 @@ export default function ContractsPage() {
                                   <DatePicker
                                       value={field.value}
                                       onChange={field.onChange}
-                                      calendar={persian}
-                                      format="YYYY/MM/DD"
+                                      calendar={calendar}
+                                      locale={locale}
+                                      calendarPosition="bottom-right"
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -632,8 +634,9 @@ export default function ContractsPage() {
                                   <DatePicker
                                       value={field.value}
                                       onChange={field.onChange}
-                                      calendar={persian}
-                                      format="YYYY/MM/DD"
+                                      calendar={calendar}
+                                      locale={locale}
+                                      calendarPosition="bottom-right"
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -973,11 +976,11 @@ export default function ContractsPage() {
                                         </div>
                                          <div className="space-y-1">
                                             <p className="font-medium text-muted-foreground">{t('contracts.details.start_date')}</p>
-                                            <p>{formatPersian(new Date(selectedContractForDetails.startDate), 'yyyy/MM/dd')}</p>
+                                            <p>{format(new Date(selectedContractForDetails.startDate), 'yyyy/MM/dd')}</p>
                                         </div>
                                         <div className="space-y-1">
                                             <p className="font-medium text-muted-foreground">{t('contracts.details.end_date')}</p>
-                                            <p>{formatPersian(new Date(selectedContractForDetails.endDate), 'yyyy/MM/dd')}</p>
+                                            <p>{format(new Date(selectedContractForDetails.endDate), 'yyyy/MM/dd')}</p>
                                         </div>
                                          <div className="space-y-1">
                                             <p className="font-medium text-muted-foreground">{t('contracts.details.unit')}</p>
@@ -1043,7 +1046,7 @@ export default function ContractsPage() {
                                                 <div className="flex items-center justify-between">
                                                     <p className="font-semibold text-sm">{comment.author}</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                        {formatDistance(new Date(comment.createdAt))}
                                                     </p>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
@@ -1140,11 +1143,11 @@ export default function ContractsPage() {
                             </div>
                              <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.start_date')}</p>
-                                <p>{formatPersian(new Date(selectedVersion.startDate), 'yyyy/MM/dd')}</p>
+                                <p>{format(new Date(selectedVersion.startDate), 'yyyy/MM/dd')}</p>
                             </div>
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.end_date')}</p>
-                                <p>{formatPersian(new Date(selectedVersion.endDate), 'yyyy/MM/dd')}</p>
+                                <p>{format(new Date(selectedVersion.endDate), 'yyyy/MM/dd')}</p>
                             </div>
                              <div className="space-y-1">
                                 <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.unit')}</p>
@@ -1335,7 +1338,7 @@ export default function ContractsPage() {
                                         {t(`contracts.status_types.${contract.status}`)}
                                     </Badge>
                                 </TableCell>
-                                <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
+                                <TableCell>{format(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
                                 <TableCell className={cn("font-semibold", daysLeftColor)}>
                                     {daysLeftText}
                                 </TableCell>
@@ -1459,7 +1462,7 @@ export default function ContractsPage() {
                     <div className="flex items-center justify-between p-4">
                         <div className="flex items-center gap-2">
                             <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
-                            <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                            <h2 className="text-lg font-semibold w-36 text-center">{formatDate(currentMonth, 'MMMM yyyy', { locale: locale?.dateFnsLocale })}</h2>
                             <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                         </div>
                         <Button variant="outline" onClick={goToToday}>{t('contracts.calendar.today_button')}</Button>
@@ -1471,12 +1474,12 @@ export default function ContractsPage() {
                     </div>
                     <div className="grid grid-cols-7">
                         {calendarDays.map((dayObj) => {
-                            const contractsOnDay = dayObj.date ? contractsByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                            const contractsOnDay = dayObj.date ? contractsByDate[formatDate(dayObj.date, 'yyyy-MM-dd')] || [] : [];
                             return (
                             <div key={dayObj.key} className={cn("h-40 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
                                 {dayObj.date && (
                                     <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
-                                        {format(dayObj.date, 'd')}
+                                        {formatDate(dayObj.date, 'd')}
                                     </span>
                                 )}
                                 <div className="space-y-1 mt-1">
@@ -1491,7 +1494,7 @@ export default function ContractsPage() {
                                                     </TooltipTrigger>
                                                     <TooltipContent>
                                                         <p>{contract.type}</p>
-                                                        <p>{t('contracts.calendar.expires_on', { date: formatPersian(new Date(contract.endDate), 'yyyy/MM/dd') })}</p>
+                                                        <p>{t('contracts.calendar.expires_on', { date: format(new Date(contract.endDate), 'yyyy/MM/dd') })}</p>
                                                         <p className="italic text-muted-foreground">{t('contracts.calendar.click_for_details')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
@@ -1509,7 +1512,3 @@ export default function ContractsPage() {
     </div>
   );
 }
-
-    
-
-    

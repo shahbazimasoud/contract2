@@ -6,10 +6,11 @@ import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse, formatDistanceToNow, setHours, setMinutes, setSeconds, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday, nextDay, Day } from 'date-fns';
+import { format as formatDate, parse, setHours, setMinutes, setSeconds, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday, nextDay, Day } from 'date-fns';
 import * as ics from 'ics';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DateObject } from "react-multi-date-picker"
 
 
 import { Button } from '@/components/ui/button';
@@ -107,6 +108,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import Image from 'next/image';
 import { useLanguage } from '@/context/language-context';
+import { useCalendar } from '@/context/calendar-context';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -133,7 +135,7 @@ const taskSchema = z.object({
     assignees: z.array(z.string()).optional(),
     tags: z.string().optional(),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
-    dueDate: z.date({ required_error: "Date is required" }),
+    dueDate: z.any({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
     time: z.string().regex(/^([01]\d|2[0-5]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     dayOfWeek: z.number().optional(),
@@ -177,6 +179,7 @@ const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#
 
 export default function TasksPage() {
     const { t } = useLanguage();
+    const { calendar, locale, format, formatDistance } = useCalendar();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
@@ -881,6 +884,8 @@ export default function TasksPage() {
     const onTaskSubmit = (values: z.infer<typeof taskSchema>) => {
         if (!currentUser || !activeBoardId) return;
         
+        const dueDate = (values.dueDate as DateObject).toDate();
+
         if (editingTask) {
             const newLogs: ActivityLog[] = [];
             
@@ -890,8 +895,8 @@ export default function TasksPage() {
             if (editingTask.description !== values.description) {
                 newLogs.push(createLogEntry('updated_description', {}));
             }
-             if (parseISO(editingTask.dueDate).toISOString() !== values.dueDate.toISOString()) {
-                 newLogs.push(createLogEntry('updated_dueDate', { from: format(parseISO(editingTask.dueDate), 'P'), to: format(values.dueDate, 'P') }));
+             if (parseISO(editingTask.dueDate).toISOString() !== dueDate.toISOString()) {
+                 newLogs.push(createLogEntry('updated_dueDate', { from: format(parseISO(editingTask.dueDate), 'P'), to: format(dueDate, 'P') }));
             }
             if (editingTask.columnId !== values.columnId) {
                 const fromColumn = activeBoard?.columns.find(c => c.id === editingTask.columnId)?.title;
@@ -921,7 +926,7 @@ export default function TasksPage() {
                 assignees: values.assignees,
                 tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
                 priority: values.priority,
-                dueDate: values.dueDate.toISOString(),
+                dueDate: dueDate.toISOString(),
                 recurrence: {
                     type: values.recurrenceType,
                     time: values.time,
@@ -955,7 +960,7 @@ export default function TasksPage() {
                 assignees: values.assignees,
                 tags: values.tags ? values.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
                 priority: values.priority,
-                dueDate: values.dueDate.toISOString(),
+                dueDate: dueDate.toISOString(),
                 recurrence: {
                     type: values.recurrenceType,
                     time: values.time,
@@ -1191,13 +1196,13 @@ export default function TasksPage() {
             date: null,
             key: `placeholder-${i}`
         }));
-        return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
+        return [...placeholders, ...days.map(d => ({date:d, key: formatDate(d, 'yyyy-MM-dd')}))];
     }, [currentMonth]);
 
     const tasksByDate = useMemo(() => {
         const tasksForBoard = tasks.filter(task => task.boardId === activeBoardId);
         return tasksForBoard.reduce((acc, task) => {
-            const dueDate = format(parseISO(task.dueDate), 'yyyy-MM-dd');
+            const dueDate = formatDate(parseISO(task.dueDate), 'yyyy-MM-dd');
             if (!acc[dueDate]) {
                 acc[dueDate] = [];
             }
@@ -1213,7 +1218,7 @@ export default function TasksPage() {
 
     function formatRecurrence(task: Task): string {
         const { recurrence } = task;
-        const time = format(parse(recurrence.time, 'HH:mm', new Date()), 'h:mm a');
+        const time = formatDate(parse(recurrence.time, 'HH:mm', new Date()), 'h:mm a');
         switch (recurrence.type) {
             case 'none':
                 return t('tasks.recurrence_types.none');
@@ -1224,7 +1229,7 @@ export default function TasksPage() {
             case 'monthly':
                 return t('tasks.recurrence_types.monthly', { day: recurrence.dayOfMonth, time });
             case 'yearly':
-                return t('tasks.recurrence_types.yearly', { date: format(new Date(task.dueDate), 'MMM d'), time });
+                return t('tasks.recurrence_types.yearly', { date: formatDate(new Date(task.dueDate), 'MMM d'), time });
             default:
                 return 'N/A';
         }
@@ -1390,7 +1395,7 @@ export default function TasksPage() {
                         <span className="font-semibold">{log.userName}</span> {text}
                     </p>
                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                        {formatDistance(new Date(log.timestamp))}
                     </p>
                 </div>
             </div>
@@ -2581,7 +2586,7 @@ export default function TasksPage() {
                                 <div className="flex items-center justify-between p-4">
                                     <div className="flex items-center gap-2">
                                         <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4"/></Button>
-                                        <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
+                                        <h2 className="text-lg font-semibold w-36 text-center">{formatDate(currentMonth, 'MMMM yyyy', { locale: locale?.dateFnsLocale })}</h2>
                                         <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                                     </div>
                                     <Button variant="outline" onClick={goToToday}>{t('tasks.calendar.today_button')}</Button>
@@ -2593,12 +2598,12 @@ export default function TasksPage() {
                                 </div>
                                 <div className="grid grid-cols-7">
                                     {calendarDays.map((dayObj) => {
-                                        const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
+                                        const tasksOnDay = dayObj.date ? tasksByDate[formatDate(dayObj.date, 'yyyy-MM-dd')] || [] : [];
                                         return (
                                         <div key={dayObj.key} className={cn("h-48 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
                                             {dayObj.date && (
                                                 <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
-                                                    {format(dayObj.date, 'd')}
+                                                    {formatDate(dayObj.date, 'd')}
                                                 </span>
                                             )}
                                             <div className="space-y-1 mt-1">
@@ -3163,7 +3168,7 @@ export default function TasksPage() {
                                                 <div className="flex items-center justify-between">
                                                     <p className="font-semibold text-sm">{comment.author}</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                        {formatDistance(new Date(comment.createdAt))}
                                                     </p>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>

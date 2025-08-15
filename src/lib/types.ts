@@ -31,8 +31,8 @@ export type Contract = {
   contractorName: string;
   type: string;
   description: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // ISO String
+  endDate: string; // ISO String
   renewal: 'auto' | 'manual';
   status: 'active' | 'inactive';
   attachments: { name: string; url: string }[];
@@ -142,6 +142,7 @@ export type AppearanceSettings = {
     fontColor: string; // Hex color code
     customFontEn: { name: string, url: string } | null;
     customFontFa: { name: string, url: string } | null;
+    calendarSystem: 'gregorian' | 'persian';
 }
 
 export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';
@@ -161,4 +162,3 @@ export type ScheduledReport = {
     createdBy: string; // User ID
     lastSentAt?: string; // ISO String
 }
-    

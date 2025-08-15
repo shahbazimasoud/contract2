@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils"
 import type { AppearanceSettings } from "@/lib/types"
 import { useLanguage } from "@/context/language-context"
 import { Slider } from "@/components/ui/slider"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 
@@ -44,6 +46,7 @@ const defaultSettings: Omit<AppearanceSettings, 'logo' | 'loginTitle' | 'loginSu
     fontColor: '#000000',
     customFontEn: null,
     customFontFa: null,
+    calendarSystem: 'gregorian',
 };
 
 
@@ -106,6 +109,10 @@ export default function SettingsPage() {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
     };
+    
+    const handleRadioChange = (key: keyof AppearanceSettings, value: string) => {
+        setSettings(prev => ({...prev, [key]: value}));
+    }
     
     const handleColorChange = (value: string) => {
         setSettings(prev => ({ ...prev, primaryColor: value }));
@@ -356,23 +363,47 @@ export default function SettingsPage() {
         <TabsContent value="language">
             <Card>
                 <CardHeader>
-                    <CardTitle>{t('settings.language.title')}</CardTitle>
-                    <CardDescription>{t('settings.language.description')}</CardDescription>
+                    <CardTitle>{t('settings.tabs.language')}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="w-full max-w-xs">
-                        <Label htmlFor="language-select">{t('settings.language.select_label')}</Label>
-                        <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'fa')}>
-                            <SelectTrigger id="language-select" className="mt-2">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="en">English</SelectItem>
-                                <SelectItem value="fa">فارسی</SelectItem>
-                            </SelectContent>
-                        </Select>
+                <CardContent className="space-y-8">
+                     <div className="space-y-4 p-4 border rounded-lg">
+                        <h3 className="font-medium">{t('settings.language.title')}</h3>
+                        <p className="text-sm text-muted-foreground">{t('settings.language.description')}</p>
+                        <div className="w-full max-w-xs">
+                            <Label htmlFor="language-select">{t('settings.language.select_label')}</Label>
+                            <Select value={language} onValueChange={(value) => setLanguage(value as 'en' | 'fa')}>
+                                <SelectTrigger id="language-select" className="mt-2">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="en">English</SelectItem>
+                                    <SelectItem value="fa">فارسی</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 p-4 border rounded-lg">
+                        <h3 className="font-medium">{t('settings.calendar.title')}</h3>
+                        <p className="text-sm text-muted-foreground">{t('settings.calendar.description')}</p>
+                        <RadioGroup
+                            value={settings.calendarSystem}
+                            onValueChange={(value) => handleRadioChange('calendarSystem', value)}
+                        >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="gregorian" id="gregorian" />
+                                <Label htmlFor="gregorian">{t('settings.calendar.gregorian')}</Label>
+                            </div>
+                             <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="persian" id="persian" />
+                                <Label htmlFor="persian">{t('settings.calendar.persian')}</Label>
+                            </div>
+                        </RadioGroup>
                     </div>
                 </CardContent>
+                 <CardFooter>
+                    <Button onClick={handleAppearanceSave}>{t('settings.save_changes_button')}</Button>
+                 </CardFooter>
             </Card>
         </TabsContent>
 
@@ -505,4 +536,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-    

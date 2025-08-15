@@ -125,7 +125,7 @@ export const fa = {
     toast_appearance_saved_desc: 'تنظیمات ظاهری شما به‌روزرسانی شد.',
     tabs: {
       appearance: 'ظاهر',
-      language: 'زبان',
+      language: 'زبان و منطقه',
       mail: 'سرور ایمیل',
       ad: 'Active Directory',
       sms: 'پنل پیامک',
@@ -160,6 +160,12 @@ export const fa = {
         title: 'زبان',
         description: 'زبان نمایش رابط کاربری برنامه را تنظیم کنید.',
         select_label: 'زبان برنامه'
+    },
+    calendar: {
+        title: 'سیستم تقویم',
+        description: 'سیستم تقویم پیش‌فرض برای نمایش تاریخ‌ها را انتخاب کنید.',
+        gregorian: 'میلادی',
+        persian: 'شمسی (جلالی)',
     },
     mail: {
       title: 'سرور ایمیل (SMTP)',

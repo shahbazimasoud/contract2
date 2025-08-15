@@ -11,6 +11,46 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('/fonts/Roboto-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  src: url('/fonts/OpenSans-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lato';
+  src: url('/fonts/Lato-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Estedad';
+  src: url('/fonts/Estedad-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: 0 0% 96.1%;
@@ -49,6 +89,11 @@
     --sidebar-accent-foreground: 240 10% 3.9%;
     --sidebar-border: 0 0% 89.8%;
     --sidebar-ring: var(--ring-hsl);
+
+    --font-family-en: 'Inter', sans-serif;
+    --font-family-fa: 'Vazirmatn', sans-serif;
+    --font-size: 100%;
+    --font-color: hsl(240 10% 3.9%);
   }
  
   .dark {
@@ -86,6 +131,8 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: var(--ring-hsl);
+
+    --font-color: hsl(0 0% 98%);
   }
 }
  
@@ -93,12 +140,16 @@
   * {
     @apply border-border;
   }
+  html {
+    font-size: var(--font-size);
+  }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family-en);
+    color: var(--font-color);
   }
   body.font-vazir {
-    font-family: 'Vazirmatn', sans-serif;
+    font-family: var(--font-family-fa);
   }
 }
 

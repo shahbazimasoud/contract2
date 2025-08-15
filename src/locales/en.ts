@@ -148,6 +148,14 @@ export const en = {
       primary_color_label: 'Primary Color',
       primary_color_desc: 'Sets the main color for buttons, links, and highlights across the app.',
     },
+    font: {
+        title: 'Font Settings',
+        description: 'Customize the typography for the application.',
+        en_font_label: 'English Font',
+        fa_font_label: 'Persian Font',
+        size_label: 'Font Size',
+        color_label: 'Font Color',
+    },
     language: {
         title: 'Language',
         description: 'Set the display language for the application UI.',

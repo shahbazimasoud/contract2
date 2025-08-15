@@ -136,6 +136,10 @@ export type AppearanceSettings = {
     loginSubtitle: string;
     logo: string | null;
     primaryColor: string; // HSL value string e.g., "231 48% 48%"
+    fontFamilyEn: string;
+    fontFamilyFa: string;
+    fontSize: number;
+    fontColor: string; // Hex color code
 }
 
 export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';

@@ -61,6 +61,25 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     setIsClient(true);
+    
+    // Apply global appearance settings from localStorage
+    const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
+    if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+         if (settings.fontFamilyEn) {
+            document.documentElement.style.setProperty('--font-family-en', settings.fontFamilyEn);
+        }
+        if (settings.fontFamilyFa) {
+            document.documentElement.style.setProperty('--font-family-fa', settings.fontFamilyFa);
+        }
+        if (settings.fontSize) {
+            document.documentElement.style.setProperty('--font-size', `${settings.fontSize}%`);
+        }
+        if (settings.fontColor) {
+            document.documentElement.style.setProperty('--font-color', settings.fontColor);
+        }
+    }
+
   }, []);
 
 
@@ -121,7 +140,11 @@ function DashboardLayoutComponent({
       loginTitle: '',
       loginSubtitle: '',
       logo: null,
-      primaryColor: ''
+      primaryColor: '',
+      fontFamilyEn: 'Inter',
+      fontFamilyFa: 'Vazirmatn',
+      fontSize: 100,
+      fontColor: '#000000',
   });
   const [user, setUser] = React.useState<User | null>(null);
   const [isClient, setIsClient] = React.useState(false);

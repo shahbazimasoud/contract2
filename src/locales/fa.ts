@@ -148,6 +148,14 @@ export const fa = {
       primary_color_label: 'رنگ اصلی',
       primary_color_desc: 'رنگ اصلی برای دکمه‌ها، لینک‌ها و هایلایت‌ها را در سراسر برنامه تنظیم می‌کند.',
     },
+    font: {
+        title: 'تنظیمات فونت',
+        description: 'تایپوگرافی برنامه را سفارشی کنید.',
+        en_font_label: 'فونت انگلیسی',
+        fa_font_label: 'فونت فارسی',
+        size_label: 'اندازه فونت',
+        color_label: 'رنگ فونت',
+    },
     language: {
         title: 'زبان',
         description: 'زبان نمایش رابط کاربری برنامه را تنظیم کنید.',

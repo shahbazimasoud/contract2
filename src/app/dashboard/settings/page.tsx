@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { AppearanceSettings } from "@/lib/types"
 import { useLanguage } from "@/context/language-context"
+import { Slider } from "@/components/ui/slider"
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const defaultColors = [
@@ -42,6 +43,19 @@ const defaultColors = [
     { name: 'Orange', value: '25 95% 53%' },
     { name: 'Rose', value: '346 89% 60%' },
 ];
+
+const defaultFonts = {
+    en: [
+        { name: "Inter", value: "Inter, sans-serif" },
+        { name: "Roboto", value: "Roboto, sans-serif" },
+        { name: "Open Sans", value: "'Open Sans', sans-serif" },
+        { name: "Lato", value: "Lato, sans-serif" },
+    ],
+    fa: [
+        { name: "Vazirmatn", value: "Vazirmatn, sans-serif" },
+        { name: "Estedad", value: "Estedad, sans-serif" },
+    ],
+};
 
 
 export default function SettingsPage() {
@@ -53,7 +67,11 @@ export default function SettingsPage() {
         loginTitle: "Welcome to ContractWise",
         loginSubtitle: "Your integrated solution for managing contracts efficiently and effectively.",
         logo: null,
-        primaryColor: "231 48% 48%", // Default to Indigo
+        primaryColor: "231 48% 48%",
+        fontFamilyEn: 'Inter, sans-serif',
+        fontFamilyFa: 'Vazirmatn, sans-serif',
+        fontSize: 100,
+        fontColor: '#000000'
     });
     const [logoFile, setLogoFile] = React.useState<File | null>(null);
     const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
@@ -62,7 +80,7 @@ export default function SettingsPage() {
         const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
         if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
-            setSettings(parsedSettings);
+            setSettings(prev => ({ ...prev, ...parsedSettings }));
             if (parsedSettings.logo) {
                 setLogoPreview(parsedSettings.logo);
             }
@@ -105,7 +123,6 @@ export default function SettingsPage() {
                 title: t('settings.toast_settings_saved_title'),
                 description: t('settings.toast_appearance_saved_desc'),
             });
-             // Force a reload of the page to update all components
             window.location.reload();
         }
 
@@ -195,6 +212,56 @@ export default function SettingsPage() {
                     </div>
                 </div>
               </div>
+              
+              {/* Font Settings */}
+                <div className="space-y-6 p-6 border rounded-lg">
+                    <h3 className="text-lg font-medium">{t('settings.font.title')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('settings.font.description')}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-2">
+                            <Label htmlFor="font-en">{t('settings.font.en_font_label')}</Label>
+                            <Select value={settings.fontFamilyEn} onValueChange={(value) => setSettings(p => ({...p, fontFamilyEn: value}))}>
+                                <SelectTrigger id="font-en"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {defaultFonts.en.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="font-fa">{t('settings.font.fa_font_label')}</Label>
+                            <Select value={settings.fontFamilyFa} onValueChange={(value) => setSettings(p => ({...p, fontFamilyFa: value}))}>
+                                <SelectTrigger id="font-fa"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {defaultFonts.fa.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="font-size">{t('settings.font.size_label')} ({settings.fontSize}%)</Label>
+                        <Slider
+                            id="font-size"
+                            min={80}
+                            max={120}
+                            step={5}
+                            value={[settings.fontSize]}
+                            onValueChange={(value) => setSettings(p => ({...p, fontSize: value[0]}))}
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="font-color">{t('settings.font.color_label')}</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="font-color"
+                                type="color"
+                                value={settings.fontColor}
+                                onChange={(e) => setSettings(p => ({...p, fontColor: e.target.value}))}
+                                className="w-16 h-10 p-1"
+                            />
+                            <span className="text-sm text-muted-foreground">{settings.fontColor}</span>
+                        </div>
+                    </div>
+                </div>
 
             </CardContent>
             <CardFooter>
@@ -355,5 +422,4 @@ export default function SettingsPage() {
     </div>
   )
 }
-
     

@@ -9,9 +9,9 @@ import { LanguageProvider } from '@/context/language-context';
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -24,7 +24,9 @@ export default function RootLayout({
         enableSystem
         disableTransitionOnChange
         >
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
           <Toaster />
         </ThemeProvider>
       </body>

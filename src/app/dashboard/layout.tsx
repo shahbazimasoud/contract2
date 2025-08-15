@@ -48,7 +48,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { LanguageProvider, useLanguage } from "@/context/language-context"
+import { useLanguage } from "@/context/language-context"
 import { CalendarProvider } from "@/context/calendar-context"
 
 
@@ -68,9 +68,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     if (savedSettings) {
         const settings: AppearanceSettings = JSON.parse(savedSettings);
 
-        const applyCustomFont = (fontData: { name: string, url: string } | null, fontVarName: string) => {
-            if (fontData) {
+        const applyCustomFont = (fontData: { name: string, url: string } | null) => {
+            if (fontData && !document.getElementById(`font-${fontData.name}`)) {
                 const styleEl = document.createElement('style');
+                styleEl.id = `font-${fontData.name}`;
                 styleEl.innerHTML = `
                     @font-face {
                         font-family: '${fontData.name}';
@@ -78,27 +79,22 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                     }
                 `;
                 document.head.appendChild(styleEl);
-                 document.documentElement.style.setProperty(fontVarName, `"${fontData.name}"`);
-            } else {
-                 document.documentElement.style.removeProperty(fontVarName);
             }
         };
+        
+        if (settings.customFontEn) {
+            applyCustomFont(settings.customFontEn);
+        }
+        if (settings.customFontFa) {
+            applyCustomFont(settings.customFontFa);
+        }
 
         if (settings.fontFamilyEn) {
             document.documentElement.style.setProperty('--font-family-en', settings.fontFamilyEn);
         }
-         if (settings.customFontEn) {
-            applyCustomFont(settings.customFontEn, '--font-family-en');
-        }
-
         if (settings.fontFamilyFa) {
             document.documentElement.style.setProperty('--font-family-fa', settings.fontFamilyFa);
         }
-         if (settings.customFontFa) {
-            applyCustomFont(settings.customFontFa, '--font-family-fa');
-        }
-
-
         if (settings.fontSize) {
             document.documentElement.style.setProperty('--font-size', `${settings.fontSize}%`);
         }
@@ -112,10 +108,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (isClient) {
-      document.documentElement.lang = language;
       if (language === 'fa') {
+        document.body.style.fontFamily = 'var(--font-family-fa)';
         document.body.classList.add('font-vazir');
       } else {
+        document.body.style.fontFamily = 'var(--font-family-en)';
         document.body.classList.remove('font-vazir');
       }
     }
@@ -373,14 +370,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <LanguageProvider>
-        <CalendarProvider>
-            <DashboardContent>
-                <DashboardLayoutComponent>
-                {children}
-                </DashboardLayoutComponent>
-            </DashboardContent>
-        </CalendarProvider>
-    </LanguageProvider>
+    <CalendarProvider>
+        <DashboardContent>
+            <DashboardLayoutComponent>
+            {children}
+            </DashboardLayoutComponent>
+        </DashboardContent>
+    </CalendarProvider>
   )
 }

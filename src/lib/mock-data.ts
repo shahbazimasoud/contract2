@@ -1,6 +1,6 @@
 
 
-import type { Contract, User, Unit, Task, TaskBoard, BoardColumn } from './types';
+import type { Contract, User, Unit, Task, TaskBoard, BoardColumn, ScheduledReport } from './types';
 
 export const avatars = [
     {
@@ -278,6 +278,24 @@ export const taskBoards: TaskBoard[] = [
         columns: [
             { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004', isArchived: false },
         ]
+    },
+];
+
+export const scheduledReports: ScheduledReport[] = [
+    {
+        id: 'SR-001',
+        boardId: 'TB-001',
+        name: 'Weekly Org Task Summary',
+        type: 'weekly-board-summary',
+        schedule: {
+            dayOfWeek: 1, // Monday
+            time: '09:00',
+        },
+        recipients: ['super@contractwise.com', 'john.doe@contractwise.com'],
+        subject: 'ContractWise: Weekly Summary for کارهای سازمانی',
+        body: 'Here is the weekly status summary for the "کارهای سازمانی" board.',
+        createdBy: 'U-002',
+        lastSentAt: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString(),
     },
 ];
 

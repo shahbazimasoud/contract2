@@ -125,10 +125,13 @@ export type AppearanceSettings = {
     primaryColor: string; // HSL value string e.g., "231 48% 48%"
 }
 
+export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';
+
 export type ScheduledReport = {
     id: string;
     boardId: string;
-    type: 'weekly-summary';
+    name: string;
+    type: ScheduledReportType;
     schedule: {
         dayOfWeek: number;
         time: string; // HH:mm

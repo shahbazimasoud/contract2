@@ -460,7 +460,7 @@ export default function TasksPage() {
                 title: "",
                 description: "",
                 unit: defaultUnit,
-                columnId: columnId || activeColumns?.[0]?.id || "",
+                columnId: activeColumns?.[0]?.id || "",
                 assignees: [],
                 tags: "",
                 priority: 'medium',
@@ -1870,21 +1870,21 @@ export default function TasksPage() {
                         </div>
                     </div>
                      <div className="flex items-center gap-2">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="outline" size="icon">
-                                                <Mail className="h-4 w-4" />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Email Reports</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </DropdownMenuTrigger>
+                        <DropdownMenu>
+                            <TooltipProvider>
+                                <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="icon">
+                                        <Mail className="h-4 w-4" />
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Email Reports</p>
+                                </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
                                 <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>Weekly - Board Summary</DropdownMenuItem>
@@ -2947,3 +2947,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

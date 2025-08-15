@@ -249,6 +249,7 @@ export default function TasksPage() {
             assignees: [],
             tags: "",
             priority: 'medium',
+            dueDate: new Date(),
             recurrenceType: "none",
             time: "09:00",
             reminders: [{ days: 1 }],
@@ -889,7 +890,7 @@ export default function TasksPage() {
             if (editingTask.description !== values.description) {
                 newLogs.push(createLogEntry('updated_description', {}));
             }
-            if (parseISO(editingTask.dueDate).getTime() !== values.dueDate.getTime()) {
+             if (parseISO(editingTask.dueDate).toISOString() !== values.dueDate.toISOString()) {
                  newLogs.push(createLogEntry('updated_dueDate', { from: format(parseISO(editingTask.dueDate), 'P'), to: format(values.dueDate, 'P') }));
             }
             if (editingTask.columnId !== values.columnId) {
@@ -1332,10 +1333,6 @@ export default function TasksPage() {
         handleDragEnd(e as any);
     };
 
-    if (!currentUser) {
-      return null;
-    }
-
     const renderTaskCard = (task: Task) => {
       const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
       const checklistItems = task.checklist || [];
@@ -1538,6 +1535,10 @@ export default function TasksPage() {
                 </div>
             </div>
         )
+    }
+
+    if (!currentUser) {
+      return null;
     }
 
     return (
@@ -2495,7 +2496,7 @@ export default function TasksPage() {
                                                 )}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions === 'viewer'}>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={userPermissions !== 'viewer'}>
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
@@ -2927,7 +2928,7 @@ export default function TasksPage() {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>{t('tasks.dialog.day_of_month_label')}</FormLabel>
-                                                <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} placeholder="e.g., 15"/></FormControl>
+                                                <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 15"/></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
@@ -3111,7 +3112,7 @@ export default function TasksPage() {
                     <SheetHeader>
                         <SheetTitle>{t('tasks.details.title', { name: selectedTaskForDetails?.title })}</SheetTitle>
                         <SheetDescription>
-                            {t('tasks.details.task_id', { id: selectedTaskForDetails?.id })}
+                            {t('tasks.details.task_id', { name: selectedTaskForDetails?.id })}
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
@@ -3244,4 +3245,3 @@ export default function TasksPage() {
     );
 }
 
-    

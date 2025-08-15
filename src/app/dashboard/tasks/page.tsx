@@ -1329,6 +1329,10 @@ export default function TasksPage() {
         handleDragEnd(e as any);
     };
     
+    if (!currentUser) {
+      return null;
+    }
+    
     const renderLog = (log: ActivityLog) => {
         let text;
         switch (log.action) {
@@ -1531,10 +1535,6 @@ export default function TasksPage() {
             )}
         </div>
       );
-    }
-    
-    if (!currentUser) {
-      return null;
     }
     
     return (
@@ -3116,7 +3116,8 @@ export default function TasksPage() {
                             <TabsTrigger value="checklist">{t('tasks.details.tabs.checklist')}</TabsTrigger>
                             <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
                             <TabsTrigger value="attachments">{t('tasks.details.tabs.attachments')}</TabsTrigger>
-                             <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsList>
+                             <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
+                         </TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
                                 {(selectedTaskForDetails?.checklist || []).length > 0 ? (
@@ -3240,4 +3241,3 @@ export default function TasksPage() {
         </div>
     );
 }
-

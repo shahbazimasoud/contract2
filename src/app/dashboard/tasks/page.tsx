@@ -139,6 +139,7 @@ const taskSchema = z.object({
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
     checklist: z.array(checklistItemSchema).optional(),
     attachments: z.any().optional(),
+    isCompleted: z.boolean(),
 });
 
 const commentSchema = z.object({
@@ -245,6 +246,7 @@ export default function TasksPage() {
             reminders: [{ days: 1 }],
             checklist: [],
             attachments: [],
+            isCompleted: false,
         },
     });
 
@@ -376,6 +378,7 @@ export default function TasksPage() {
                 reminders: editingTask.reminders.map(days => ({ days })),
                 checklist: editingTask.checklist || [],
                 attachments: [],
+                isCompleted: editingTask.isCompleted,
             });
              setAttachedFiles([]);
         } else {
@@ -393,6 +396,7 @@ export default function TasksPage() {
                 reminders: [{ days: 1 }],
                 checklist: [],
                 attachments: [],
+                isCompleted: false,
             });
         }
     }, [editingTask, form, currentUser, activeBoard]);
@@ -475,6 +479,7 @@ export default function TasksPage() {
                 reminders: [{ days: 1 }],
                 checklist: [],
                 attachments: [],
+                isCompleted: false,
             });
         }
         setIsTaskDialogOpen(true);
@@ -703,6 +708,7 @@ export default function TasksPage() {
         ...task,
         id: `T-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         columnId: newColumnId,
+        isCompleted: false, // Reset completion status on copy
       }));
 
       const updatedBoard = {
@@ -810,21 +816,12 @@ export default function TasksPage() {
     };
 
 
-    const handleToggleStatusInList = (task: Task) => {
-        if (!activeBoard) return;
-        const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
-        if (activeColumns.length < 2) return;
-    
-        const firstColumnId = activeColumns[0].id;
-        const lastColumnId = activeColumns[activeColumns.length - 1].id;
-    
-        const newColumnId = task.columnId === lastColumnId ? firstColumnId : lastColumnId;
-    
-        const updatedTask = { ...task, columnId: newColumnId };
+    const handleToggleStatus = (task: Task) => {
+        const updatedTask = { ...task, isCompleted: !task.isCompleted };
         setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
         toast({
-            title: "Task Status Updated",
-            description: `Task "${task.title}" moved to "${activeBoard.columns.find(c => c.id === newColumnId)?.title}".`,
+            title: `Task ${updatedTask.isCompleted ? 'Completed' : 'Marked as Incomplete'}`,
+            description: `Task "${task.title}" status has been updated.`,
         });
     };
     
@@ -878,6 +875,7 @@ export default function TasksPage() {
             reminders: values.reminders.map(r => r.days),
             checklist: values.checklist || [],
             isArchived: false,
+            isCompleted: values.isCompleted,
         };
         
         if (editingTask) {
@@ -1199,8 +1197,7 @@ export default function TasksPage() {
       const completedItems = checklistItems.filter(item => item.completed).length;
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
       
-      const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
-      const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1]?.id : false;
+      const { isCompleted } = task;
 
       return (
         <Card 
@@ -1217,7 +1214,7 @@ export default function TasksPage() {
                     id={`card-check-${task.id}`}
                     checked={isCompleted}
                     onCheckedChange={(checked) => {
-                        handleToggleStatusInList(task)
+                        handleToggleStatus(task)
                     }}
                     onClick={(e) => e.stopPropagation()}
                     className="mt-1"
@@ -1371,7 +1368,7 @@ export default function TasksPage() {
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                                 <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false);setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={(e) => {e.stopPropagation(); setIsBoardSwitcherOpen(false);setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                      )}
@@ -1878,7 +1875,7 @@ export default function TasksPage() {
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={!activeBoard || userPermissions !== 'owner'}>
+                                    <Button variant="outline" size="icon" onClick={() => { if (activeBoard) handleOpenShareDialog(activeBoard); }} disabled={userPermissions !== 'owner'}>
                                         <Share2 className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
@@ -2063,8 +2060,7 @@ export default function TasksPage() {
                                                 const assignedUsers = mockUsers.filter(u => task.assignees?.includes(u.id));
                                                 const checklistItems = task.checklist || [];
                                                 const completedItems = checklistItems.filter(item => item.completed).length;
-                                                const activeColumns = activeBoard?.columns.filter(c => !c.isArchived) || [];
-                                                const isCompleted = activeColumns.length > 0 ? task.columnId === activeColumns[activeColumns.length - 1].id : false;
+                                                const { isCompleted } = task;
 
                                                 return (
                                                 <TableRow key={task.id} data-state={selectedTaskIds.includes(task.id) && "selected"} className={cn(isCompleted && 'text-muted-foreground line-through')}>
@@ -2078,7 +2074,7 @@ export default function TasksPage() {
                                                     <TableCell className="px-2 text-center border-r">
                                                         <Checkbox
                                                             checked={isCompleted}
-                                                            onCheckedChange={() => handleToggleStatusInList(task)}
+                                                            onCheckedChange={() => handleToggleStatus(task)}
                                                             aria-label={`Mark task "${task.title}" as completed/pending`}
                                                             className="rounded-full h-5 w-5 mx-auto"
                                                             disabled={userPermissions === 'viewer'}
@@ -2964,7 +2960,6 @@ export default function TasksPage() {
         </div>
     );
 }
-
 
 
     

@@ -92,6 +92,7 @@ export type Task = {
     checklist?: ChecklistItem[];
     attachments?: { name: string; url: string }[];
     isArchived: boolean;
+    isCompleted: boolean;
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';

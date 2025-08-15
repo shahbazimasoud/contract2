@@ -329,6 +329,7 @@ export const tasks: Task[] = [
             { id: 'CL-003', text: 'Review backup logs for any errors', completed: false },
         ],
         isArchived: false,
+        isCompleted: false,
     },
     {
         id: 'T-002',
@@ -352,6 +353,7 @@ export const tasks: Task[] = [
         comments: [],
         checklist: [],
         isArchived: false,
+        isCompleted: false,
     },
     {
         id: 'T-003',
@@ -379,6 +381,7 @@ export const tasks: Task[] = [
             { id: 'CL-007', text: 'Prepare post-drill report', completed: false },
         ],
         isArchived: false,
+        isCompleted: false,
     },
     {
         id: 'T-004',
@@ -401,6 +404,7 @@ export const tasks: Task[] = [
         comments: [],
         checklist: [],
         isArchived: false,
+        isCompleted: true, // Example of a completed task
     },
      {
         id: 'T-005',
@@ -423,6 +427,7 @@ export const tasks: Task[] = [
         comments: [],
         checklist: [],
         isArchived: false,
+        isCompleted: false,
     },
     {
         id: 'T-006',
@@ -445,6 +450,7 @@ export const tasks: Task[] = [
         comments: [],
         checklist: [],
         isArchived: false,
+        isCompleted: false,
     },
      {
         id: 'T-007',
@@ -467,5 +473,6 @@ export const tasks: Task[] = [
         comments: [],
         checklist: [],
         isArchived: true, // This task belongs to an archived column
+        isCompleted: true,
     },
 ];

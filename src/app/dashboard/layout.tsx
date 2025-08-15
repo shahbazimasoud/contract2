@@ -48,11 +48,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useLanguage } from "@/context/language-context"
+import { LanguageProvider, useLanguage } from "@/context/language-context"
 
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
+
+// This is a new component that wraps the main content and handles language direction.
+function DashboardContent({ children }: { children: React.ReactNode }) {
+  const { language } = useLanguage();
+
+  React.useEffect(() => {
+    // We only set the lang attribute, not the dir attribute.
+    document.documentElement.lang = language;
+    document.documentElement.dir = 'ltr'; // Always LTR
+  }, [language]);
+
+  return <>{children}</>;
+}
 
 
 function CustomSidebarTrigger() {
@@ -70,17 +83,15 @@ function CustomSidebarTrigger() {
 }
 
 
-export default function DashboardLayout({
+function DashboardLayoutComponent({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: any
 }) {
   const pathname = usePathname()
   const router = useRouter();
   const isActive = (path: string) => pathname === path;
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   
   const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({
       siteName: 'ContractWise',
@@ -124,7 +135,7 @@ export default function DashboardLayout({
         <div className="flex h-screen w-full items-center justify-center">
             <div className="flex flex-col items-center gap-4">
                 <Building className="h-10 w-10 animate-pulse text-muted-foreground" />
-                <p className="text-muted-foreground">{t('loading.dashboard')}</p>
+                <p className="text-muted-foreground">Loading Dashboard...</p> 
             </div>
         </div>
     );
@@ -276,5 +287,22 @@ export default function DashboardLayout({
         <main className="p-4 lg:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <LanguageProvider>
+      <DashboardContent>
+        <DashboardLayoutComponent>
+          {children}
+        </DashboardLayoutComponent>
+      </DashboardContent>
+    </LanguageProvider>
   )
 }

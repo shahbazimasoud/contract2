@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { users as mockUsers } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import type { AppearanceSettings } from '@/lib/types';
-import { useLanguage } from '@/context/language-context';
+// Note: We are NOT importing useLanguage here, so this page remains in the default language.
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
@@ -23,7 +23,33 @@ const AUTH_USER_KEY = 'current_user';
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  // Using a static translation for the login page
+  const t = (key: string, options?: { [key: string]: string | number }) => {
+    const translations: Record<string, string> = {
+        'login.title': 'Login',
+        'login.header_desc': 'Enter your credentials to access your dashboard',
+        'login.email_label': 'Email',
+        'login.password_label': 'Password',
+        'login.forgot_password': 'Forgot your password?',
+        'login.remember_me': 'Remember me',
+        'login.signin_button': 'Sign In',
+        'login.demo_users_note': 'Use `super@contractwise.com` or `john.doe@contractwise.com`',
+        'login.toast.success_title': 'Login Successful',
+        'login.toast.success_desc': 'Welcome back, {{name}}!',
+        'login.toast.failed_title': 'Login Failed',
+        'login.toast.failed_desc': 'No user found with that email address.',
+    };
+    let translation = translations[key] || key;
+     if (options) {
+        Object.keys(options).forEach((k) => {
+            const value = options[k];
+            if (value !== undefined) {
+                translation = translation.replace(new RegExp(`{{${k}}}`, 'g'), String(value));
+            }
+        });
+    }
+    return translation;
+  };
   const [email, setEmail] = React.useState("");
 
   const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({

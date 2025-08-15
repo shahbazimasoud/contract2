@@ -4,20 +4,7 @@
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster"
-import { LanguageProvider, useLanguage } from '@/context/language-context';
-import { useEffect } from 'react';
-
-
-function AppBody({ children }: { children: React.ReactNode }) {
-  const { language } = useLanguage();
-
-  useEffect(() => {
-    document.documentElement.lang = language;
-    document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr';
-  }, [language]);
-
-  return <>{children}</>;
-}
+import { LanguageProvider } from '@/context/language-context';
 
 
 export default function RootLayout({
@@ -34,19 +21,15 @@ export default function RootLayout({
         <title>ContractWise</title>
       </head>
       <body className="font-body antialiased">
-        <LanguageProvider>
-            <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-            >
-              <AppBody>
-                {children}
-              </AppBody>
-              <Toaster />
-            </ThemeProvider>
-        </LanguageProvider>
+        <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

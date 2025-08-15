@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { users as mockUsers } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import type { AppearanceSettings } from '@/lib/types';
+import { useLanguage } from '@/context/language-context';
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 const AUTH_USER_KEY = 'current_user';
@@ -22,6 +23,7 @@ const AUTH_USER_KEY = 'current_user';
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [email, setEmail] = React.useState("");
 
   const [appearanceSettings, setAppearanceSettings] = React.useState<AppearanceSettings>({
@@ -51,9 +53,9 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (appearanceSettings.siteName) {
-      document.title = `Login | ${appearanceSettings.siteName}`;
+      document.title = `${t('login.title')} | ${appearanceSettings.siteName}`;
     }
-  }, [appearanceSettings.siteName]);
+  }, [appearanceSettings.siteName, t]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,14 +66,14 @@ export default function LoginPage() {
         // For this demo, we'll just accept any password.
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
         toast({
-            title: "Login Successful",
-            description: `Welcome back, ${user.name}!`,
+            title: t('login.toast.success_title'),
+            description: t('login.toast.success_desc', { name: user.name }),
         });
         router.push("/dashboard");
     } else {
         toast({
-            title: "Login Failed",
-            description: "No user found with that email address.",
+            title: t('login.toast.failed_title'),
+            description: t('login.toast.failed_desc'),
             variant: "destructive",
         });
     }
@@ -102,13 +104,13 @@ export default function LoginPage() {
               </div>
               <CardTitle className="text-3xl font-bold font-headline">{appearanceSettings.siteName}</CardTitle>
               <CardDescription>
-                Enter your credentials to access your dashboard
+                {t('login.header_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('login.email_label')}</Label>
                   <div className="relative">
                     <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input 
@@ -124,9 +126,9 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                     <div className="flex items-center">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password">{t('login.password_label')}</Label>
                         <Link href="#" className="ml-auto inline-block text-sm underline">
-                            Forgot your password?
+                            {t('login.forgot_password')}
                         </Link>
                     </div>
                     <div className="relative">
@@ -136,16 +138,16 @@ export default function LoginPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                     <Checkbox id="remember-me" />
-                    <Label htmlFor="remember-me" className="text-sm font-normal">Remember me</Label>
+                    <Label htmlFor="remember-me" className="text-sm font-normal">{t('login.remember_me')}</Label>
                 </div>
                 <Button type="submit" className="w-full !mt-8" size="lg">
                   <LogIn className="mr-2 h-5 w-5" />
-                  Sign In
+                  {t('login.signin_button')}
                 </Button>
               </form>
             </CardContent>
              <CardFooter className="text-center text-sm text-muted-foreground justify-center">
-                <p>Use `super@contractwise.com` or `john.doe@contractwise.com`</p>
+                <p>{t('login.demo_users_note')}</p>
              </CardFooter>
           </Card>
       </div>

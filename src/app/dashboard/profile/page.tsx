@@ -35,6 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { avatars, users as mockUsers } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { useLanguage } from '@/context/language-context';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -55,6 +56,7 @@ export default function ProfilePage() {
   const [selectedAvatar, setSelectedAvatar] = useState<string | undefined>(undefined);
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const storedUser = localStorage.getItem(AUTH_USER_KEY);
@@ -79,8 +81,8 @@ export default function ProfilePage() {
   const onPasswordSubmit = (values: z.infer<typeof changePasswordSchema>) => {
     console.log("Password change requested for:", currentUser?.email, "with new password:", values.newPassword);
     toast({
-        title: "Password Changed",
-        description: "Your password has been successfully updated.",
+        title: t('profile.toast.password_changed_title'),
+        description: t('profile.toast.password_changed_desc'),
     });
     form.reset();
   };
@@ -98,8 +100,8 @@ export default function ProfilePage() {
     localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
     
     toast({
-      title: "Avatar Updated",
-      description: "Your new avatar has been saved.",
+      title: t('profile.toast.avatar_updated_title'),
+      description: t('profile.toast.avatar_updated_desc'),
     });
     window.location.reload(); // Force reload to update header avatar
   };
@@ -112,17 +114,17 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <PageHeader>
-        <PageHeaderHeading>My Profile</PageHeaderHeading>
+        <PageHeaderHeading>{t('profile.title')}</PageHeaderHeading>
         <PageHeaderDescription>
-          View your account information and manage your settings.
+          {t('profile.description')}
         </PageHeaderDescription>
       </PageHeader>
       
       <div className="grid gap-8 md:grid-cols-1">
         <Card>
             <CardHeader>
-                <CardTitle>Account Details</CardTitle>
-                <CardDescription>Your personal, organizational, and display information.</CardDescription>
+                <CardTitle>{t('profile.account_details.title')}</CardTitle>
+                <CardDescription>{t('profile.account_details.description')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
                 <div className="grid md:grid-cols-3 gap-8">
@@ -130,34 +132,34 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-4">
                             <UserIcon className="h-5 w-5 text-muted-foreground" />
                             <div>
-                                <p className="text-sm text-muted-foreground">Name</p>
+                                <p className="text-sm text-muted-foreground">{t('profile.account_details.name_label')}</p>
                                 <p className="font-medium">{currentUser.name}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <UserIcon className="h-5 w-5 text-muted-foreground" />
                             <div>
-                                <p className="text-sm text-muted-foreground">Email</p>
+                                <p className="text-sm text-muted-foreground">{t('profile.account_details.email_label')}</p>
                                 <p className="font-medium">{currentUser.email}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <Building className="h-5 w-5 text-muted-foreground" />
                             <div>
-                                <p className="text-sm text-muted-foreground">Unit</p>
+                                <p className="text-sm text-muted-foreground">{t('profile.account_details.unit_label')}</p>
                                 <p className="font-medium">{currentUser.unit}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <KeyRound className="h-5 w-5 text-muted-foreground" />
                             <div>
-                                <p className="text-sm text-muted-foreground">Authentication</p>
+                                <p className="text-sm text-muted-foreground">{t('profile.account_details.auth_label')}</p>
                                 <p className="font-medium capitalize">{currentUser.authType}</p>
                             </div>
                         </div>
                     </div>
                     <div className="md:col-span-2">
-                        <Label>Choose Your Avatar</Label>
+                        <Label>{t('profile.account_details.avatar_label')}</Label>
                         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 mt-2">
                             {avatars.map((avatar, index) => (
                                 <button key={index} onClick={() => setSelectedAvatar(avatar.url)} className={cn(
@@ -178,14 +180,14 @@ export default function ProfilePage() {
                 </div>
             </CardContent>
             <CardFooter>
-                <Button onClick={handleAvatarSave}>Save Avatar</Button>
+                <Button onClick={handleAvatarSave}>{t('profile.account_details.save_avatar_button')}</Button>
             </CardFooter>
         </Card>
 
         <Card>
             <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>Update your login password.</CardDescription>
+                <CardTitle>{t('profile.change_password.title')}</CardTitle>
+                <CardDescription>{t('profile.change_password.description')}</CardDescription>
             </CardHeader>
             <CardContent>
                 {currentUser.authType === 'local' ? (
@@ -196,9 +198,9 @@ export default function ProfilePage() {
                                 name="currentPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Current Password</FormLabel>
+                                        <FormLabel>{t('profile.change_password.current_password_label')}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Enter your current password" {...field} />
+                                            <Input type="password" placeholder={t('profile.change_password.current_password_placeholder')} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -209,9 +211,9 @@ export default function ProfilePage() {
                                 name="newPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>New Password</FormLabel>
+                                        <FormLabel>{t('profile.change_password.new_password_label')}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Enter your new password" {...field} />
+                                            <Input type="password" placeholder={t('profile.change_password.new_password_placeholder')} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -222,23 +224,23 @@ export default function ProfilePage() {
                                 name="confirmPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Confirm New Password</FormLabel>
+                                        <FormLabel>{t('profile.change_password.confirm_password_label')}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Confirm your new password" {...field} />
+                                            <Input type="password" placeholder={t('profile.change_password.confirm_password_placeholder')} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                                <Button type="submit">Update Password</Button>
+                                <Button type="submit">{t('profile.change_password.update_button')}</Button>
                         </form>
                     </Form>
                 ) : (
                     <Alert>
                         <KeyRound className="h-4 w-4" />
-                        <AlertTitle>Active Directory Account</AlertTitle>
+                        <AlertTitle>{t('profile.change_password.ad_title')}</AlertTitle>
                         <AlertDescription>
-                            Your password is managed by Active Directory. Please contact your system administrator to change your password.
+                            {t('profile.change_password.ad_desc')}
                         </AlertDescription>
                     </Alert>
                 )}

@@ -472,24 +472,10 @@ export default function TasksPage() {
     const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
         if (!task && columnId && activeBoard) {
-             const defaultUnit = currentUser?.role === 'admin' ? currentUser.unit : "";
-             const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
-            form.reset({
-                title: "",
-                description: "",
-                unit: defaultUnit,
-                columnId: columnId || activeColumns?.[0]?.id || "",
-                assignees: [],
-                tags: "",
-                priority: 'medium',
-                dueDate: new Date(),
-                recurrenceType: 'none',
-                time: "09:00",
-                reminders: [{ days: 1 }],
-                checklist: [],
-                attachments: [],
-                isCompleted: false,
-            });
+            const defaultUnit = currentUser?.role === 'admin' ? currentUser.unit : "";
+            const activeColumns = activeBoard.columns.filter(c => !c.isArchived);
+            form.setValue('columnId', columnId || activeColumns?.[0]?.id || "");
+            form.setValue('unit', defaultUnit);
         }
         setIsTaskDialogOpen(true);
     };
@@ -565,7 +551,7 @@ export default function TasksPage() {
     const handleDeleteReport = () => {
         if (!reportToDelete) return;
         setScheduledReports(prev => prev.filter(r => r.id !== reportToDelete.id));
-        toast({ title: "Report Deleted", description: `The report "${reportToDelete.name}" has been deleted.` });
+        toast({ title: t('tasks.toast.report_deleted_title'), description: t('tasks.toast.report_deleted_desc', { name: reportToDelete.name }) });
         setReportToDelete(null);
     }
 
@@ -576,8 +562,8 @@ export default function TasksPage() {
         const updatedBoard = { ...editingBoard, ...values };
         setBoards(boards.map(b => b.id === editingBoard.id ? updatedBoard : b));
         toast({
-            title: "Board Updated",
-            description: `Board "${updatedBoard.name}" has been updated.`
+            title: t('tasks.toast.board_updated_title'),
+            description: t('tasks.toast.board_updated_desc', { name: updatedBoard.name })
         });
       } else {
          const newBoardId = `TB-${Date.now()}`;
@@ -588,16 +574,16 @@ export default function TasksPage() {
             ownerId: currentUser.id,
             sharedWith: [],
             columns: [
-                { id: `COL-${Date.now()}-1`, title: 'To Do', boardId: newBoardId, isArchived: false },
-                { id: `COL-${Date.now()}-2`, title: 'In Progress', boardId: newBoardId, isArchived: false },
-                { id: `COL-${Date.now()}-3`, title: 'Done', boardId: newBoardId, isArchived: false },
+                { id: `COL-${Date.now()}-1`, title: t('tasks.column_titles.todo'), boardId: newBoardId, isArchived: false },
+                { id: `COL-${Date.now()}-2`, title: t('tasks.column_titles.in_progress'), boardId: newBoardId, isArchived: false },
+                { id: `COL-${Date.now()}-3`, title: t('tasks.column_titles.done'), boardId: newBoardId, isArchived: false },
             ],
         };
         setBoards(prev => [...prev, newBoard]);
         setActiveBoardId(newBoard.id);
         toast({
-            title: "Board Created",
-            description: `Board "${newBoard.name}" has been created.`
+            title: t('tasks.toast.board_created_title'),
+            description: t('tasks.toast.board_created_desc', { name: newBoard.name })
         });
       }
       handleCloseBoardDialog();
@@ -618,8 +604,8 @@ export default function TasksPage() {
         }
 
         toast({
-            title: "Board Deleted",
-            description: `Board "${boardToDelete.name}" and all its tasks have been deleted.`,
+            title: t('tasks.toast.board_deleted_title'),
+            description: t('tasks.toast.board_deleted_desc', { name: boardToDelete.name }),
             variant: "destructive",
         });
         setIsBoardSwitcherOpen(false); // Close switcher after deletion
@@ -638,7 +624,7 @@ export default function TasksPage() {
         const updatedBoard = { ...activeBoard, columns: [...activeBoard.columns, newColumn] };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         
-        toast({ title: "List Added", description: `List "${values.title}" has been added.`});
+        toast({ title: t('tasks.toast.list_added_title'), description: t('tasks.toast.list_added_desc', { name: values.title })});
         columnForm.reset();
         setShowAddColumnForm(false);
     };
@@ -654,7 +640,7 @@ export default function TasksPage() {
         
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setEditingColumnId(null);
-        toast({ title: "List Renamed", description: `List has been renamed to "${newTitle}".`});
+        toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: newTitle })});
     };
     
     const handleArchiveColumn = (columnId: string) => {
@@ -668,7 +654,7 @@ export default function TasksPage() {
         const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: true } : t);
         setTasks(updatedTasks);
         
-        toast({ title: "List Archived", description: `The list and its tasks have been archived.` });
+        toast({ title: t('tasks.toast.list_archived_title'), description: t('tasks.toast.list_archived_desc') });
     };
 
     const handleRestoreColumn = (columnId: string) => {
@@ -682,7 +668,7 @@ export default function TasksPage() {
         const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: false } : t);
         setTasks(updatedTasks);
         
-        toast({ title: "List Restored", description: `The list has been restored.` });
+        toast({ title: t('tasks.toast.list_restored_title'), description: t('tasks.toast.list_restored_desc') });
     }
     
     const handleDeleteColumnPermanently = () => {
@@ -696,7 +682,7 @@ export default function TasksPage() {
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setTasks(remainingTasks);
         
-        toast({ title: "List Deleted", description: `List "${columnToDelete.title}" and all of its tasks have been permanently deleted.`, variant: "destructive" });
+        toast({ title: t('tasks.toast.list_deleted_title'), description: t('tasks.toast.list_deleted_desc', { name: columnToDelete.title }), variant: "destructive" });
         setIsDeleteColumnAlertOpen(false);
         setColumnToDelete(null);
     }
@@ -729,8 +715,8 @@ export default function TasksPage() {
       setTasks(prevTasks => [...prevTasks, ...newTasks]);
 
       toast({
-        title: "List Copied",
-        description: `List "${columnToCopy.title}" was copied to "${values.title}".`
+        title: t('tasks.toast.list_copied_title'),
+        description: t('tasks.toast.list_copied_desc', { from: columnToCopy.title, to: values.title })
       });
 
       handleCloseCopyColumnDialog();
@@ -763,7 +749,7 @@ export default function TasksPage() {
     const saveSharingChanges = () => {
         if (!sharingBoard) return;
         setBoards(boards.map(b => b.id === sharingBoard.id ? sharingBoard : b));
-        toast({ title: "Sharing Updated", description: "Board sharing settings have been saved." });
+        toast({ title: t('tasks.toast.sharing_updated_title'), description: t('tasks.toast.sharing_updated_desc') });
         handleCloseShareDialog();
     };
 
@@ -799,8 +785,8 @@ export default function TasksPage() {
         setSelectedTaskForDetails(updatedTask);
         commentForm.reset();
         toast({
-            title: "Comment Added",
-            description: "Your comment has been successfully posted.",
+            title: t('tasks.toast.comment_added_title'),
+            description: t('tasks.toast.comment_added_desc'),
         });
     };
     
@@ -829,16 +815,16 @@ export default function TasksPage() {
         const updatedTask = { ...task, isCompleted: !task.isCompleted };
         setTasks(tasks.map(t => t.id === task.id ? updatedTask : t));
         toast({
-            title: `Task ${updatedTask.isCompleted ? 'Completed' : 'Marked as Incomplete'}`,
-            description: `Task "${task.title}" status has been updated.`,
+            title: t(updatedTask.isCompleted ? 'tasks.toast.task_completed_title' : 'tasks.toast.task_incomplete_title'),
+            description: t('tasks.toast.task_status_updated_desc', { name: task.title }),
         });
     };
     
     const handleDelete = (id: string) => {
       setTasks(tasks.filter(t => t.id !== id));
       toast({
-          title: "Task Deleted",
-          description: `The task has been successfully deleted.`,
+          title: t('tasks.toast.task_deleted_title'),
+          description: t('tasks.toast.task_deleted_desc'),
           variant: "destructive",
       });
     }
@@ -848,7 +834,7 @@ export default function TasksPage() {
 
         const targetBoard = boards.find(b => b.id === moveTargetBoardId);
         if (!targetBoard || !targetBoard.columns[0]) {
-            toast({ title: "Error", description: "The destination board has no columns.", variant: "destructive" });
+            toast({ title: t('common.error'), description: t('tasks.toast.move_no_columns_error'), variant: "destructive" });
             return;
         }
 
@@ -856,8 +842,8 @@ export default function TasksPage() {
         setTasks(tasks.map(t => t.id === movingTask.id ? updatedTask : t));
         
         toast({
-            title: "Task Moved",
-            description: `Task "${movingTask.title}" has been moved to the "${targetBoard?.name}" board.`,
+            title: t('tasks.toast.task_moved_title'),
+            description: t('tasks.toast.task_moved_desc', { task: movingTask.title, board: targetBoard?.name }),
         });
         
         handleCloseMoveDialog();
@@ -897,8 +883,8 @@ export default function TasksPage() {
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
             toast({
-                title: "Task Updated",
-                description: `Task "${updatedTask.title}" has been updated.`,
+                title: t('tasks.toast.task_updated_title'),
+                description: t('tasks.toast.task_updated_desc', { name: updatedTask.title }),
             });
         } else {
             const newTask: Task = {
@@ -911,8 +897,8 @@ export default function TasksPage() {
             };
             setTasks([newTask, ...tasks]);
             toast({
-                title: "Task Created",
-                description: `Task "${newTask.title}" has been created.`,
+                title: t('tasks.toast.task_created_title'),
+                description: t('tasks.toast.task_created_desc', { name: newTask.title }),
             });
         }
         handleCloseTaskDialog();
@@ -938,14 +924,14 @@ export default function TasksPage() {
         if (editingReport) {
             const updatedReport = { ...editingReport, ...reportData };
             setScheduledReports(prev => prev.map(r => r.id === editingReport.id ? updatedReport : r));
-            toast({ title: "Report Updated", description: `Report "${values.name}" has been updated.` });
+            toast({ title: t('tasks.toast.report_updated_title'), description: t('tasks.toast.report_updated_desc', { name: values.name }) });
         } else {
              const newReport: ScheduledReport = {
                 id: `SR-${Date.now()}`,
                 ...reportData,
             };
             setScheduledReports(prev => [...prev, newReport]);
-            toast({ title: "Report Scheduled", description: `Report "${values.name}" has been scheduled.` });
+            toast({ title: t('tasks.toast.report_scheduled_title'), description: t('tasks.toast.report_scheduled_desc', { name: values.name }) });
         }
         handleCloseReportDialog();
     };
@@ -955,8 +941,8 @@ export default function TasksPage() {
         const tasksToExport = tasks.filter(task => selectedTaskIds.includes(task.id));
         if (tasksToExport.length === 0) {
             toast({
-                title: "No Tasks Selected",
-                description: "Please select tasks to export.",
+                title: t('tasks.toast.no_tasks_selected_title'),
+                description: t('tasks.toast.no_tasks_selected_desc'),
                 variant: "destructive",
             });
             return;
@@ -978,8 +964,8 @@ export default function TasksPage() {
              if (error) {
                 console.error(error);
                 toast({
-                    title: "Error Creating Calendar File",
-                    description: "There was a problem generating the .ics file.",
+                    title: t('common.error'),
+                    description: t('tasks.toast.ics_error_desc'),
                     variant: "destructive",
                 });
                 return;
@@ -1013,8 +999,8 @@ export default function TasksPage() {
             if (error) {
                 console.error(error);
                 toast({
-                    title: "Error Creating Calendar Event",
-                    description: "There was a problem generating the .ics file.",
+                    title: t('common.error'),
+                    description: t('tasks.toast.ics_error_desc'),
                     variant: "destructive",
                 });
                 return;
@@ -1155,15 +1141,15 @@ export default function TasksPage() {
         const time = format(parse(recurrence.time, 'HH:mm', new Date()), 'h:mm a');
         switch (recurrence.type) {
             case 'none':
-                return 'One-time';
+                return t('tasks.recurrence_types.none');
             case 'daily':
-                return `Daily at ${time}`;
+                return t('tasks.recurrence_types.daily', { time });
             case 'weekly':
-                return `Weekly on ${weekDays[recurrence.dayOfWeek!]} at ${time}`;
+                return t('tasks.recurrence_types.weekly', { day: weekDays[recurrence.dayOfWeek!], time });
             case 'monthly':
-                return `Monthly on day ${recurrence.dayOfMonth} at ${time}`;
+                return t('tasks.recurrence_types.monthly', { day: recurrence.dayOfMonth, time });
             case 'yearly':
-                return `Yearly on ${format(new Date(task.dueDate), 'MMM d')} at ${time}`;
+                return t('tasks.recurrence_types.yearly', { date: format(new Date(task.dueDate), 'MMM d'), time });
             default:
                 return 'N/A';
         }
@@ -1205,7 +1191,7 @@ export default function TasksPage() {
             setTasks(prevTasks => prevTasks.map(t => t.id === draggedTaskId ? { ...t, columnId: newColumnId } : t));
             const columnName = activeBoard?.columns.find(c => c.id === newColumnId)?.title;
             toast({
-                title: "Task Moved",
+                title: t('tasks.toast.task_moved_title'),
                 description: `Task "${task.title}" moved to ${columnName}.`,
             });
         }
@@ -1214,6 +1200,7 @@ export default function TasksPage() {
     const handleDragOverTask = (e: React.DragEvent, targetTaskId: string) => {
         e.preventDefault();
         e.stopPropagation();
+        if (draggedTaskId === targetTaskId) return;
         setDragOverTaskId(targetTaskId);
 
         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -1231,28 +1218,31 @@ export default function TasksPage() {
         e.preventDefault();
         e.stopPropagation();
         if (!draggedTaskId || draggedTaskId === targetTask.id) {
+            handleDragEnd(e as any);
             return;
         }
-    
-        const newTasks = [...tasks];
-        const draggedTaskIndex = newTasks.findIndex(t => t.id === draggedTaskId);
-        const targetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
-    
-        if (draggedTaskIndex === -1 || targetTaskIndex === -1) return;
-    
-        const [draggedTask] = newTasks.splice(draggedTaskIndex, 1);
-        draggedTask.columnId = targetTask.columnId;
-    
-        // Recalculate target index after splice
-        const newTargetTaskIndex = newTasks.findIndex(t => t.id === targetTask.id);
-    
-        if (dropPosition === 'top') {
-            newTasks.splice(newTargetTaskIndex, 0, draggedTask);
-        } else {
-            newTasks.splice(newTargetTaskIndex + 1, 0, draggedTask);
+
+        const currentTasks = [...tasks];
+        const draggedIndex = currentTasks.findIndex(t => t.id === draggedTaskId);
+        let targetIndex = currentTasks.findIndex(t => t.id === targetTask.id);
+
+        if (draggedIndex === -1 || targetIndex === -1) {
+            handleDragEnd(e as any);
+            return;
         }
-    
-        setTasks(newTasks);
+
+        const [draggedItem] = currentTasks.splice(draggedIndex, 1);
+        draggedItem.columnId = targetTask.columnId;
+
+        targetIndex = currentTasks.findIndex(t => t.id === targetTask.id);
+
+        if (dropPosition === 'top') {
+            currentTasks.splice(targetIndex, 0, draggedItem);
+        } else {
+            currentTasks.splice(targetIndex + 1, 0, draggedItem);
+        }
+
+        setTasks(currentTasks);
         handleDragEnd(e as any);
     };
     
@@ -1301,21 +1291,21 @@ export default function TasksPage() {
                     <label htmlFor={`card-check-${task.id}`} className={cn("flex-1 font-semibold text-sm leading-tight cursor-pointer", isCompleted && "line-through text-muted-foreground")}>{task.title}</label>
                     <div onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="h-6 w-6 flex-shrink-0"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">{t('common.toggle_menu')}</span></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenTaskDialog(task, task.columnId); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenDetailsSheet(task); }}><ListChecks className="mr-2 h-4 w-4" />Details</DropdownMenuItem>
+                                <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenTaskDialog(task, task.columnId); }} disabled={!canEdit}><Edit className="mr-2 h-4 w-4" />{t('common.edit')}</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenDetailsSheet(task); }}><ListChecks className="mr-2 h-4 w-4" />{t('tasks.details.view_details')}</DropdownMenuItem>
                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveDialog(task); }} disabled={!canEdit}>
                                     <Move className="mr-2 h-4 w-4" />
-                                    Move Task
+                                    {t('tasks.actions.move_task')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleAddToCalendar(task); }}>
                                     <CalendarPlus className="mr-2 h-4 w-4" />
-                                    Add to Calendar
+                                    {t('tasks.actions.add_to_calendar')}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}><Trash2 className="mr-2 h-4 w-4" />{t('common.delete')}</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -1335,7 +1325,7 @@ export default function TasksPage() {
                                   <Paperclip className="h-4 w-4 text-muted-foreground" />
                               </TooltipTrigger>
                               <TooltipContent>
-                                  <p>{task.attachments?.length} attachment(s)</p>
+                                  <p>{t('tasks.tooltips.attachments_count', {count: task.attachments?.length})}</p>
                               </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -1350,7 +1340,7 @@ export default function TasksPage() {
                                   </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                  <p>{task.comments?.length} comment(s)</p>
+                                  <p>{t('tasks.tooltips.comments_count', {count: task.comments?.length})}</p>
                               </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -1365,7 +1355,7 @@ export default function TasksPage() {
                                   </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                  <p>Checklist progress</p>
+                                  <p>{t('tasks.tooltips.checklist_progress')}</p>
                               </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -1383,7 +1373,7 @@ export default function TasksPage() {
                                         </Avatar>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Assigned to {user.name}</p>
+                                        <p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -1414,16 +1404,16 @@ export default function TasksPage() {
                             >
                                 <div className='flex items-center gap-2'>
                                 {activeBoard && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: activeBoard.color }} />}
-                                {activeBoard ? activeBoard.name : "Select a board..."}
+                                {activeBoard ? activeBoard.name : t('tasks.select_board')}
                                 </div>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[300px] p-0">
                             <Command>
-                                <CommandInput placeholder="Search boards..." />
+                                <CommandInput placeholder={t('tasks.dialog.board_search_placeholder')} />
                                 <CommandList>
-                                    <CommandEmpty>No board found.</CommandEmpty>
+                                    <CommandEmpty>{t('tasks.no_board_found')}</CommandEmpty>
                                     <CommandGroup>
                                         {visibleBoards.map((board) => (
                                             <CommandItem
@@ -1444,13 +1434,13 @@ export default function TasksPage() {
                                                         <Check className="h-4 w-4 text-primary" />
                                                     )}
                                                      {currentUser.id === board.ownerId && (
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
-                                                            </DropdownMenuTrigger>
+                                                         <DropdownMenu>
+                                                             <DropdownMenuTrigger asChild>
+                                                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={() => {setIsDeleteAlertOpen(true)}} className="text-destructive">Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(board);}}>{t('common.edit')}</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => {setIsDeleteAlertOpen(true)}} className="text-destructive">{t('common.delete')}</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                      )}
@@ -1464,7 +1454,7 @@ export default function TasksPage() {
                                      <CommandGroup>
                                         <CommandItem onSelect={() => {setIsBoardSwitcherOpen(false); handleOpenBoardDialog(null);}}>
                                             <PlusCircle className="mr-2 h-4 w-4" />
-                                            Create New Board
+                                            {t('tasks.add_new_board')}
                                         </CommandItem>
                                      </CommandGroup>
                                 </CommandList>
@@ -1480,8 +1470,8 @@ export default function TasksPage() {
              <Dialog open={isBoardDialogOpen} onOpenChange={handleCloseBoardDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{editingBoard ? 'Edit Board' : 'Create New Board'}</DialogTitle>
-                        <DialogDescription>{editingBoard ? 'Update the name and color of this board.' : 'Create a new list to organize your tasks.'}</DialogDescription>
+                        <DialogTitle>{editingBoard ? t('tasks.dialog.board_edit_title') : t('tasks.dialog.board_create_title')}</DialogTitle>
+                        <DialogDescription>{editingBoard ? t('tasks.dialog.board_edit_desc') : t('tasks.dialog.board_create_desc')}</DialogDescription>
                     </DialogHeader>
                     <Form {...boardForm}>
                         <form onSubmit={boardForm.handleSubmit(onBoardSubmit)} className="space-y-4">
@@ -1490,8 +1480,8 @@ export default function TasksPage() {
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Board Name</FormLabel>
-                                        <FormControl><Input placeholder="e.g., Project Phoenix" {...field} /></FormControl>
+                                        <FormLabel>{t('tasks.dialog.board_name')}</FormLabel>
+                                        <FormControl><Input placeholder={t('tasks.dialog.board_name_placeholder')} {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -1501,7 +1491,7 @@ export default function TasksPage() {
                                 name="color"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Board Color</FormLabel>
+                                        <FormLabel>{t('tasks.dialog.board_color')}</FormLabel>
                                         <div className="flex items-center gap-2">
                                             {defaultColors.map(color => (
                                                 <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color ? 'border-primary' : 'border-transparent')}>
@@ -1515,8 +1505,8 @@ export default function TasksPage() {
                                 )}
                             />
                             <DialogFooter>
-                                <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                                <Button type="submit">{editingBoard ? 'Save Changes' : 'Create Board'}</Button>
+                                <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                                <Button type="submit">{editingBoard ? t('common.save_changes') : t('tasks.dialog.board_create_button')}</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -1526,14 +1516,14 @@ export default function TasksPage() {
              <Dialog open={isShareDialogOpen} onOpenChange={handleCloseShareDialog}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Share "{sharingBoard?.name}"</DialogTitle>
-                        <DialogDescription>Manage access for other users.</DialogDescription>
+                        <DialogTitle>{t('tasks.dialog.share_title', { name: sharingBoard?.name })}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.share_desc')}</DialogDescription>
                     </DialogHeader>
                      <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-6">
                         <Command className="rounded-lg border shadow-md">
-                            <CommandInput placeholder="Add user by name or email..." />
+                            <CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
                             <CommandList>
-                                <CommandEmpty>No users found.</CommandEmpty>
+                                <CommandEmpty>{t('tasks.dialog.share_no_users_found')}</CommandEmpty>
                                 <CommandGroup>
                                 {mockUsers
                                     .filter(user => user.id !== currentUser.id && !(sharingBoard?.sharedWith || []).some(s => s.userId === user.id))
@@ -1553,7 +1543,7 @@ export default function TasksPage() {
                         <Separator />
                         
                         <div className="space-y-2">
-                            <h4 className="font-medium">Shared with</h4>
+                            <h4 className="font-medium">{t('tasks.dialog.share_with_label')}</h4>
                             {(sharingBoard?.sharedWith || []).map(share => {
                                 const user = mockUsers.find(u => u.id === share.userId);
                                 if (!user) return null;
@@ -1575,8 +1565,8 @@ export default function TasksPage() {
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="editor">Can edit</SelectItem>
-                                                    <SelectItem value="viewer">Can view</SelectItem>
+                                                    <SelectItem value="editor">{t('tasks.permissions.editor')}</SelectItem>
+                                                    <SelectItem value="viewer">{t('tasks.permissions.viewer')}</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveShare(user.id)}>
@@ -1589,8 +1579,8 @@ export default function TasksPage() {
                         </div>
                      </div>
                      <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                        <Button onClick={saveSharingChanges}>Save</Button>
+                        <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                        <Button onClick={saveSharingChanges}>{t('common.save_changes')}</Button>
                      </DialogFooter>
                 </DialogContent>
              </Dialog>
@@ -1598,15 +1588,14 @@ export default function TasksPage() {
              <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the board
-                        and all tasks associated with it.
+                        {t('tasks.dialog.delete_board_desc')}
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => { if(activeBoard) handleDeleteBoard(activeBoard.id)}} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => { if(activeBoard) handleDeleteBoard(activeBoard.id)}} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -1614,14 +1603,14 @@ export default function TasksPage() {
              <AlertDialog open={isDeleteColumnAlertOpen} onOpenChange={setIsDeleteColumnAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                    <AlertDialogTitle>Delete List Permanently?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('tasks.dialog.delete_list_title')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will permanently delete the "{columnToDelete?.title}" list and all of its tasks. This action cannot be undone.
+                        {t('tasks.dialog.delete_list_desc', { name: columnToDelete?.title })}
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setColumnToDelete(null)}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteColumnPermanently} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                    <AlertDialogCancel onClick={() => setColumnToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteColumnPermanently} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -1629,14 +1618,14 @@ export default function TasksPage() {
              <AlertDialog open={!!reportToDelete} onOpenChange={() => setReportToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Report Schedule?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('tasks.dialog.delete_report_title')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the "{reportToDelete?.name}" report schedule. Are you sure?
+                            {t('tasks.dialog.delete_report_desc', { name: reportToDelete?.name })}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setReportToDelete(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteReport} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                        <AlertDialogCancel onClick={() => setReportToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteReport} className="bg-destructive hover:bg-destructive/90">{t('common.delete')}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -1644,16 +1633,16 @@ export default function TasksPage() {
             <Dialog open={isMoveTaskDialogOpen} onOpenChange={handleCloseMoveDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Move Task</DialogTitle>
+                        <DialogTitle>{t('tasks.dialog.move_task_title')}</DialogTitle>
                         <DialogDescription>
-                            Move "{movingTask?.title}" to another board.
+                            {t('tasks.dialog.move_task_desc', { task: movingTask?.title })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        <Label htmlFor="move-board-select">Select a destination board</Label>
+                        <Label htmlFor="move-board-select">{t('tasks.dialog.move_task_select_label')}</Label>
                         <Select value={moveTargetBoardId} onValueChange={setMoveTargetBoardId}>
                             <SelectTrigger id="move-board-select" className="mt-2">
-                                <SelectValue placeholder="Choose a board..." />
+                                <SelectValue placeholder={t('tasks.dialog.move_task_select_placeholder')} />
                             </SelectTrigger>
                             <SelectContent>
                                 {visibleBoards
@@ -1667,8 +1656,8 @@ export default function TasksPage() {
                         </Select>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                        <Button onClick={handleConfirmMoveTask} disabled={!moveTargetBoardId}>Move Task</Button>
+                        <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                        <Button onClick={handleConfirmMoveTask} disabled={!moveTargetBoardId}>{t('tasks.dialog.move_task_button')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1676,8 +1665,8 @@ export default function TasksPage() {
             <Dialog open={isCopyColumnDialogOpen} onOpenChange={handleCloseCopyColumnDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Copy List</DialogTitle>
-                        <DialogDescription>Create a duplicate of "{columnToCopy?.title}" and all its tasks.</DialogDescription>
+                        <DialogTitle>{t('tasks.dialog.copy_list_title')}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.copy_list_desc', { name: columnToCopy?.title })}</DialogDescription>
                     </DialogHeader>
                     <Form {...copyColumnForm}>
                         <form onSubmit={copyColumnForm.handleSubmit(onCopyColumnSubmit)} className="space-y-4 py-4">
@@ -1686,7 +1675,7 @@ export default function TasksPage() {
                                 name="title"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>New List Name</FormLabel>
+                                        <FormLabel>{t('tasks.dialog.copy_list_name_label')}</FormLabel>
                                         <FormControl>
                                             <Input {...field} />
                                         </FormControl>
@@ -1696,9 +1685,9 @@ export default function TasksPage() {
                             />
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="ghost">Cancel</Button>
+                                    <Button variant="ghost">{t('common.cancel')}</Button>
                                 </DialogClose>
-                                <Button type="submit">Copy List</Button>
+                                <Button type="submit">{t('tasks.board.copy_list')}</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -1708,22 +1697,22 @@ export default function TasksPage() {
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={handleCloseReportDialog}>
                 <DialogContent className="sm:max-w-4xl">
                     <DialogHeader>
-                         <DialogTitle>{editingReport ? 'Edit' : 'Configure'} {reportConfigType === 'weekly-board-summary' ? 'Weekly Board Summary' : reportConfigType === 'weekly-my-tasks' ? 'Weekly "My Tasks" Report' : 'Weekly "In Progress" Report'}</DialogTitle>
-                        <DialogDescription>Schedule a recurring email summary for the "{activeBoard?.name}" board.</DialogDescription>
+                         <DialogTitle>{editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}`)}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
                     </DialogHeader>
                     <Form {...weeklyReportForm}>
                         <form onSubmit={weeklyReportForm.handleSubmit(onWeeklyReportSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[75vh] overflow-y-auto pr-6">
                             {/* Left Side: Configuration */}
                             <div className="space-y-6">
-                                <h3 className="text-lg font-medium">1. Details & Schedule</h3>
+                                <h3 className="text-lg font-medium">{t('tasks.dialog.report_step1')}</h3>
                                  <FormField
                                     control={weeklyReportForm.control}
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Report Name</FormLabel>
-                                             <FormControl><Input placeholder="e.g., Weekly IT Status" {...field} /></FormControl>
-                                            <FormDescription>A name to identify this report in the manager.</FormDescription>
+                                            <FormLabel>{t('tasks.dialog.report_name_label')}</FormLabel>
+                                             <FormControl><Input placeholder={t('tasks.dialog.report_name_placeholder')} {...field} /></FormControl>
+                                            <FormDescription>{t('tasks.dialog.report_name_desc')}</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -1734,9 +1723,9 @@ export default function TasksPage() {
                                         name="dayOfWeek"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Day of Week</FormLabel>
+                                                <FormLabel>{t('tasks.dialog.report_day_label')}</FormLabel>
                                                 <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder={t('tasks.dialog.report_day_placeholder')}/></SelectTrigger></FormControl>
                                                     <SelectContent>
                                                         {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
                                                     </SelectContent>
@@ -1750,22 +1739,22 @@ export default function TasksPage() {
                                         name="time"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Time</FormLabel>
+                                                <FormLabel>{t('tasks.dialog.report_time_label')}</FormLabel>
                                                 <FormControl><Input type="time" {...field} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
                                 </div>
-                                <h3 className="text-lg font-medium">2. Content & Recipients</h3>
+                                <h3 className="text-lg font-medium">{t('tasks.dialog.report_step2')}</h3>
                                 <FormField
                                     control={weeklyReportForm.control}
                                     name="recipients"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Recipients</FormLabel>
-                                             <FormControl><Input placeholder="comma,separated@emails.com" {...field} /></FormControl>
-                                            <FormDescription>Enter email addresses separated by commas.</FormDescription>
+                                            <FormLabel>{t('tasks.dialog.report_recipients_label')}</FormLabel>
+                                             <FormControl><Input placeholder={t('tasks.dialog.report_recipients_placeholder')} {...field} /></FormControl>
+                                            <FormDescription>{t('tasks.dialog.report_recipients_desc')}</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -1775,7 +1764,7 @@ export default function TasksPage() {
                                     name="subject"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Email Subject</FormLabel>
+                                            <FormLabel>{t('tasks.dialog.report_subject_label')}</FormLabel>
                                             <FormControl><Input {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1786,8 +1775,8 @@ export default function TasksPage() {
                                     name="body"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Introduction Text</FormLabel>
-                                            <FormControl><Textarea placeholder="Add an optional message to the email body..." {...field} /></FormControl>
+                                            <FormLabel>{t('tasks.dialog.report_intro_label')}</FormLabel>
+                                            <FormControl><Textarea placeholder={t('tasks.dialog.report_intro_placeholder')} {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -1796,7 +1785,7 @@ export default function TasksPage() {
 
                             {/* Right Side: Preview */}
                              <div className="space-y-4">
-                                <h3 className="text-lg font-medium">3. Preview</h3>
+                                <h3 className="text-lg font-medium">{t('tasks.dialog.report_step3')}</h3>
                                 <div className="rounded-lg border bg-secondary/50 p-6 space-y-4">
                                     <div className="text-center space-y-2">
                                         {appearanceSettings?.logo && (
@@ -1805,7 +1794,7 @@ export default function TasksPage() {
                                         <h4 className="text-xl font-semibold">{appearanceSettings?.siteName}</h4>
                                     </div>
                                     <Separator />
-                                    <p className="text-sm text-muted-foreground italic">{reportBody || "No introduction text."}</p>
+                                    <p className="text-sm text-muted-foreground italic">{reportBody || t('tasks.dialog.report_no_intro_text')}</p>
                                     <div className="space-y-4">
                                         {(activeBoard?.columns || []).filter(c => !c.isArchived).map(column => {
                                              let tasksToDisplay = tasks.filter(t => t.columnId === column.id);
@@ -1832,7 +1821,7 @@ export default function TasksPage() {
                                                             <li key={task.id}>{task.title}</li>
                                                         ))
                                                     ) : (
-                                                        <li className="italic">No tasks in this list.</li>
+                                                        <li className="italic">{t('tasks.dialog.report_no_tasks_in_list')}</li>
                                                     )}
                                                 </ul>
                                             </div>
@@ -1841,13 +1830,13 @@ export default function TasksPage() {
                                     </div>
                                     <Separator />
                                     <p className="text-xs text-center text-muted-foreground">
-                                        This is an automated weekly report scheduled to be sent every {weeklyReportForm.getValues('dayOfWeek') ? weekDays[parseInt(weeklyReportForm.getValues('dayOfWeek'))] : ''} at {weeklyReportForm.getValues('time')}.
+                                        {t('tasks.dialog.report_automated_note', { day: weeklyReportForm.getValues('dayOfWeek') ? weekDays[parseInt(weeklyReportForm.getValues('dayOfWeek'))] : '', time: weeklyReportForm.getValues('time') })}
                                     </p>
                                 </div>
                             </div>
                            <DialogFooter className="md:col-span-2">
-                                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                <Button type="submit">{editingReport ? "Save Changes" : "Save & Schedule"}</Button>
+                                <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                                <Button type="submit">{editingReport ? t('common.save_changes') : t('tasks.dialog.report_save_button')}</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -1857,8 +1846,8 @@ export default function TasksPage() {
             <Dialog open={isReportManagerOpen} onOpenChange={setIsReportManagerOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>My Scheduled Reports</DialogTitle>
-                        <DialogDescription>Manage your automated email reports for this board.</DialogDescription>
+                        <DialogTitle>{t('tasks.dialog.my_reports_title')}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.my_reports_desc')}</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 max-h-[60vh] overflow-y-auto">
                         <div className="space-y-2">
@@ -1867,19 +1856,12 @@ export default function TasksPage() {
                                 const [hours, minutes] = report.schedule.time.split(':');
                                 nextRun.setHours(Number(hours), Number(minutes), 0, 0);
 
-                                let reportTypeLabel = '';
-                                switch(report.type) {
-                                    case 'weekly-board-summary': reportTypeLabel = 'Board Summary'; break;
-                                    case 'weekly-my-tasks': reportTypeLabel = 'My Tasks'; break;
-                                    case 'weekly-in-progress': reportTypeLabel = 'In Progress'; break;
-                                }
-
                                 return (
                                 <div key={report.id} className="flex items-center justify-between p-3 border rounded-lg">
                                     <div>
                                         <p className="font-semibold">{report.name}</p>
                                         <p className="text-sm text-muted-foreground">
-                                            Weekly {reportTypeLabel} &bull; Next on {format(nextRun, 'MMM d, yyyy')}
+                                            {t('tasks.report_types.weekly')} {t(`tasks.report_types.${report.type}`)} &bull; {t('tasks.dialog.my_reports_next_run', { date: format(nextRun, 'MMM d, yyyy')})}
                                         </p>
                                     </div>
                                     <div className='flex items-center gap-1'>
@@ -1917,7 +1899,7 @@ export default function TasksPage() {
                                             </TooltipTrigger>
                                             <TooltipContent>
                                                 <p>{user.name}</p>
-                                                <p className="text-xs text-muted-foreground">{share.role === 'editor' ? 'Can edit' : 'Can view'}</p>
+                                                <p className="text-xs text-muted-foreground">{t(`tasks.permissions.${share.role}`)}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
@@ -1932,7 +1914,7 @@ export default function TasksPage() {
                                         </Avatar>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
-                                        <DropdownMenuLabel>All Members</DropdownMenuLabel>
+                                        <DropdownMenuLabel>{t('tasks.dialog.all_members')}</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
                                         {(activeBoard?.sharedWith || []).map(share => {
                                             const user = mockUsers.find(u => u.id === share.userId);
@@ -1944,7 +1926,7 @@ export default function TasksPage() {
                                                     </Avatar>
                                                     <div>
                                                         <p className="text-sm font-medium">{user.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{share.role}</p>
+                                                        <p className="text-xs text-muted-foreground">{t(`tasks.permissions.${share.role}`)}</p>
                                                     </div>
                                                 </DropdownMenuItem>
                                             ) : null;
@@ -1962,7 +1944,7 @@ export default function TasksPage() {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Share board</p>
+                                    <p>{t('tasks.share_board')}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -1980,19 +1962,19 @@ export default function TasksPage() {
                             </DropdownMenuTrigger>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Email Reports</p>
+                            <p>{t('tasks.email_reports')}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Schedule a New Report</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>Weekly - Board Summary</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-my-tasks')}>Weekly - My Tasks</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-in-progress')}>Weekly - In Progress Tasks</DropdownMenuItem>
+                            <DropdownMenuLabel>{t('tasks.dialog.new_report_label')}</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-board-summary')}>{t('tasks.report_types.weekly-board-summary')}</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-my-tasks')}>{t('tasks.report_types.weekly-my-tasks')}</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleOpenReportDialog('weekly-in-progress')}>{t('tasks.report_types.weekly-in-progress')}</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onSelect={() => setIsReportManagerOpen(true)}>
                                 <ListVideo className="mr-2 h-4 w-4" />
-                                View Scheduled Reports
+                                {t('tasks.dialog.view_scheduled_reports')}
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -2022,19 +2004,19 @@ export default function TasksPage() {
                                 {selectedTaskIds.length > 0 && viewMode === 'list' && (
                                     <Button onClick={handleBulkExport} variant="outline">
                                         <Download className="mr-2 h-4 w-4" />
-                                        Export Selected ({selectedTaskIds.length})
+                                        {t('tasks.export_selected', { count: selectedTaskIds.length })}
                                     </Button>
                                 )}
                                 <Button onClick={() => handleOpenTaskDialog(null)} disabled={userPermissions === 'viewer'}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add New Task
+                                    {t('tasks.add_new_task')}
                                 </Button>
                             </div>
                         </div>
                          {viewMode === 'list' && (
                             <div className="flex flex-wrap items-center gap-2 pt-4">
                                 <Input
-                                    placeholder="Search tasks by title..."
+                                    placeholder={t('tasks.search_placeholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="max-w-sm"
@@ -2042,10 +2024,10 @@ export default function TasksPage() {
                                 {currentUser.role === 'super-admin' && (
                                     <Select value={filters.unit} onValueChange={(value) => setFilters(prev => ({ ...prev, unit: value }))}>
                                         <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder="Filter by unit" />
+                                            <SelectValue placeholder={t('users.filter_unit_placeholder')} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All Units</SelectItem>
+                                            <SelectItem value="all">{t('users.filter_all_units')}</SelectItem>
                                             {mockUnits.map(unit => (
                                                 <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
                                             ))}
@@ -2056,15 +2038,15 @@ export default function TasksPage() {
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full sm:w-auto">
                                             <Tag className="mr-2 h-4 w-4" />
-                                            Filter by Tags
+                                            {t('tasks.filter_by_tags')}
                                             {filters.tags.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.tags.length}</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-64 p-0">
                                         <Command>
-                                            <CommandInput placeholder="Filter tags..." />
+                                            <CommandInput placeholder={t('tasks.filter_tags_placeholder')} />
                                             <CommandList>
-                                                <CommandEmpty>No tags found.</CommandEmpty>
+                                                <CommandEmpty>{t('tasks.no_tags_found')}</CommandEmpty>
                                                 <CommandGroup>
                                                     {allTags.map((tag) => (
                                                         <CommandItem
@@ -2105,35 +2087,35 @@ export default function TasksPage() {
                                                     aria-label="Select all rows"
                                                 />
                                             </TableHead>
-                                            <TableHead className="w-[60px] text-center border-r">Done</TableHead>
+                                            <TableHead className="w-[60px] text-center border-r">{t('tasks.table.done')}</TableHead>
                                             <TableHead>
                                                 <Button variant="ghost" onClick={() => handleSort('title')}>
-                                                    Task
+                                                    {t('tasks.table.task')}
                                                     <ArrowUpDown className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </TableHead>
                                             <TableHead>
                                                  <Button variant="ghost" onClick={() => handleSort('columnId')}>
-                                                    Status
+                                                    {t('tasks.table.status')}
                                                     <ArrowUpDown className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </TableHead>
                                             <TableHead>
                                                 <Button variant="ghost" onClick={() => handleSort('priority')}>
-                                                    Priority
+                                                    {t('tasks.table.priority')}
                                                     <ArrowUpDown className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </TableHead>
-                                            <TableHead>Assigned To</TableHead>
+                                            <TableHead>{t('tasks.table.assigned_to')}</TableHead>
                                             <TableHead>
                                                 <Button variant="ghost" onClick={() => handleSort('dueDate')}>
-                                                    Next Due
+                                                    {t('tasks.table.next_due')}
                                                     <ArrowUpDown className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </TableHead>
-                                            <TableHead>Recurrence</TableHead>
-                                            <TableHead>Info</TableHead>
-                                            <TableHead><span className="sr-only">Actions</span></TableHead>
+                                            <TableHead>{t('tasks.table.recurrence')}</TableHead>
+                                            <TableHead>{t('tasks.table.info')}</TableHead>
+                                            <TableHead><span className="sr-only">{t('common.actions')}</span></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -2198,7 +2180,7 @@ export default function TasksPage() {
                                                                             </Avatar>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>Assigned to {user.name}</p>
+                                                                            <p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 </TooltipProvider>
@@ -2216,7 +2198,7 @@ export default function TasksPage() {
                                                                             <Paperclip className="h-4 w-4 text-muted-foreground" />
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>{task.attachments?.length} attachment(s)</p>
+                                                                            <p>{t('tasks.tooltips.attachments_count', { count: task.attachments?.length })}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
@@ -2226,7 +2208,7 @@ export default function TasksPage() {
                                                                             <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>Has comments</p>
+                                                                            <p>{t('tasks.tooltips.has_comments')}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
@@ -2239,7 +2221,7 @@ export default function TasksPage() {
                                                                             </div>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
-                                                                            <p>Checklist progress</p>
+                                                                            <p>{t('tasks.tooltips.checklist_progress')}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip>
                                                                 )}
@@ -2248,21 +2230,21 @@ export default function TasksPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">{t('common.toggle_menu')}</span></Button></DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem onSelect={() => { handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>Edit</DropdownMenuItem>
-                                                                <DropdownMenuItem onSelect={() => { handleOpenDetailsSheet(task); }}>Details</DropdownMenuItem>
+                                                                <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
+                                                                <DropdownMenuItem onSelect={() => { handleOpenTaskDialog(task);}} disabled={userPermissions === 'viewer'}>{t('common.edit')}</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => { handleOpenDetailsSheet(task); }}>{t('tasks.details.view_details')}</DropdownMenuItem>
                                                                 <DropdownMenuItem onSelect={() => { handleOpenMoveDialog(task); }} disabled={userPermissions === 'viewer'}>
                                                                     <Move className="mr-2 h-4 w-4" />
-                                                                    Move Task
+                                                                    {t('tasks.actions.move_task')}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem onSelect={() => { handleAddToCalendar(task); }}>
                                                                     <CalendarPlus className="mr-2 h-4 w-4" />
-                                                                    Add to Calendar
+                                                                    {t('tasks.actions.add_to_calendar')}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem onSelect={() => { handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => { handleDelete(task.id); }} className="text-destructive" disabled={userPermissions !== 'owner'}>{t('common.delete')}</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
@@ -2273,8 +2255,8 @@ export default function TasksPage() {
                                                 <TableCell colSpan={10} className="h-24 text-center">
                                                     <div className="flex flex-col items-center gap-2">
                                                         <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
-                                                        <p className="font-semibold">No tasks found.</p>
-                                                        <p className="text-muted-foreground text-sm">Try adjusting your filters or create a new task in this board.</p>
+                                                        <p className="font-semibold">{t('tasks.no_tasks_found')}</p>
+                                                        <p className="text-muted-foreground text-sm">{t('tasks.no_tasks_found_desc')}</p>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -2354,7 +2336,7 @@ export default function TasksPage() {
                                                                         {columnSort.direction === 'asc' ? <SortAsc className="h-4 w-4 text-muted-foreground" /> : <SortDesc className="h-4 w-4 text-muted-foreground" />}
                                                                     </TooltipTrigger>
                                                                     <TooltipContent>
-                                                                        <p>Sorted by {columnSort.field} ({columnSort.direction})</p>
+                                                                        <p>{t('tasks.tooltips.sorted_by', { field: t(`tasks.board.sort_${columnSort.field}`), direction: columnSort.direction })}</p>
                                                                     </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
@@ -2368,14 +2350,14 @@ export default function TasksPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent>
-                                                        <DropdownMenuLabel>List Actions</DropdownMenuLabel>
+                                                        <DropdownMenuLabel>{t('tasks.board.list_actions')}</DropdownMenuLabel>
                                                         <DropdownMenuItem onSelect={() => handleOpenTaskDialog(null, column.id)}>
-                                                            <PlusCircle className="mr-2 h-4 w-4" /> Add new task
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_new_task')}
                                                         </DropdownMenuItem>
                                                          <DropdownMenuSub>
                                                             <DropdownMenuSubTrigger>
                                                                 <SortAsc className="mr-2 h-4 w-4" />
-                                                                <span>Sort by</span>
+                                                                <span>{t('tasks.board.sort_by')}</span>
                                                             </DropdownMenuSubTrigger>
                                                             <DropdownMenuPortal>
                                                                 <DropdownMenuSubContent>
@@ -2383,21 +2365,21 @@ export default function TasksPage() {
                                                                         value={columnSort?.field} 
                                                                         onValueChange={(field) => handleColumnSort(column.id, field as SortableTaskField)}
                                                                     >
-                                                                        <DropdownMenuRadioItem value="dueDate">Due Date</DropdownMenuRadioItem>
-                                                                        <DropdownMenuRadioItem value="priority">Priority</DropdownMenuRadioItem>
-                                                                        <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
+                                                                        <DropdownMenuRadioItem value="dueDate">{t('tasks.board.sort_due_date')}</DropdownMenuRadioItem>
+                                                                        <DropdownMenuRadioItem value="priority">{t('tasks.board.sort_priority')}</DropdownMenuRadioItem>
+                                                                        <DropdownMenuRadioItem value="title">{t('tasks.board.sort_title')}</DropdownMenuRadioItem>
                                                                     </DropdownMenuRadioGroup>
                                                                 </DropdownMenuSubContent>
                                                             </DropdownMenuPortal>
                                                         </DropdownMenuSub>
                                                         <DropdownMenuItem onSelect={() => handleOpenCopyColumnDialog(column)}>
-                                                            <Copy className="mr-2 h-4 w-4" /> Copy list
+                                                            <Copy className="mr-2 h-4 w-4" /> {t('tasks.board.copy_list')}
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             onSelect={() => handleArchiveColumn(column.id)}
                                                         >
-                                                            <Archive className="mr-2 h-4 w-4" /> Archive list
+                                                            <Archive className="mr-2 h-4 w-4" /> {t('tasks.board.archive_list')}
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -2421,14 +2403,14 @@ export default function TasksPage() {
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormControl>
-                                                                    <Input autoFocus placeholder="Enter list title..." {...field} className="h-9"/>
+                                                                    <Input autoFocus placeholder={t('tasks.board.enter_list_title')} {...field} className="h-9"/>
                                                                 </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
                                                         )}
                                                     />
                                                     <div className="flex items-center gap-2 mt-2">
-                                                        <Button type="submit" size="sm">Add list</Button>
+                                                        <Button type="submit" size="sm">{t('tasks.board.add_list')}</Button>
                                                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4"/></Button>
                                                     </div>
                                                 </form>
@@ -2441,7 +2423,7 @@ export default function TasksPage() {
                                             onClick={() => setShowAddColumnForm(true)}
                                         >
                                             <PlusCircle className="mr-2 h-4 w-4"/>
-                                            Add another list
+                                            {t('tasks.board.add_another_list')}
                                         </Button>
                                     )}
                                 </div>
@@ -2455,7 +2437,7 @@ export default function TasksPage() {
                                         <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
                                         <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                                     </div>
-                                    <Button variant="outline" onClick={goToToday}>Today</Button>
+                                    <Button variant="outline" onClick={goToToday}>{t('tasks.calendar.today_button')}</Button>
                                 </div>
                                 <div className="grid grid-cols-7 border-t border-b">
                                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -2505,7 +2487,7 @@ export default function TasksPage() {
                                                                                             </Avatar>
                                                                                         </TooltipTrigger>
                                                                                         <TooltipContent>
-                                                                                            <p>Assigned to {user.name}</p>
+                                                                                            <p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p>
                                                                                         </TooltipContent>
                                                                                     </Tooltip>
                                                                                 </TooltipProvider>
@@ -2531,17 +2513,17 @@ export default function TasksPage() {
                                                 <div>
                                                     <CardTitle className="text-lg">{column.title}</CardTitle>
                                                     <CardDescription>
-                                                        {tasks.filter(t => t.columnId === column.id).length} tasks in this list.
+                                                        {t('tasks.archived.tasks_in_list', { count: tasks.filter(t => t.columnId === column.id).length })}
                                                     </CardDescription>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Button variant="outline" size="sm" onClick={() => handleRestoreColumn(column.id)}>
                                                         <ArchiveRestore className="mr-2 h-4 w-4" />
-                                                        Restore
+                                                        {t('tasks.archived.restore_button')}
                                                     </Button>
                                                     <Button variant="destructive" size="sm" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}>
                                                         <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete Permanently
+                                                        {t('tasks.archived.delete_permanently_button')}
                                                     </Button>
                                                 </div>
                                             </CardHeader>
@@ -2550,8 +2532,8 @@ export default function TasksPage() {
                                 ) : (
                                     <div className="text-center text-muted-foreground py-10">
                                         <Archive className="mx-auto h-12 w-12" />
-                                        <p className="mt-4 font-semibold">No archived lists.</p>
-                                        <p>You can archive lists from the board view.</p>
+                                        <p className="mt-4 font-semibold">{t('tasks.archived.no_archived_lists_title')}</p>
+                                        <p>{t('tasks.archived.no_archived_lists_desc')}</p>
                                     </div>
                                 )}
                              </div>
@@ -2564,9 +2546,9 @@ export default function TasksPage() {
             <Dialog open={isTaskDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseTaskDialog()}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{editingTask ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+                        <DialogTitle>{editingTask ? t('tasks.dialog.task_edit_title') : t('tasks.dialog.task_add_title')}</DialogTitle>
                         <DialogDescription>
-                            Fill out the form below to create or update a task.
+                            {t('tasks.dialog.task_add_desc')}
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...form}>
@@ -2577,8 +2559,8 @@ export default function TasksPage() {
                                     name="title"
                                     render={({ field }) => (
                                         <FormItem className="md:col-span-2">
-                                            <FormLabel>Title</FormLabel>
-                                            <FormControl><Input placeholder="e.g., Weekly Backup Check" {...field} /></FormControl>
+                                            <FormLabel>{t('tasks.dialog.title_label')}</FormLabel>
+                                            <FormControl><Input placeholder={t('tasks.dialog.title_placeholder')} {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -2588,10 +2570,10 @@ export default function TasksPage() {
                                     name="columnId"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>List / Status</FormLabel>
+                                        <FormLabel>{t('tasks.dialog.list_status_label')}</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
-                                                <SelectTrigger><SelectValue placeholder="Select a list" /></SelectTrigger>
+                                                <SelectTrigger><SelectValue placeholder={t('tasks.dialog.list_status_placeholder')} /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
                                                 {activeBoard?.columns.filter(c => !c.isArchived).map((col) => (
@@ -2608,10 +2590,10 @@ export default function TasksPage() {
                                     name="tags"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Tags</FormLabel>
-                                            <FormControl><Input placeholder="e.g., reporting, critical, finance" {...field} /></FormControl>
+                                            <FormLabel>{t('tasks.dialog.tags_label')}</FormLabel>
+                                            <FormControl><Input placeholder={t('tasks.dialog.tags_placeholder')} {...field} /></FormControl>
                                             <FormDescription>
-                                                Enter tags separated by commas.
+                                                {t('tasks.dialog.tags_desc')}
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -2622,16 +2604,16 @@ export default function TasksPage() {
                                     name="priority"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Priority</FormLabel>
+                                        <FormLabel>{t('tasks.dialog.priority_label')}</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="low">Low</SelectItem>
-                                            <SelectItem value="medium">Medium</SelectItem>
-                                            <SelectItem value="high">High</SelectItem>
-                                            <SelectItem value="critical">Critical</SelectItem>
+                                            <SelectItem value="low">{t('tasks.priority.low')}</SelectItem>
+                                            <SelectItem value="medium">{t('tasks.priority.medium')}</SelectItem>
+                                            <SelectItem value="high">{t('tasks.priority.high')}</SelectItem>
+                                            <SelectItem value="critical">{t('tasks.priority.critical')}</SelectItem>
                                         </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -2643,8 +2625,8 @@ export default function TasksPage() {
                                     name="description"
                                     render={({ field }) => (
                                         <FormItem className="md:col-span-2">
-                                            <FormLabel>Description</FormLabel>
-                                            <FormControl><Textarea placeholder="Describe the task..." {...field} /></FormControl>
+                                            <FormLabel>{t('tasks.dialog.description_label')}</FormLabel>
+                                            <FormControl><Textarea placeholder={t('tasks.dialog.description_placeholder')} {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -2654,10 +2636,10 @@ export default function TasksPage() {
                                     name="unit"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Unit</FormLabel>
+                                        <FormLabel>{t('users.dialog.unit')}</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value} disabled={currentUser.role === 'admin'}>
                                             <FormControl>
-                                                <SelectTrigger><SelectValue placeholder="Select a unit" /></SelectTrigger>
+                                                <SelectTrigger><SelectValue placeholder={t('users.dialog.select_unit')} /></SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
                                                 {mockUnits.map((unit) => (
@@ -2674,20 +2656,20 @@ export default function TasksPage() {
                                     name="assignees"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Assign to</FormLabel>
+                                            <FormLabel>{t('tasks.dialog.assign_to_label')}</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" className="w-full justify-start font-normal" disabled={usersOnBoard.length === 0}>
                                                         {field.value && field.value.length > 0
-                                                            ? `${field.value.length} user(s) selected`
-                                                            : "Select members..."}
+                                                            ? t('tasks.dialog.users_selected', { count: field.value.length })
+                                                            : t('tasks.dialog.assign_to_placeholder')}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                                     <Command>
-                                                        <CommandInput placeholder="Search users..." />
+                                                        <CommandInput placeholder={t('users.search_placeholder')} />
                                                         <CommandList>
-                                                            <CommandEmpty>No users found on this board.</CommandEmpty>
+                                                            <CommandEmpty>{t('tasks.dialog.no_users_on_board')}</CommandEmpty>
                                                             <CommandGroup>
                                                                 {usersOnBoard.map((user) => (
                                                                     <CommandItem
@@ -2722,17 +2704,17 @@ export default function TasksPage() {
                                     name="recurrenceType"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Recurrence</FormLabel>
+                                        <FormLabel>{t('tasks.dialog.recurrence_label')}</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
                                             <SelectTrigger><SelectValue /></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="none">One-time</SelectItem>
-                                            <SelectItem value="daily">Daily</SelectItem>
-                                            <SelectItem value="weekly">Weekly</SelectItem>
-                                            <SelectItem value="monthly">Monthly</SelectItem>
-                                            <SelectItem value="yearly">Yearly</SelectItem>
+                                            <SelectItem value="none">{t('tasks.recurrence_types.none')}</SelectItem>
+                                            <SelectItem value="daily">{t('tasks.recurrence_types.daily_short')}</SelectItem>
+                                            <SelectItem value="weekly">{t('tasks.recurrence_types.weekly_short')}</SelectItem>
+                                            <SelectItem value="monthly">{t('tasks.recurrence_types.monthly_short')}</SelectItem>
+                                            <SelectItem value="yearly">{t('tasks.recurrence_types.yearly_short')}</SelectItem>
                                         </SelectContent>
                                         </Select>
                                         <FormMessage />
@@ -2746,13 +2728,13 @@ export default function TasksPage() {
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col">
                                             <FormLabel>
-                                                {recurrenceType === 'none' ? 'Date' : 'Start / Reference Date'}
+                                                {recurrenceType === 'none' ? t('tasks.dialog.date_label') : t('tasks.dialog.start_date_label')}
                                             </FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <FormControl>
                                                         <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                            {field.value ? format(field.value, "PPP") : <span>{t('contracts.dialog.pick_date_placeholder')}</span>}
                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                         </Button>
                                                     </FormControl>
@@ -2762,7 +2744,7 @@ export default function TasksPage() {
                                                 </PopoverContent>
                                             </Popover>
                                             <FormDescription>
-                                                For recurring tasks, this is the first due date.
+                                                {t('tasks.dialog.start_date_desc')}
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -2775,9 +2757,9 @@ export default function TasksPage() {
                                         name="dayOfWeek"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Day of Week</FormLabel>
+                                                <FormLabel>{t('tasks.dialog.day_of_week_label')}</FormLabel>
                                                 <Select onValueChange={(val) => field.onChange(parseInt(val))} value={String(field.value)}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a day"/></SelectTrigger></FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder={t('tasks.dialog.day_of_week_placeholder')}/></SelectTrigger></FormControl>
                                                     <SelectContent>
                                                         {weekDays.map((day, i) => <SelectItem key={day} value={String(i)}>{day}</SelectItem>)}
                                                     </SelectContent>
@@ -2794,7 +2776,7 @@ export default function TasksPage() {
                                         name="dayOfMonth"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Day of Month</FormLabel>
+                                                <FormLabel>{t('tasks.dialog.day_of_month_label')}</FormLabel>
                                                 <FormControl><Input type="number" min="1" max="31" {...field} onChange={e => field.onChange(parseInt(e.target.value))} placeholder="e.g., 15"/></FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -2807,7 +2789,7 @@ export default function TasksPage() {
                                     name="time"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Time</FormLabel>
+                                            <FormLabel>{t('tasks.dialog.time_label')}</FormLabel>
                                             <FormControl><Input type="time" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -2816,8 +2798,8 @@ export default function TasksPage() {
 
                                 <div className="space-y-4 md:col-span-2">
                                     <div>
-                                        <FormLabel>Task Reminders</FormLabel>
-                                        <FormDescription className="mb-2">Days before the due date to send a reminder. Enter 0 for on the same day.</FormDescription>
+                                        <FormLabel>{t('tasks.dialog.reminders_label')}</FormLabel>
+                                        <FormDescription className="mb-2">{t('tasks.dialog.reminders_desc')}</FormDescription>
                                         {reminderDayFields.map((field, index) => (
                                         <FormField
                                             key={field.id}
@@ -2829,7 +2811,7 @@ export default function TasksPage() {
                                                     <FormControl>
                                                         <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} placeholder="e.g., 3" />
                                                     </FormControl>
-                                                    <span className="text-sm text-muted-foreground">days before</span>
+                                                    <span className="text-sm text-muted-foreground">{t('tasks.dialog.days_before')}</span>
                                                     {reminderDayFields.length > 1 && (
                                                         <Button type="button" variant="ghost" size="icon" onClick={() => removeReminderDay(index)}>
                                                         <X className="h-4 w-4" />
@@ -2848,14 +2830,14 @@ export default function TasksPage() {
                                         className="mt-2"
                                         onClick={() => appendReminderDay({ days: 1 })}
                                         >
-                                        Add Reminder
+                                        {t('tasks.dialog.add_reminder_button')}
                                         </Button>
                                     </div>
                                 </div>
                                 <div className="space-y-4 md:col-span-2">
                                     <div>
-                                        <FormLabel>Checklist</FormLabel>
-                                        <FormDescription className="mb-2">Break down this task into smaller steps.</FormDescription>
+                                        <FormLabel>{t('tasks.dialog.checklist_label')}</FormLabel>
+                                        <FormDescription className="mb-2">{t('tasks.dialog.checklist_desc')}</FormDescription>
                                         {checklistFields.map((field, index) => (
                                             <div key={field.id} className="flex items-center gap-2 mb-2">
                                                 <FormField
@@ -2872,7 +2854,7 @@ export default function TasksPage() {
                                                     name={`checklist.${index}.text`}
                                                     render={({ field }) => (
                                                         <FormItem className="flex-1">
-                                                            <FormControl><Input placeholder="Checklist item..." {...field} /></FormControl>
+                                                            <FormControl><Input placeholder={t('tasks.dialog.checklist_item_placeholder')} {...field} /></FormControl>
                                                         </FormItem>
                                                     )}
                                                 />
@@ -2889,7 +2871,7 @@ export default function TasksPage() {
                                             onClick={() => appendChecklistItem({ id: `CL-new-${Date.now()}`, text: '', completed: false })}
                                         >
                                             <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Item
+                                            {t('tasks.dialog.add_checklist_item_button')}
                                         </Button>
                                     </div>
                                 </div>
@@ -2900,13 +2882,13 @@ export default function TasksPage() {
                                       name="attachments"
                                       render={({ field }) => (
                                       <FormItem>
-                                          <FormLabel>Attachments</FormLabel>
+                                          <FormLabel>{t('contracts.dialog.attachments_label')}</FormLabel>
                                           <FormControl>
                                           <div className="relative">
                                               <Button type="button" variant="outline" asChild>
                                               <label htmlFor="task-file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
                                                   <Upload className="h-4 w-4"/>
-                                                  <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
+                                                  <span>{ attachedFiles.length > 0 ? t('contracts.dialog.files_selected', { count: attachedFiles.length }) : t('contracts.dialog.select_files_button')}</span>
                                               </label>
                                               </Button>
                                               <Input 
@@ -2924,7 +2906,7 @@ export default function TasksPage() {
                                   />
                                   {attachedFiles.length > 0 && (
                                       <div className="space-y-2">
-                                      <p className="text-sm font-medium">New files to upload:</p>
+                                      <p className="text-sm font-medium">{t('contracts.dialog.new_files_label')}</p>
                                       <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                                           {attachedFiles.map((file, index) => (
                                           <li key={index} className="flex items-center gap-2">
@@ -2950,7 +2932,7 @@ export default function TasksPage() {
                                   )}
                                   {editingTask && editingTask.attachments && editingTask.attachments.length > 0 && (
                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Current attachments:</p>
+                                        <p className="text-sm font-medium">{t('contracts.dialog.current_attachments_label')}</p>
                                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                                             {editingTask.attachments.map((file, index) => (
                                             <li key={index} className="flex items-center gap-2">
@@ -2959,15 +2941,15 @@ export default function TasksPage() {
                                             </li>
                                             ))}
                                         </ul>
-                                        <p className="text-xs text-muted-foreground">Uploading new files will replace current attachments.</p>
+                                        <p className="text-xs text-muted-foreground">{t('contracts.dialog.replace_attachments_note')}</p>
                                      </div>
                                   )}
                               </div>
 
                             </div>
                             <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                <Button type="submit">{editingTask ? 'Save Changes' : 'Create Task'}</Button>
+                                <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                                <Button type="submit">{editingTask ? t('common.save_changes') : t('tasks.dialog.create_task_button')}</Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -2977,16 +2959,16 @@ export default function TasksPage() {
              <Sheet open={isDetailsSheetOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDetailsSheet()}>
                 <SheetContent className="flex flex-col sm:max-w-lg">
                     <SheetHeader>
-                        <SheetTitle>Details for: {selectedTaskForDetails?.title}</SheetTitle>
+                        <SheetTitle>{t('tasks.details.title', { name: selectedTaskForDetails?.title })}</SheetTitle>
                         <SheetDescription>
-                            Task ID: {selectedTaskForDetails?.id}
+                            {t('tasks.details.task_id', { id: selectedTaskForDetails?.id })}
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
                          <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="checklist">Checklist</TabsTrigger>
-                            <TabsTrigger value="comments">Comments</TabsTrigger>
-                            <TabsTrigger value="attachments">Attachments</TabsTrigger>
+                            <TabsTrigger value="checklist">{t('tasks.details.tabs.checklist')}</TabsTrigger>
+                            <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
+                            <TabsTrigger value="attachments">{t('tasks.details.tabs.attachments')}</TabsTrigger>
                         </TabsList>
                         <TabsContent value="checklist" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto space-y-2 py-4">
@@ -3012,8 +2994,8 @@ export default function TasksPage() {
                                 ) : (
                                     <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <ListChecks className="mx-auto h-12 w-12" />
-                                        <p className="mt-4">No checklist items.</p>
-                                        <p>You can add a checklist by editing this task.</p>
+                                        <p className="mt-4">{t('tasks.details.no_checklist_title')}</p>
+                                        <p>{t('tasks.details.no_checklist_desc')}</p>
                                     </div>
                                 )}
                             </div>
@@ -3043,8 +3025,8 @@ export default function TasksPage() {
                                 ) : (
                                      <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <MessageSquare className="mx-auto h-12 w-12" />
-                                        <p className="mt-4">No comments yet.</p>
-                                        <p>Be the first to add a comment.</p>
+                                        <p className="mt-4">{t('contracts.details.no_comments_title')}</p>
+                                        <p>{t('contracts.details.no_comments_desc')}</p>
                                     </div>
                                 )}
                             </div>
@@ -3057,13 +3039,13 @@ export default function TasksPage() {
                                         render={({ field }) => (
                                             <FormItem className="flex-1">
                                             <FormControl>
-                                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                                <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
                                             </FormControl>
                                             <FormMessage />
                                             </FormItem>
                                         )}
                                         />
-                                        <Button type="submit" disabled={userPermissions === 'viewer'}>Post</Button>
+                                        <Button type="submit" disabled={userPermissions === 'viewer'}>{t('contracts.details.post_comment_button')}</Button>
                                     </form>
                                 </Form>
                             </div>
@@ -3087,8 +3069,8 @@ export default function TasksPage() {
                                  ) : (
                                       <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
                                         <Paperclip className="mx-auto h-12 w-12" />
-                                        <p className="mt-4">No attachments found.</p>
-                                        <p>You can add files by editing this task.</p>
+                                        <p className="mt-4">{t('tasks.details.no_attachments_title')}</p>
+                                        <p>{t('tasks.details.no_attachments_desc')}</p>
                                     </div>
                                  )}
                             </div>

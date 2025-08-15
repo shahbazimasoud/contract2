@@ -305,8 +305,8 @@ export default function ContractsPage() {
         setSelectedContractForDetails(updatedContract);
         commentForm.reset();
         toast({
-            title: "Comment Added",
-            description: "Your comment has been successfully posted.",
+            title: t('contracts.toast.comment_added_title'),
+            description: t('contracts.toast.comment_added_desc'),
         });
     };
 
@@ -316,13 +316,13 @@ export default function ContractsPage() {
 
     if (firstValidEmail) {
         toast({
-            title: "Test Email Sent",
-            description: `A test notification has been sent to ${firstValidEmail}.`,
+            title: t('contracts.toast.test_email_sent_title'),
+            description: t('contracts.toast.test_email_sent_desc', { email: firstValidEmail }),
         });
     } else {
         toast({
-            title: "No Valid Email",
-            description: "Please enter at least one valid email address to send a test.",
+            title: t('contracts.toast.no_valid_email_title'),
+            description: t('contracts.toast.no_valid_email_desc'),
             variant: "destructive",
         });
     }
@@ -334,13 +334,13 @@ export default function ContractsPage() {
     
     if (firstValidPhone) {
         toast({
-            title: "Test SMS Sent",
-            description: `A test SMS has been sent to ${firstValidPhone}.`,
+            title: t('contracts.toast.test_sms_sent_title'),
+            description: t('contracts.toast.test_sms_sent_desc', { phone: firstValidPhone }),
         });
     } else {
         toast({
-            title: "No Valid Phone Number",
-            description: "Please enter at least one valid phone number to send a test.",
+            title: t('contracts.toast.no_valid_phone_title'),
+            description: t('contracts.toast.no_valid_phone_desc'),
             variant: "destructive",
         });
     }
@@ -384,8 +384,8 @@ export default function ContractsPage() {
       };
       setContracts(contracts.map(c => c.id === editingContract.id ? updatedContract : c));
       toast({
-        title: "Contract Updated",
-        description: `Contract for "${updatedContract.contractorName}" has been successfully updated. A new version has been saved.`,
+        title: t('contracts.toast.updated_title'),
+        description: t('contracts.toast.updated_desc', { name: updatedContract.contractorName }),
       });
     } else {
       // Create new contract
@@ -409,8 +409,8 @@ export default function ContractsPage() {
       };
       setContracts([newContract, ...contracts]);
       toast({
-          title: "Contract Created",
-          description: `Contract for "${newContract.contractorName}" has been successfully created.`,
+          title: t('contracts.toast.created_title'),
+          description: t('contracts.toast.created_desc', { name: newContract.contractorName }),
       });
     }
 
@@ -496,8 +496,8 @@ export default function ContractsPage() {
   const handleDelete = (id: string) => {
     setContracts(contracts.filter(c => c.id !== id));
     toast({
-        title: "Contract Deleted",
-        description: `The contract has been successfully deleted.`,
+        title: t('contracts.toast.deleted_title'),
+        description: t('contracts.toast.deleted_desc'),
         variant: "destructive",
     });
   }
@@ -547,7 +547,7 @@ export default function ContractsPage() {
         <div className="flex h-screen w-full items-center justify-center">
             <div className="flex flex-col items-center gap-4">
                 <FileText className="h-10 w-10 animate-pulse text-muted-foreground" />
-                <p className="text-muted-foreground">Loading Contracts...</p>
+                <p className="text-muted-foreground">{t('loading.dashboard')}</p>
             </div>
         </div>
     );
@@ -565,9 +565,9 @@ export default function ContractsPage() {
       <Dialog open={isDialogOpen} onOpenChange={(isOpen) => !isOpen && handleCloseDialog()}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-              <DialogTitle>{editingContract ? 'Edit Contract' : 'Add New Contract'}</DialogTitle>
+              <DialogTitle>{editingContract ? t('contracts.dialog.edit_title') : t('contracts.dialog.add_title')}</DialogTitle>
               <DialogDescription>
-                  {editingContract ? 'Update the details of the existing contract.' : 'Fill out the form below to create a new contract.'}
+                  {editingContract ? t('contracts.dialog.edit_desc') : t('contracts.dialog.add_desc')}
               </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -577,9 +577,9 @@ export default function ContractsPage() {
                       name="contractorName"
                       render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Contractor Name</FormLabel>
+                              <FormLabel>{t('contracts.dialog.contractor_name_label')}</FormLabel>
                               <FormControl>
-                                  <Input placeholder="e.g., Innovate Solutions Ltd." {...field} />
+                                  <Input placeholder={t('contracts.dialog.contractor_name_placeholder')} {...field} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -590,9 +590,9 @@ export default function ContractsPage() {
                       name="type"
                       render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Contract Type</FormLabel>
+                              <FormLabel>{t('contracts.dialog.type_label')}</FormLabel>
                               <FormControl>
-                                  <Input placeholder="e.g., Service Agreement" {...field} />
+                                  <Input placeholder={t('contracts.dialog.type_placeholder')} {...field} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -603,7 +603,7 @@ export default function ContractsPage() {
                       name="startDate"
                       render={({ field }) => (
                           <FormItem className="flex flex-col">
-                              <FormLabel>Start Date</FormLabel>
+                              <FormLabel>{t('contracts.dialog.start_date_label')}</FormLabel>
                               <FormControl>
                                   <DatePicker
                                       value={field.value}
@@ -613,7 +613,7 @@ export default function ContractsPage() {
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
-                                              {value || <span>Pick a date</span>}
+                                              {value || <span>{t('contracts.dialog.pick_date_placeholder')}</span>}
                                           </Button>
                                       )}
                                   />
@@ -627,7 +627,7 @@ export default function ContractsPage() {
                       name="endDate"
                       render={({ field }) => (
                           <FormItem className="flex flex-col">
-                              <FormLabel>End Date</FormLabel>
+                              <FormLabel>{t('contracts.dialog.end_date_label')}</FormLabel>
                               <FormControl>
                                   <DatePicker
                                       value={field.value}
@@ -637,7 +637,7 @@ export default function ContractsPage() {
                                       render={(value: any, openCalendar: () => void) => (
                                           <Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal">
                                               <CalendarIcon className="mr-2 h-4 w-4" />
-                                              {value || <span>Pick a date</span>}
+                                              {value || <span>{t('contracts.dialog.pick_date_placeholder')}</span>}
                                           </Button>
                                       )}
                                   />
@@ -651,11 +651,11 @@ export default function ContractsPage() {
                       name="unit"
                       render={({ field }) => (
                       <FormItem>
-                          <FormLabel>Unit</FormLabel>
+                          <FormLabel>{t('contracts.dialog.unit_label')}</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value} disabled={currentUser.role === 'admin'}>
                           <FormControl>
                               <SelectTrigger>
-                              <SelectValue placeholder="Select an organizational unit" />
+                              <SelectValue placeholder={t('contracts.dialog.select_unit_placeholder')} />
                               </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -673,16 +673,16 @@ export default function ContractsPage() {
                       name="renewal"
                       render={({ field }) => (
                       <FormItem>
-                          <FormLabel>Renewal Policy</FormLabel>
+                          <FormLabel>{t('contracts.dialog.renewal_policy_label')}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                               <SelectTrigger>
-                              <SelectValue placeholder="Select renewal policy" />
+                              <SelectValue placeholder={t('contracts.dialog.select_renewal_placeholder')} />
                               </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                              <SelectItem value="manual">Manual</SelectItem>
-                              <SelectItem value="auto">Automatic</SelectItem>
+                              <SelectItem value="manual">{t('contracts.renewal_types.manual')}</SelectItem>
+                              <SelectItem value="auto">{t('contracts.renewal_types.auto')}</SelectItem>
                           </SelectContent>
                           </Select>
                           <FormMessage />
@@ -695,9 +695,9 @@ export default function ContractsPage() {
                           name="description"
                           render={({ field }) => (
                               <FormItem>
-                                  <FormLabel>Description</FormLabel>
+                                  <FormLabel>{t('contracts.dialog.description_label')}</FormLabel>
                                   <FormControl>
-                                      <Textarea placeholder="Briefly describe the contract..." {...field} />
+                                      <Textarea placeholder={t('contracts.dialog.description_placeholder')} {...field} />
                                   </FormControl>
                                   <FormMessage />
                               </FormItem>
@@ -712,9 +712,9 @@ export default function ContractsPage() {
                         render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                             <div className="space-y-0.5">
-                            <FormLabel>Contract Status</FormLabel>
+                            <FormLabel>{t('contracts.dialog.status_label')}</FormLabel>
                             <FormDescription>
-                                An inactive contract will not send any reminders.
+                                {t('contracts.dialog.status_desc')}
                             </FormDescription>
                             </div>
                             <FormControl>
@@ -735,13 +735,13 @@ export default function ContractsPage() {
                           name="attachments"
                           render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Attachments</FormLabel>
+                              <FormLabel>{t('contracts.dialog.attachments_label')}</FormLabel>
                               <FormControl>
                               <div className="relative">
                                   <Button type="button" variant="outline" asChild>
                                   <label htmlFor="file-upload" className="cursor-pointer w-full flex items-center justify-center gap-2">
                                       <Upload className="h-4 w-4"/>
-                                      <span>{ attachedFiles.length > 0 ? `${attachedFiles.length} file(s) selected` : 'Select Files'}</span>
+                                      <span>{ attachedFiles.length > 0 ? t('contracts.dialog.files_selected', { count: attachedFiles.length }) : t('contracts.dialog.select_files_button')}</span>
                                   </label>
                                   </Button>
                                   <Input 
@@ -759,7 +759,7 @@ export default function ContractsPage() {
                       />
                       {attachedFiles.length > 0 && (
                           <div className="space-y-2">
-                          <p className="text-sm font-medium">New files to upload:</p>
+                          <p className="text-sm font-medium">{t('contracts.dialog.new_files_label')}</p>
                           <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                               {attachedFiles.map((file, index) => (
                               <li key={index} className="flex items-center gap-2">
@@ -785,7 +785,7 @@ export default function ContractsPage() {
                       )}
                       {editingContract && editingContract.attachments.length > 0 && (
                          <div className="space-y-2">
-                            <p className="text-sm font-medium">Current attachments:</p>
+                            <p className="text-sm font-medium">{t('contracts.dialog.current_attachments_label')}</p>
                             <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                                 {editingContract.attachments.map((file, index) => (
                                 <li key={index} className="flex items-center gap-2">
@@ -794,15 +794,15 @@ export default function ContractsPage() {
                                 </li>
                                 ))}
                             </ul>
-                            <p className="text-xs text-muted-foreground">Uploading new files will replace current attachments.</p>
+                            <p className="text-xs text-muted-foreground">{t('contracts.dialog.replace_attachments_note')}</p>
                          </div>
                       )}
                   </div>
 
                   <div className="md:col-span-2 space-y-4">
                       <div>
-                        <FormLabel>Reminder Emails</FormLabel>
-                        <FormDescription className="mb-2">Emails for notifications.</FormDescription>
+                        <FormLabel>{t('contracts.dialog.reminder_emails_label')}</FormLabel>
+                        <FormDescription className="mb-2">{t('contracts.dialog.reminder_emails_desc')}</FormDescription>
                         {emailFields.map((field, index) => (
                           <FormField
                             key={field.id}
@@ -832,7 +832,7 @@ export default function ContractsPage() {
                               size="sm"
                               onClick={() => appendEmail({ email: '' })}
                             >
-                              Add Email
+                              {t('contracts.dialog.add_email_button')}
                             </Button>
                             <Button
                               type="button"
@@ -841,7 +841,7 @@ export default function ContractsPage() {
                               onClick={handleTestEmail}
                             >
                               <Send className="mr-2 h-4 w-4" />
-                              Send Test
+                              {t('contracts.dialog.send_test_button')}
                             </Button>
                         </div>
                       </div>
@@ -849,8 +849,8 @@ export default function ContractsPage() {
 
                   <div className="md:col-span-2 space-y-4">
                       <div>
-                        <FormLabel>Reminder Phone Numbers (Optional)</FormLabel>
-                        <FormDescription className="mb-2">Phone numbers for SMS notifications.</FormDescription>
+                        <FormLabel>{t('contracts.dialog.reminder_phones_label')}</FormLabel>
+                        <FormDescription className="mb-2">{t('contracts.dialog.reminder_phones_desc')}</FormDescription>
                         {phoneFields.map((field, index) => (
                           <FormField
                             key={field.id}
@@ -880,7 +880,7 @@ export default function ContractsPage() {
                               size="sm"
                               onClick={() => appendPhone({ phone: '' })}
                             >
-                              Add Phone Number
+                              {t('contracts.dialog.add_phone_button')}
                             </Button>
                              <Button
                               type="button"
@@ -889,7 +889,7 @@ export default function ContractsPage() {
                               onClick={handleTestSms}
                             >
                               <Send className="mr-2 h-4 w-4" />
-                              Send Test
+                              {t('contracts.dialog.send_test_button')}
                             </Button>
                         </div>
                       </div>
@@ -897,8 +897,8 @@ export default function ContractsPage() {
                   
                   <div className="md:col-span-2 space-y-4">
                       <div>
-                        <FormLabel>Reminder Days</FormLabel>
-                        <FormDescription className="mb-2">Days before expiration to send reminders.</FormDescription>
+                        <FormLabel>{t('contracts.dialog.reminder_days_label')}</FormLabel>
+                        <FormDescription className="mb-2">{t('contracts.dialog.reminder_days_desc')}</FormDescription>
                         {reminderDayFields.map((field, index) => (
                           <FormField
                             key={field.id}
@@ -928,15 +928,15 @@ export default function ContractsPage() {
                           className="mt-2"
                           onClick={() => appendReminderDay({ days: 15 })}
                         >
-                          Add Reminder Day
+                          {t('contracts.dialog.add_reminder_day_button')}
                         </Button>
                       </div>
                   </div>
                   <DialogFooter className="md:col-span-2">
                       <DialogClose asChild>
-                          <Button type="button" variant="ghost">Cancel</Button>
+                          <Button type="button" variant="ghost">{t('common.cancel')}</Button>
                       </DialogClose>
-                      <Button type="submit">{editingContract ? 'Save Changes' : 'Create Contract'}</Button>
+                      <Button type="submit">{editingContract ? t('common.save_changes') : t('contracts.dialog.create_button')}</Button>
                   </DialogFooter>
               </form>
           </Form>
@@ -948,72 +948,72 @@ export default function ContractsPage() {
             {selectedContractForDetails && (
                 <>
                     <SheetHeader>
-                        <SheetTitle>Details for {selectedContractForDetails.contractorName}</SheetTitle>
+                        <SheetTitle>{t('contracts.details.title', { name: selectedContractForDetails.contractorName })}</SheetTitle>
                         <SheetDescription>
-                            Contract ID: {selectedContractForDetails.id}
+                            {t('contracts.details.contract_id', { id: selectedContractForDetails.id })}
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="details">Details</TabsTrigger>
-                            <TabsTrigger value="comments">Comments</TabsTrigger>
-                            <TabsTrigger value="history">History</TabsTrigger>
+                            <TabsTrigger value="details">{t('contracts.details.tabs.details')}</TabsTrigger>
+                            <TabsTrigger value="comments">{t('contracts.details.tabs.comments')}</TabsTrigger>
+                            <TabsTrigger value="history">{t('contracts.details.tabs.history')}</TabsTrigger>
                         </TabsList>
                         <TabsContent value="details" className="flex-1 overflow-y-auto">
                            <ScrollArea className="h-full">
                                 <div className="space-y-4 p-4 text-sm">
                                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                        <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Contractor</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.contractor')}</p>
                                             <p>{selectedContractForDetails.contractorName}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Type</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.type')}</p>
                                             <p>{selectedContractForDetails.type}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Start Date</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.start_date')}</p>
                                             <p>{formatPersian(new Date(selectedContractForDetails.startDate), 'yyyy/MM/dd')}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">End Date</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.end_date')}</p>
                                             <p>{formatPersian(new Date(selectedContractForDetails.endDate), 'yyyy/MM/dd')}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Unit</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.unit')}</p>
                                             <p>{selectedContractForDetails.unit}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Renewal</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.renewal')}</p>
                                             <p className="capitalize">{selectedContractForDetails.renewal}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Status</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.status')}</p>
                                             <p className="capitalize">{selectedContractForDetails.status}</p>
                                         </div>
                                          <div className="space-y-1">
-                                            <p className="font-medium text-muted-foreground">Created By</p>
+                                            <p className="font-medium text-muted-foreground">{t('contracts.details.created_by')}</p>
                                             <p className="capitalize">{selectedContractForDetails.createdBy}</p>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
-                                       <p className="font-medium text-muted-foreground">Description</p>
+                                       <p className="font-medium text-muted-foreground">{t('contracts.details.description')}</p>
                                        <p>{selectedContractForDetails.description || 'N/A'}</p>
                                     </div>
                                      <div className="space-y-1">
-                                       <p className="font-medium text-muted-foreground">Reminder Emails</p>
+                                       <p className="font-medium text-muted-foreground">{t('contracts.details.reminder_emails')}</p>
                                        <p>{selectedContractForDetails.reminderEmails.join(', ')}</p>
                                     </div>
                                      <div className="space-y-1">
-                                       <p className="font-medium text-muted-foreground">Reminder Phones</p>
+                                       <p className="font-medium text-muted-foreground">{t('contracts.details.reminder_phones')}</p>
                                        <p>{selectedContractForDetails.reminderPhones.join(', ') || 'N/A'}</p>
                                     </div>
                                      <div className="space-y-1">
-                                       <p className="font-medium text-muted-foreground">Reminder Days</p>
+                                       <p className="font-medium text-muted-foreground">{t('contracts.details.reminder_days')}</p>
                                        <p>{selectedContractForDetails.reminders.join(', ')}</p>
                                     </div>
                                      <div className="space-y-1">
-                                       <p className="font-medium text-muted-foreground">Attachments</p>
+                                       <p className="font-medium text-muted-foreground">{t('contracts.details.attachments')}</p>
                                        {selectedContractForDetails.attachments.length > 0 ? (
                                             <ul className="list-disc list-inside">
                                                 {selectedContractForDetails.attachments.map((file, index) => (
@@ -1022,7 +1022,7 @@ export default function ContractsPage() {
                                                     </li>
                                                 ))}
                                             </ul>
-                                       ) : <p>No attachments</p>}
+                                       ) : <p>{t('contracts.details.no_attachments')}</p>}
                                     </div>
 
                                 </div>
@@ -1054,8 +1054,8 @@ export default function ContractsPage() {
                                 ) : (
                                     <div className="text-center text-muted-foreground py-10">
                                         <MessageSquare className="mx-auto h-12 w-12" />
-                                        <p className="mt-4">No comments yet.</p>
-                                        <p>Be the first to add a comment.</p>
+                                        <p className="mt-4">{t('contracts.details.no_comments_title')}</p>
+                                        <p>{t('contracts.details.no_comments_desc')}</p>
                                     </div>
                                 )}
                             </div>
@@ -1068,13 +1068,13 @@ export default function ContractsPage() {
                                         render={({ field }) => (
                                             <FormItem className="flex-1">
                                             <FormControl>
-                                                <Textarea placeholder="Type your comment here..." {...field} className="min-h-[60px]" />
+                                                <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
                                             </FormControl>
                                             <FormMessage />
                                             </FormItem>
                                         )}
                                         />
-                                        <Button type="submit">Post</Button>
+                                        <Button type="submit">{t('contracts.details.post_comment_button')}</Button>
                                     </form>
                                 </Form>
                             </div>
@@ -1092,9 +1092,9 @@ export default function ContractsPage() {
                                                     <AvatarFallback>{creator?.name.charAt(0) || 'U'}</AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                    <p className="text-sm font-medium">Version {version.versionNumber}</p>
+                                                    <p className="text-sm font-medium">{t('contracts.details.version_label', { version: version.versionNumber })}</p>
                                                     <p className="text-xs text-muted-foreground">
-                                                        Saved by {creator?.name || 'Unknown'} on {format(new Date(version.createdAt), "PPP p")}
+                                                        {t('contracts.details.version_saved_by', { name: creator?.name || 'Unknown', date: format(new Date(version.createdAt), "PPP p")})}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1107,8 +1107,8 @@ export default function ContractsPage() {
                             ) : (
                                 <div className="text-center text-muted-foreground py-10">
                                     <History className="mx-auto h-12 w-12" />
-                                    <p className="mt-4">No version history.</p>
-                                    <p>Edits to this contract will be tracked here.</p>
+                                    <p className="mt-4">{t('contracts.details.no_history_title')}</p>
+                                    <p>{t('contracts.details.no_history_desc')}</p>
                                 </div>
                             )}
                         </TabsContent>
@@ -1121,9 +1121,9 @@ export default function ContractsPage() {
         <Dialog open={isVersionViewOpen} onOpenChange={setIsVersionViewOpen}>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Contract Version {selectedVersion?.versionNumber}</DialogTitle>
+                    <DialogTitle>{t('contracts.details.version_view_title', { version: selectedVersion?.versionNumber || ''})}</DialogTitle>
                     <DialogDescription>
-                        Read-only view of a past contract version. Saved by {getCreator(selectedVersion?.createdBy || '')?.name} on {selectedVersion ? format(new Date(selectedVersion.createdAt), "PPP p") : ''}.
+                         {t('contracts.details.version_view_desc', { name: getCreator(selectedVersion?.createdBy || '')?.name || 'Unknown', date: selectedVersion ? format(new Date(selectedVersion.createdAt), "PPP p") : ''})}
                     </DialogDescription>
                 </DialogHeader>
                 {selectedVersion && (
@@ -1131,52 +1131,52 @@ export default function ContractsPage() {
                     <div className="space-y-4 p-4">
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Contractor Name</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.contractor')}</p>
                                 <p>{selectedVersion.contractorName}</p>
                             </div>
                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Contract Type</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.type')}</p>
                                 <p>{selectedVersion.type}</p>
                             </div>
                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Start Date</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.start_date')}</p>
                                 <p>{formatPersian(new Date(selectedVersion.startDate), 'yyyy/MM/dd')}</p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">End Date</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.end_date')}</p>
                                 <p>{formatPersian(new Date(selectedVersion.endDate), 'yyyy/MM/dd')}</p>
                             </div>
                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Unit</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.unit')}</p>
                                 <p>{selectedVersion.unit}</p>
                             </div>
                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Renewal Policy</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.renewal')}</p>
                                 <p className="capitalize">{selectedVersion.renewal}</p>
                             </div>
                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                                <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.status')}</p>
                                 <p className="capitalize">{selectedVersion.status}</p>
                             </div>
                         </div>
                         <div className="space-y-1">
-                           <p className="text-sm font-medium text-muted-foreground">Description</p>
+                           <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.description')}</p>
                            <p className="text-sm">{selectedVersion.description || 'N/A'}</p>
                         </div>
                          <div className="space-y-1">
-                           <p className="text-sm font-medium text-muted-foreground">Reminder Emails</p>
+                           <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.reminder_emails')}</p>
                            <p className="text-sm">{selectedVersion.reminderEmails.join(', ')}</p>
                         </div>
                          <div className="space-y-1">
-                           <p className="text-sm font-medium text-muted-foreground">Reminder Phones</p>
+                           <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.reminder_phones')}</p>
                            <p className="text-sm">{selectedVersion.reminderPhones.join(', ') || 'N/A'}</p>
                         </div>
                          <div className="space-y-1">
-                           <p className="text-sm font-medium text-muted-foreground">Reminder Days</p>
+                           <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.reminder_days')}</p>
                            <p className="text-sm">{selectedVersion.reminders.join(', ')}</p>
                         </div>
                          <div className="space-y-1">
-                           <p className="text-sm font-medium text-muted-foreground">Attachments</p>
+                           <p className="text-sm font-medium text-muted-foreground">{t('contracts.details.attachments')}</p>
                            {selectedVersion.attachments.length > 0 ? (
                                 <ul className="list-disc list-inside text-sm">
                                     {selectedVersion.attachments.map((file, index) => (
@@ -1185,14 +1185,14 @@ export default function ContractsPage() {
                                         </li>
                                     ))}
                                 </ul>
-                           ) : <p className="text-sm">No attachments</p>}
+                           ) : <p className="text-sm">{t('contracts.details.no_attachments')}</p>}
                         </div>
 
                     </div>
                     </ScrollArea>
                 )}
                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsVersionViewOpen(false)}>Close</Button>
+                    <Button type="button" variant="outline" onClick={() => setIsVersionViewOpen(false)}>{t('common.close')}</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -1201,17 +1201,17 @@ export default function ContractsPage() {
         <CardHeader>
              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                  <div>
-                    <CardTitle>Contract List</CardTitle>
-                    <CardDescription>A list of all contracts in your system.</CardDescription>
+                    <CardTitle>{t('contracts.list_title')}</CardTitle>
+                    <CardDescription>{t('contracts.list_desc')}</CardDescription>
                  </div>
                  <Button onClick={() => handleOpenDialog(null)} className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Contract
+                    {t('contracts.add_button')}
                  </Button>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-4">
                  <Input
-                    placeholder="Search by contractor, ID, or type..."
+                    placeholder={t('contracts.search_placeholder')}
                     value={searchTerm}
                     onChange={handleSearch}
                     className="w-full sm:max-w-xs"
@@ -1220,48 +1220,48 @@ export default function ContractsPage() {
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full sm:w-auto">
                             <Filter className="mr-2 h-4 w-4" />
-                            Filter & Sort
+                            {t('contracts.filter_button')}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="grid gap-4">
                             <div className="space-y-2">
-                                <h4 className="font-medium leading-none">Filters</h4>
+                                <h4 className="font-medium leading-none">{t('contracts.filter.title')}</h4>
                                 <p className="text-sm text-muted-foreground">
-                                    Refine the contracts shown in the list.
+                                    {t('contracts.filter.desc')}
                                 </p>
                             </div>
                             <div className="grid gap-2">
                                 <div className="grid grid-cols-3 items-center gap-4">
-                                    <label htmlFor="filter-status">Status</label>
+                                    <label htmlFor="filter-status">{t('contracts.filter.status_label')}</label>
                                     <Select value={filters.status} onValueChange={(v) => handleFilterChange('status', v)}>
                                         <SelectTrigger id="filter-status" className="col-span-2 h-8">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All</SelectItem>
-                                            <SelectItem value="active">Active</SelectItem>
-                                            <SelectItem value="inactive">Inactive</SelectItem>
+                                            <SelectItem value="all">{t('contracts.filter.all')}</SelectItem>
+                                            <SelectItem value="active">{t('contracts.status_types.active')}</SelectItem>
+                                            <SelectItem value="inactive">{t('contracts.status_types.inactive')}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="grid grid-cols-3 items-center gap-4">
-                                    <label htmlFor="filter-renewal">Renewal</label>
+                                    <label htmlFor="filter-renewal">{t('contracts.filter.renewal_label')}</label>
                                     <Select value={filters.renewal} onValueChange={(v) => handleFilterChange('renewal', v)}>
                                         <SelectTrigger id="filter-renewal" className="col-span-2 h-8">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All</SelectItem>
-                                            <SelectItem value="auto">Automatic</SelectItem>
-                                            <SelectItem value="manual">Manual</SelectItem>
+                                            <SelectItem value="all">{t('contracts.filter.all')}</SelectItem>
+                                            <SelectItem value="auto">{t('contracts.renewal_types.auto')}</SelectItem>
+                                            <SelectItem value="manual">{t('contracts.renewal_types.manual')}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
                             <Button variant="ghost" size="sm" onClick={clearFilters} className="justify-self-start">
                                 <Trash2 className="mr-2 h-4 w-4"/>
-                                Clear Filters
+                                {t('contracts.filter.clear_button')}
                             </Button>
                         </div>
                     </PopoverContent>
@@ -1285,28 +1285,28 @@ export default function ContractsPage() {
                         <TableRow>
                         <TableHead className="w-[25%]">
                             <Button variant="ghost" onClick={() => handleSort('contractorName')}>
-                                Contractor
+                                {t('contracts.table.contractor')}
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                             </Button>
                         </TableHead>
-                        <TableHead className="w-[15%]">Type</TableHead>
+                        <TableHead className="w-[15%]">{t('contracts.table.type')}</TableHead>
                         <TableHead className="w-[10%]">
                             <Button variant="ghost" onClick={() => handleSort('status')}>
-                                Status
+                                {t('contracts.table.status')}
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                             </Button>
                         </TableHead>
                         <TableHead className="w-[15%]">
                             <Button variant="ghost" onClick={() => handleSort('endDate')}>
-                                End Date
+                                {t('contracts.table.end_date')}
                                 <ArrowUpDown className="ml-2 h-4 w-4" />
                             </Button>
                         </TableHead>
-                        <TableHead className="w-[10%]">Days Left</TableHead>
-                        <TableHead className="w-[10%]">Unit</TableHead>
-                        <TableHead className="w-[10%]">Info</TableHead>
+                        <TableHead className="w-[10%]">{t('contracts.table.days_left')}</TableHead>
+                        <TableHead className="w-[10%]">{t('contracts.table.unit')}</TableHead>
+                        <TableHead className="w-[10%]">{t('contracts.table.info')}</TableHead>
                         <TableHead className="w-[5%] text-right">
-                            <span className="sr-only">Actions</span>
+                            <span className="sr-only">{t('common.actions')}</span>
                         </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -1314,7 +1314,7 @@ export default function ContractsPage() {
                         {paginatedContracts.length > 0 ? (
                         paginatedContracts.map((contract) => {
                             const daysLeft = getDaysLeft(contract.endDate);
-                            const daysLeftText = daysLeft < 0 ? 'Expired' : `${daysLeft} days`;
+                            const daysLeftText = daysLeft < 0 ? t('contracts.status.expired') : t('contracts.status.days_left', { count: daysLeft });
                             const daysLeftColor = daysLeft < 7 ? 'text-destructive' : daysLeft < 30 ? 'text-amber-600' : 'text-green-600';
                             return (
                                 <TableRow key={contract.id} className={cn(contract.status === 'inactive' && 'opacity-50')}>
@@ -1332,7 +1332,7 @@ export default function ContractsPage() {
                                             : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700'
                                         )}
                                     >
-                                        {contract.status === 'active' ? 'Active' : 'Inactive'}
+                                        {t(`contracts.status_types.${contract.status}`)}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>{formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</TableCell>
@@ -1349,7 +1349,7 @@ export default function ContractsPage() {
                                                         <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>Has comments</p>
+                                                        <p>{t('contracts.tooltips.has_comments')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
@@ -1359,7 +1359,7 @@ export default function ContractsPage() {
                                                         <History className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>Has version history</p>
+                                                        <p>{t('contracts.tooltips.has_history')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
@@ -1369,7 +1369,7 @@ export default function ContractsPage() {
                                                         <AttachmentIcon className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>{contract.attachments.length} attachment(s)</p>
+                                                        <p>{t('contracts.tooltips.attachments_count', { count: contract.attachments.length })}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
@@ -1379,7 +1379,7 @@ export default function ContractsPage() {
                                                         <Bell className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>Email reminders active</p>
+                                                        <p>{t('contracts.tooltips.email_reminders_active')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
@@ -1389,7 +1389,7 @@ export default function ContractsPage() {
                                                         <Mail className="h-4 w-4 text-muted-foreground" />
                                                     </TooltipTrigger>
                                                     <TooltipContent>
-                                                        <p>SMS reminders active</p>
+                                                        <p>{t('contracts.tooltips.sms_reminders_active')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
@@ -1401,15 +1401,15 @@ export default function ContractsPage() {
                                     <DropdownMenuTrigger asChild>
                                         <Button aria-haspopup="true" size="icon" variant="ghost">
                                         <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Toggle menu</span>
+                                        <span className="sr-only">{t('common.toggle_menu')}</span>
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>Edit</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenDetailsSheet(contract)}>Details</DropdownMenuItem>
+                                        <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleOpenDialog(contract)}>{t('common.edit')}</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleOpenDetailsSheet(contract)}>{t('contracts.details.view_details')}</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">Delete</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDelete(contract.id)} className="text-destructive">{t('common.delete')}</DropdownMenuItem>
                                     </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -1421,8 +1421,8 @@ export default function ContractsPage() {
                             <TableCell colSpan={8} className="h-24 text-center">
                                 <div className="flex flex-col items-center gap-2">
                                 <FileText className="h-8 w-8 text-muted-foreground" />
-                                <p className="font-semibold">No contracts found.</p>
-                                <p className="text-muted-foreground text-sm">Try adjusting your filters or add a new contract.</p>
+                                <p className="font-semibold">{t('contracts.no_contracts_found_title')}</p>
+                                <p className="text-muted-foreground text-sm">{t('contracts.no_contracts_found_desc')}</p>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -1438,10 +1438,10 @@ export default function ContractsPage() {
                         onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
                     >
-                        Previous
+                        {t('common.previous')}
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
+                        {t('common.page_of', { current: currentPage, total: totalPages })}
                     </span>
                     <Button
                         variant="outline"
@@ -1449,7 +1449,7 @@ export default function ContractsPage() {
                         onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
                     >
-                        Next
+                        {t('common.next')}
                     </Button>
                     </div>
                 )}
@@ -1462,7 +1462,7 @@ export default function ContractsPage() {
                             <h2 className="text-lg font-semibold w-36 text-center">{format(currentMonth, 'MMMM yyyy')}</h2>
                             <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4"/></Button>
                         </div>
-                        <Button variant="outline" onClick={goToToday}>Today</Button>
+                        <Button variant="outline" onClick={goToToday}>{t('contracts.calendar.today_button')}</Button>
                     </div>
                     <div className="grid grid-cols-7 border-t border-b">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -1491,8 +1491,8 @@ export default function ContractsPage() {
                                                     </TooltipTrigger>
                                                     <TooltipContent>
                                                         <p>{contract.type}</p>
-                                                        <p>Expires: {formatPersian(new Date(contract.endDate), 'yyyy/MM/dd')}</p>
-                                                        <p className="italic text-muted-foreground">Click to see details</p>
+                                                        <p>{t('contracts.calendar.expires_on', { date: formatPersian(new Date(contract.endDate), 'yyyy/MM/dd') })}</p>
+                                                        <p className="italic text-muted-foreground">{t('contracts.calendar.click_for_details')}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>

@@ -651,6 +651,7 @@ export const fa = {
         no_activity_title: 'هنوز فعالیتی ثبت نشده است.',
         no_reactions_title: 'هنوز واکنشی ثبت نشده است.',
         no_reactions_desc: 'اولین کسی باشید که به این وظیفه واکنش نشان می‌دهد.',
+        reacted_by_count: '{{count}} کاربر واکنش نشان دادند',
     },
     logs: {
         created: 'وظیفه را ایجاد کرد: "{{title}}"',
@@ -734,3 +735,5 @@ export const fa = {
     }
   }
 };
+
+    

@@ -651,6 +651,7 @@ export const en = {
         no_activity_title: 'No activity yet.',
         no_reactions_title: 'No reactions yet.',
         no_reactions_desc: 'Be the first to react to this task.',
+        reacted_by_count: 'Reacted by {{count}} user(s)',
     },
     logs: {
         created: 'created the task: "{{title}}"',
@@ -734,3 +735,5 @@ export const en = {
     }
   }
 };
+
+    

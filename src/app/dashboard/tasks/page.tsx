@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History, SmilePlus } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -85,10 +86,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards, scheduledReports as mockScheduledReports } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType, ActivityLog } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType, ActivityLog, Reaction } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils"
-import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -974,6 +974,7 @@ export default function TasksPage() {
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 comments: [],
                 logs: [newLog],
+                reactions: [],
             };
             setTasks([newTask, ...tasks]);
             toast({
@@ -1333,6 +1334,44 @@ export default function TasksPage() {
         setTasks(newTasks);
         handleDragEnd(e as any);
     };
+
+    const handleReaction = (taskId: string, emoji: string) => {
+        if (!currentUser) return;
+
+        setTasks(prevTasks =>
+            prevTasks.map(task => {
+                if (task.id === taskId) {
+                    const existingReactionIndex = (task.reactions || []).findIndex(
+                        r => r.userId === currentUser.id
+                    );
+
+                    let newReactions = [...(task.reactions || [])];
+
+                    if (existingReactionIndex > -1) {
+                        // User has reacted before
+                        if (newReactions[existingReactionIndex].emoji === emoji) {
+                            // User clicked the same emoji, so remove reaction
+                            newReactions.splice(existingReactionIndex, 1);
+                        } else {
+                            // User changed their reaction
+                            newReactions[existingReactionIndex].emoji = emoji;
+                        }
+                    } else {
+                        // New reaction
+                        newReactions.push({
+                            emoji: emoji,
+                            userId: currentUser.id,
+                            userName: currentUser.name,
+                        });
+                    }
+
+                    return { ...task, reactions: newReactions };
+                }
+                return task;
+            })
+        );
+    };
+
     
     if (!currentUser) {
       return null;
@@ -1407,6 +1446,11 @@ export default function TasksPage() {
       const checklistItems = task.checklist || [];
       const completedItems = checklistItems.filter(item => item.completed).length;
       const canEdit = userPermissions === 'owner' || userPermissions === 'editor';
+      const reactionsEnabled = appearanceSettings?.taskReactionsEnabled;
+      const groupedReactions = (task.reactions || []).reduce((acc, reaction) => {
+        acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
       
       const { isCompleted } = task;
 
@@ -1533,6 +1577,62 @@ export default function TasksPage() {
                     </div>
                   )}
                 </div>
+                 {reactionsEnabled && (
+                    <div className="flex items-center gap-2 mt-3 pl-6">
+                        <div className="flex items-center gap-1 flex-wrap">
+                            {Object.entries(groupedReactions).map(([emoji, count]) => {
+                                const userHasReacted = (task.reactions || []).some(r => r.userId === currentUser.id && r.emoji === emoji);
+                                return (
+                                <TooltipProvider key={emoji}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <button 
+                                                onClick={(e) => { e.stopPropagation(); handleReaction(task.id, emoji); }}
+                                                className={cn(
+                                                    "px-2 py-0.5 rounded-full border flex items-center gap-1 text-xs transition-colors",
+                                                    userHasReacted ? "bg-primary/20 border-primary" : "bg-muted hover:bg-muted/80"
+                                                )}
+                                            >
+                                                <span>{emoji}</span>
+                                                <span className="font-semibold">{count}</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>
+                                                {(task.reactions || []).filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )})}
+                        </div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 rounded-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <SmilePlus className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-1">
+                                <div className="flex gap-1">
+                                    {(appearanceSettings?.allowedReactions || []).map(emoji => (
+                                        <button
+                                            key={emoji}
+                                            onClick={(e) => { e.stopPropagation(); handleReaction(task.id, emoji); }}
+                                            className="p-1.5 text-lg rounded-md hover:bg-accent transition-colors"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
               </CardContent>
             </Card>
              {dragOverTaskId === task.id && dropPosition === 'bottom' && (
@@ -3121,9 +3221,10 @@ export default function TasksPage() {
                         </SheetDescription>
                     </SheetHeader>
                     <Tabs defaultValue="comments" className="flex-1 flex flex-col min-h-0">
-                         <TabsList className="grid w-full grid-cols-4">
+                         <TabsList className="grid w-full grid-cols-5">
                             <TabsTrigger value="checklist">{t('tasks.details.tabs.checklist')}</TabsTrigger>
                             <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
+                            <TabsTrigger value="reactions">{t('tasks.details.tabs.reactions')}</TabsTrigger>
                             <TabsTrigger value="attachments">{t('tasks.details.tabs.attachments')}</TabsTrigger>
                              <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
                          </TabsList>
@@ -3206,6 +3307,33 @@ export default function TasksPage() {
                                     </form>
                                 </Form>
                             </div>
+                        </TabsContent>
+                        <TabsContent value="reactions" className="flex-1 flex flex-col min-h-0">
+                             <div className="flex-1 overflow-y-auto space-y-4 py-4">
+                                {(selectedTaskForDetails?.reactions || []).length > 0 ? (
+                                    Object.entries(
+                                        (selectedTaskForDetails?.reactions || []).reduce((acc, r) => {
+                                            if (!acc[r.emoji]) acc[r.emoji] = [];
+                                            acc[r.emoji].push(r.userName);
+                                            return acc;
+                                        }, {} as Record<string, string[]>)
+                                    ).map(([emoji, userNames]) => (
+                                        <div key={emoji} className="flex items-start gap-4">
+                                            <span className="text-2xl pt-1">{emoji}</span>
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-sm">{t('tasks.details.reacted_by_count', { count: userNames.length })}</p>
+                                                <p className="text-xs text-muted-foreground">{userNames.join(', ')}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center text-muted-foreground py-10 h-full flex flex-col items-center justify-center">
+                                        <SmilePlus className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">{t('tasks.details.no_reactions_title')}</p>
+                                        <p>{t('tasks.details.no_reactions_desc')}</p>
+                                    </div>
+                                )}
+                             </div>
                         </TabsContent>
                          <TabsContent value="attachments" className="flex-1 flex flex-col min-h-0">
                              <div className="flex-1 overflow-y-auto space-y-2 py-4">

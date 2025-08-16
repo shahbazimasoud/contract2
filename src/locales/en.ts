@@ -1,4 +1,5 @@
 
+
 export const en = {
   common: {
       actions: 'Actions',
@@ -123,6 +124,7 @@ export const en = {
     save_test_button: 'Save & Test Connection',
     toast_settings_saved_title: 'Settings Saved',
     toast_appearance_saved_desc: 'Your appearance settings have been updated.',
+    reset_appearance_button: 'Reset Appearance Settings',
     tabs: {
       appearance: 'Appearance',
       language: 'Language & Region',
@@ -150,11 +152,25 @@ export const en = {
     },
     font: {
         title: 'Font Settings',
+        custom_fonts_tab: 'Custom Fonts',
         description: 'Customize the typography for the application.',
         en_font_label: 'English Font',
         fa_font_label: 'Persian Font',
         size_label: 'Font Size',
         color_label: 'Font Color',
+        custom_font_label: 'Custom',
+        custom_fonts_desc: 'Upload your own font files (.ttf, .otf, .woff, .woff2). Uploading a new font will automatically select it.',
+        upload_en_font: 'Upload English Font',
+        upload_fa_font: 'Upload Persian Font',
+        selected_file: 'Selected',
+        current_custom_font: 'Current custom font',
+    },
+     reactions: {
+        title: 'Task Reactions',
+        enable_label: 'Enable Task Reactions',
+        enable_desc: 'Allow users to react to tasks with emojis.',
+        allowed_emojis_label: 'Allowed Emojis',
+        allowed_emojis_desc: 'Enter emojis separated by commas (e.g., 👍,🎉,❤️).',
     },
     language: {
         title: 'Language',
@@ -626,12 +642,15 @@ export const en = {
             comments: 'Comments',
             attachments: 'Attachments',
             activity: 'Activity',
+            reactions: 'Reactions',
         },
         no_checklist_title: 'No checklist items.',
         no_checklist_desc: 'You can add a checklist by editing this task.',
         no_attachments_title: 'No attachments found.',
         no_attachments_desc: 'You can add files by editing this task.',
         no_activity_title: 'No activity yet.',
+        no_reactions_title: 'No reactions yet.',
+        no_reactions_desc: 'Be the first to react to this task.',
     },
     logs: {
         created: 'created the task: "{{title}}"',
@@ -661,6 +680,7 @@ export const en = {
         assigned_to: 'Assigned to {{name}}',
         sorted_by: 'Sorted by {{field}} ({{direction}})',
         has_comments: 'Has comments',
+        add_reaction: 'Add Reaction',
     },
     toast: {
         task_completed_title: 'Task Completed',

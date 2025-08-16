@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -47,6 +48,8 @@ const defaultSettings: Omit<AppearanceSettings, 'logo' | 'loginTitle' | 'loginSu
     customFontEn: null,
     customFontFa: null,
     calendarSystem: 'gregorian',
+    taskReactionsEnabled: true,
+    allowedReactions: ['👍', '❤️', '🎉', '🔥', '🤔', '👀'],
 };
 
 
@@ -89,13 +92,18 @@ export default function SettingsPage() {
     const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
     const [fontEnFile, setFontEnFile] = React.useState<File | null>(null);
     const [fontFaFile, setFontFaFile] = React.useState<File | null>(null);
+    const [reactionsInput, setReactionsInput] = React.useState(settings.allowedReactions.join(', '));
 
 
     React.useEffect(() => {
         const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
         if (savedSettings) {
             const parsedSettings = JSON.parse(savedSettings);
-            setSettings(prev => ({ ...prev, ...parsedSettings }));
+            // Merge saved settings with defaults to ensure new fields are present
+            const mergedSettings = { ...defaultSettings, ...parsedSettings };
+            setSettings(mergedSettings);
+            setReactionsInput(mergedSettings.allowedReactions.join(', '));
+            
             if (parsedSettings.logo) {
                 setLogoPreview(parsedSettings.logo);
             }
@@ -167,6 +175,8 @@ export default function SettingsPage() {
              const url = await readFileAsDataURL(fontFaFile);
             customFontFaData = { name: fontFaFile.name, url };
         }
+        
+        const allowedReactions = reactionsInput.split(',').map(e => e.trim()).filter(Boolean);
 
         const finalSettings = { 
             ...settings,
@@ -176,6 +186,7 @@ export default function SettingsPage() {
             // If custom font is uploaded, set it as the selected font
             fontFamilyEn: customFontEnData ? `"${customFontEnData.name}"` : settings.fontFamilyEn,
             fontFamilyFa: customFontFaData ? `"${customFontFaData.name}"` : settings.fontFamilyFa,
+            allowedReactions,
         };
 
         localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(finalSettings));
@@ -186,16 +197,18 @@ export default function SettingsPage() {
         window.location.reload();
     };
 
-    const handleResetFonts = () => {
-        const resetFontSettings = {
+    const handleResetAppearance = () => {
+        const resetAppearanceSettings = {
             ...settings,
             ...defaultSettings,
+             primaryColor: "231 48% 48%", // Reset primary color as well
         };
-        setSettings(resetFontSettings);
-        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(resetFontSettings));
+        setSettings(resetAppearanceSettings);
+        setReactionsInput(defaultSettings.allowedReactions.join(', '));
+        localStorage.setItem(APPEARANCE_SETTINGS_KEY, JSON.stringify(resetAppearanceSettings));
         toast({
-            title: "Font Settings Reset",
-            description: "Font settings have been reverted to default.",
+            title: "Appearance Settings Reset",
+            description: "Appearance settings have been reverted to default.",
         });
         window.location.reload();
     };
@@ -276,10 +289,11 @@ export default function SettingsPage() {
                 </div>
               </div>
               
+              {/* Font Settings */}
                 <Tabs defaultValue="font-settings" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                          <TabsTrigger value="font-settings">{t('settings.font.title')}</TabsTrigger>
-                         <TabsTrigger value="custom-fonts">Custom Fonts</TabsTrigger>
+                         <TabsTrigger value="custom-fonts">{t('settings.font.custom_fonts_tab')}</TabsTrigger>
                     </TabsList>
                     <TabsContent value="font-settings">
                         <div className="space-y-6 p-6 border rounded-lg">
@@ -291,7 +305,7 @@ export default function SettingsPage() {
                                         <SelectTrigger id="font-en"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {defaultFonts.en.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
-                                            {settings.customFontEn && <SelectItem value={`"${settings.customFontEn.name}"`}>{settings.customFontEn.name} (Custom)</SelectItem>}
+                                            {settings.customFontEn && <SelectItem value={`"${settings.customFontEn.name}"`}>{settings.customFontEn.name} ({t('settings.font.custom_font_label')})</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -301,7 +315,7 @@ export default function SettingsPage() {
                                         <SelectTrigger id="font-fa"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {defaultFonts.fa.map(font => <SelectItem key={font.name} value={font.value}>{font.name}</SelectItem>)}
-                                            {settings.customFontFa && <SelectItem value={`"${settings.customFontFa.name}"`}>{settings.customFontFa.name} (Custom)</SelectItem>}
+                                            {settings.customFontFa && <SelectItem value={`"${settings.customFontFa.name}"`}>{settings.customFontFa.name} ({t('settings.font.custom_font_label')})</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -330,32 +344,55 @@ export default function SettingsPage() {
                                     <span className="text-sm text-muted-foreground">{settings.fontColor}</span>
                                 </div>
                             </div>
-                             <div className="pt-4">
-                                <Button type="button" variant="ghost" onClick={handleResetFonts}>Reset Font Settings to Default</Button>
-                            </div>
                         </div>
                     </TabsContent>
                     <TabsContent value="custom-fonts">
                          <div className="space-y-6 p-6 border rounded-lg">
-                            <p className="text-sm text-muted-foreground">Upload your own font files (.ttf, .otf, .woff, .woff2). Uploading a new font will automatically select it.</p>
+                            <p className="text-sm text-muted-foreground">{t('settings.font.custom_fonts_desc')}</p>
                              <div className="space-y-2">
-                                <Label htmlFor="custom-font-en">Upload English Font</Label>
+                                <Label htmlFor="custom-font-en">{t('settings.font.upload_en_font')}</Label>
                                 <Input id="custom-font-en" type="file" accept=".ttf,.otf,.woff,.woff2" onChange={(e) => handleFontFileChange(e, 'en')} />
-                                {fontEnFile && <p className="text-sm text-muted-foreground">Selected: {fontEnFile.name}</p>}
+                                {fontEnFile && <p className="text-sm text-muted-foreground">{t('settings.font.selected_file')}: {fontEnFile.name}</p>}
+                                 {settings.customFontEn && !fontEnFile && <p className="text-sm text-muted-foreground">{t('settings.font.current_custom_font')}: {settings.customFontEn.name}</p>}
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="custom-font-fa">Upload Persian Font</Label>
+                                <Label htmlFor="custom-font-fa">{t('settings.font.upload_fa_font')}</Label>
                                 <Input id="custom-font-fa" type="file" accept=".ttf,.otf,.woff,.woff2" onChange={(e) => handleFontFileChange(e, 'fa')} />
-                                {fontFaFile && <p className="text-sm text-muted-foreground">Selected: {fontFaFile.name}</p>}
+                                {fontFaFile && <p className="text-sm text-muted-foreground">{t('settings.font.selected_file')}: {fontFaFile.name}</p>}
+                                {settings.customFontFa && !fontFaFile && <p className="text-sm text-muted-foreground">{t('settings.font.current_custom_font')}: {settings.customFontFa.name}</p>}
                             </div>
                         </div>
                     </TabsContent>
                 </Tabs>
-
+                
+                 {/* Task Reactions Settings */}
+                 <div className="space-y-6 p-6 border rounded-lg">
+                    <h3 className="text-lg font-medium">{t('settings.reactions.title')}</h3>
+                    <div className="space-y-2">
+                        <Label htmlFor="taskReactionsEnabled">{t('settings.reactions.enable_label')}</Label>
+                        <Switch
+                            id="taskReactionsEnabled"
+                            checked={settings.taskReactionsEnabled}
+                            onCheckedChange={(checked) => setSettings(prev => ({ ...prev, taskReactionsEnabled: checked }))}
+                        />
+                        <p className="text-sm text-muted-foreground">{t('settings.reactions.enable_desc')}</p>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="allowedReactions">{t('settings.reactions.allowed_emojis_label')}</Label>
+                        <Input
+                            id="allowedReactions"
+                            value={reactionsInput}
+                            onChange={(e) => setReactionsInput(e.target.value)}
+                            disabled={!settings.taskReactionsEnabled}
+                        />
+                        <p className="text-sm text-muted-foreground">{t('settings.reactions.allowed_emojis_desc')}</p>
+                    </div>
+                </div>
 
             </CardContent>
-            <CardFooter>
+            <CardFooter className="justify-between">
               <Button onClick={handleAppearanceSave}>{t('settings.save_changes_button')}</Button>
+               <Button type="button" variant="ghost" onClick={handleResetAppearance}>{t('settings.reset_appearance_button')}</Button>
             </CardFooter>
           </Card>
         </TabsContent>

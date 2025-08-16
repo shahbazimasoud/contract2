@@ -8,6 +8,12 @@ export type Comment = {
   createdAt: string;
 };
 
+export type Reaction = {
+    emoji: string;
+    userId: string;
+    userName: string;
+};
+
 export type ContractVersion = {
   versionNumber: number;
   createdAt: string; // ISO String
@@ -105,6 +111,7 @@ export type Task = {
     isArchived: boolean;
     isCompleted: boolean;
     logs?: ActivityLog[];
+    reactions?: Reaction[];
 };
 
 export type BoardPermissionRole = 'viewer' | 'editor';
@@ -143,6 +150,8 @@ export type AppearanceSettings = {
     customFontEn: { name: string, url: string } | null;
     customFontFa: { name: string, url: string } | null;
     calendarSystem: 'gregorian' | 'persian';
+    taskReactionsEnabled: boolean;
+    allowedReactions: string[];
 }
 
 export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';

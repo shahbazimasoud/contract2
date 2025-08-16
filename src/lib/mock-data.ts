@@ -331,9 +331,14 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: false,
         logs: [
-            { id: 'LOG-1', timestamp: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), userId: 'U-002', userName: 'John Doe', action: 'created', details: { title: 'Weekly IT Backup Check'} },
-            { id: 'LOG-2', timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), userId: 'U-001', userName: 'Super Admin', action: 'commented', details: { text: 'Please ensure the off-site backup is also checked.'} },
-            { id: 'LOG-3', timestamp: new Date().toISOString(), userId: 'U-006', userName: 'IT Staff Member', action: 'completed_checklist_item', details: { text: 'Check local server backup status'} },
+            { id: 'LOG-1', timestamp: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString(), userId: 'U-002', userName: 'John Doe', userAvatar: avatars[1].url, action: 'created', details: { title: 'Weekly IT Backup Check'} },
+            { id: 'LOG-2', timestamp: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), userId: 'U-001', userName: 'Super Admin', userAvatar: avatars[0].url, action: 'commented', details: { text: 'Please ensure the off-site backup is also checked.'} },
+            { id: 'LOG-3', timestamp: new Date().toISOString(), userId: 'U-006', userName: 'IT Staff Member', userAvatar: avatars[6].url, action: 'completed_checklist_item', details: { text: 'Check local server backup status'} },
+        ],
+        reactions: [
+            { emoji: '👍', userId: 'U-001', userName: 'Super Admin' },
+            { emoji: '👍', userId: 'U-006', userName: 'IT Staff Member' },
+            { emoji: '🔥', userId: 'U-002', userName: 'John Doe' },
         ],
     },
     {
@@ -360,6 +365,7 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: false,
         logs: [],
+        reactions: [],
     },
     {
         id: 'T-003',
@@ -389,6 +395,9 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: false,
         logs: [],
+        reactions: [
+            { emoji: '👀', userId: 'U-001', userName: 'Super Admin' },
+        ],
     },
     {
         id: 'T-004',
@@ -413,6 +422,7 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: true, // Example of a completed task
         logs: [],
+        reactions: [],
     },
      {
         id: 'T-005',
@@ -437,6 +447,7 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: false,
         logs: [],
+        reactions: [],
     },
     {
         id: 'T-006',
@@ -461,6 +472,7 @@ export const tasks: Task[] = [
         isArchived: false,
         isCompleted: false,
         logs: [],
+        reactions: [],
     },
      {
         id: 'T-007',
@@ -485,5 +497,6 @@ export const tasks: Task[] = [
         isArchived: true, // This task belongs to an archived column
         isCompleted: true,
         logs: [],
+        reactions: [],
     },
 ];

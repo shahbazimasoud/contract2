@@ -36,6 +36,17 @@ import type { AppearanceSettings } from "@/lib/types"
 import { useLanguage } from "@/context/language-context"
 import { Slider } from "@/components/ui/slider"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
@@ -386,13 +397,30 @@ export default function SettingsPage() {
                             disabled={!settings.taskReactionsEnabled}
                         />
                         <p className="text-sm text-muted-foreground">{t('settings.reactions.allowed_emojis_desc')}</p>
+                        <p className="text-xs text-muted-foreground">{t('settings.reactions.emoji_shortcut_hint')}</p>
                     </div>
                 </div>
 
             </CardContent>
             <CardFooter className="justify-between">
               <Button onClick={handleAppearanceSave}>{t('settings.save_changes_button')}</Button>
-               <Button type="button" variant="ghost" onClick={handleResetAppearance}>{t('settings.reset_appearance_button')}</Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                         <Button type="button" variant="ghost">{t('settings.reset_appearance_button')}</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>{t('settings.reset_alert.title')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t('settings.reset_alert.description')}
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleResetAppearance}>{t('settings.reset_alert.confirm')}</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardFooter>
           </Card>
         </TabsContent>

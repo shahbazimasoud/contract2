@@ -125,6 +125,11 @@ export const en = {
     toast_settings_saved_title: 'Settings Saved',
     toast_appearance_saved_desc: 'Your appearance settings have been updated.',
     reset_appearance_button: 'Reset Appearance Settings',
+    reset_alert: {
+        title: 'Are you sure?',
+        description: 'This will reset all appearance settings to their default values. This action cannot be undone.',
+        confirm: 'Yes, Reset Settings',
+    },
     tabs: {
       appearance: 'Appearance',
       language: 'Language & Region',
@@ -171,6 +176,7 @@ export const en = {
         enable_desc: 'Allow users to react to tasks with emojis.',
         allowed_emojis_label: 'Allowed Emojis',
         allowed_emojis_desc: 'Enter emojis separated by commas (e.g., 👍,🎉,❤️).',
+        emoji_shortcut_hint: 'Hint: On Windows, press (Win + .) and on macOS, press (Cmd + Ctrl + Space) to open the emoji picker.',
     },
     language: {
         title: 'Language',

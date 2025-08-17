@@ -138,7 +138,7 @@ const taskSchema = z.object({
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     dueDate: z.any({ required_error: "Date is required" }),
     recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
-    time: z.string().regex(/^([01]\d|2[0-5]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
+    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     dayOfWeek: z.number().optional(),
     dayOfMonth: z.number().optional(),
     reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
@@ -167,7 +167,7 @@ const copyColumnSchema = z.object({
 const weeklyReportSchema = z.object({
     name: z.string().min(1, "Report name is required."),
     dayOfWeek: z.string().min(1, "Day of week is required"),
-    time: z.string().regex(/^([01]\d|2[0-5]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
+    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
     recipients: z.string().min(1, "At least one recipient is required"),
     subject: z.string().min(1, "Subject is required"),
     body: z.string().optional(),
@@ -620,10 +620,10 @@ export default function TasksPage() {
                     if (b.id === activeBoard.id) {
                         const newColumns = b.columns.map(col => {
                             if (col.id === editingTask.columnId) {
-                                return { ...col, taskIds: col.taskIds.filter(id => id !== editingTask.id) };
+                                return { ...col, taskIds: (col.taskIds || []).filter(id => id !== editingTask.id) };
                             }
                             if (col.id === values.columnId) {
-                                return { ...col, taskIds: [...col.taskIds, editingTask.id] };
+                                return { ...col, taskIds: [...(col.taskIds || []), editingTask.id] };
                             }
                             return col;
                         });
@@ -664,7 +664,7 @@ export default function TasksPage() {
             const updatedBoard = {
                 ...activeBoard,
                 columns: activeBoard.columns.map(col => 
-                    col.id === values.columnId ? { ...col, taskIds: [newTaskId, ...col.taskIds] } : col
+                    col.id === values.columnId ? { ...col, taskIds: [newTaskId, ...(col.taskIds || [])] } : col
                 )
             };
             setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
@@ -702,7 +702,7 @@ export default function TasksPage() {
                     ...b,
                     columns: b.columns.map(col => ({
                         ...col,
-                        taskIds: col.taskIds.filter(id => id !== taskId)
+                        taskIds: (col.taskIds || []).filter(id => id !== taskId)
                     }))
                 };
             }
@@ -736,7 +736,7 @@ export default function TasksPage() {
             ...sourceBoard,
             columns: sourceBoard.columns.map(col => ({
                 ...col,
-                taskIds: col.taskIds.filter(id => id !== movingTask.id)
+                taskIds: (col.taskIds || []).filter(id => id !== movingTask.id)
             }))
         };
 
@@ -744,7 +744,7 @@ export default function TasksPage() {
         const updatedTargetBoard = {
             ...targetBoard,
             columns: targetBoard.columns.map(col => 
-                col.id === targetColumn.id ? { ...col, taskIds: [movingTask.id, ...col.taskIds] } : col
+                col.id === targetColumn.id ? { ...col, taskIds: [movingTask.id, ...(col.taskIds || [])] } : col
             )
         };
         
@@ -775,7 +775,7 @@ export default function TasksPage() {
             return {
                 title: task.title,
                 description: task.description,
-                start: [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes()],
+                start: [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes()] as ics.DateArray,
                 duration: { hours: 1 },
                 status: 'CONFIRMED' as const,
                 organizer: { name: currentUser?.name || 'ContractWise', email: currentUser?.email || 'noreply@contractwise.com' },
@@ -1049,7 +1049,7 @@ export default function TasksPage() {
 
         if (startColumn === finishColumn) {
             // Moving within the same column
-            const newTaskIds = Array.from(startColumn.taskIds);
+            const newTaskIds = Array.from(startColumn.taskIds || []);
             const [reorderedItem] = newTaskIds.splice(source.index, 1);
             newTaskIds.splice(destination.index, 0, reorderedItem);
 
@@ -1063,11 +1063,11 @@ export default function TasksPage() {
         }
 
         // Moving from one column to another
-        const startTaskIds = Array.from(startColumn.taskIds);
+        const startTaskIds = Array.from(startColumn.taskIds || []);
         startTaskIds.splice(source.index, 1);
         const newStartColumn = { ...startColumn, taskIds: startTaskIds };
 
-        const finishTaskIds = Array.from(finishColumn.taskIds);
+        const finishTaskIds = Array.from(finishColumn.taskIds || []);
         finishTaskIds.splice(destination.index, 0, draggableId);
         const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
 
@@ -1299,7 +1299,7 @@ export default function TasksPage() {
         // Apply label filter
         if (filters.labelIds.length > 0) {
             baseTasks = baseTasks.filter(task => 
-                filters.labelIds.every(labelId => task.labelIds?.includes(labelId))
+                filters.labelIds.every(labelId => (task.labelIds || []).includes(labelId))
             );
         }
 
@@ -1788,7 +1788,7 @@ export default function TasksPage() {
                                     <CardHeader className="flex-row items-center justify-between">
                                         <div>
                                             <CardTitle>{column.title}</CardTitle>
-                                            <CardDescription>{t('tasks.archived.tasks_in_list', { count: column.taskIds.length })}</CardDescription>
+                                            <CardDescription>{t('tasks.archived.tasks_in_list', { count: (column.taskIds || []).length })}</CardDescription>
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="outline" onClick={() => handleRestoreColumn(column.id)}><ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.archived.restore_button')}</Button>
@@ -1976,7 +1976,7 @@ export default function TasksPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col gap-y-1">
                                 <DialogTitle>
-                                    {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}`)}
+                                    {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
                                 </DialogTitle>
                                 <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
                             </div>
@@ -2080,3 +2080,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

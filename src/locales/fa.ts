@@ -476,6 +476,7 @@ export const fa = {
     no_board_found: 'هیچ تخته‌ای یافت نشد.',
     share_board: 'اشتراک‌گذاری تخته',
     email_reports: 'گزارش‌های ایمیلی',
+    manage_labels: 'مدیریت برچسب‌ها',
     view_modes: {
         list: 'لیست',
         board: 'تخته',
@@ -604,6 +605,14 @@ export const fa = {
         my_reports_title: 'گزارش‌های زمانبندی شده من',
         my_reports_desc: 'گزارش‌های ایمیلی خودکار خود را برای این تخته مدیریت کنید.',
         my_reports_next_run: 'اجرای بعدی در {{date}}',
+        manage_labels_title: 'مدیریت برچسب‌ها برای {{name}}',
+        manage_labels_desc: 'ایجاد، ویرایش یا حذف برچسب‌ها برای این تخته.',
+        label_name_placeholder: 'نام برچسب...',
+        add_label_button: 'افزودن برچسب',
+        no_labels_yet: 'هنوز هیچ برچسبی برای این تخته وجود ندارد.',
+        label_color: 'رنگ',
+        delete_label_title: 'حذف برچسب؟',
+        delete_label_desc: 'آیا از حذف برچسب "{{name}}" مطمئن هستید؟ این کار آن را از تمام وظایف این تخته حذف می‌کند. این عمل قابل بازگشت نیست.',
         task_edit_title: 'ویرایش وظیفه',
         task_add_title: 'افزودن وظیفه جدید',
         task_add_desc: 'برای ایجاد یا به‌روزرسانی یک وظیفه، فرم زیر را پر کنید.',
@@ -611,9 +620,11 @@ export const fa = {
         title_placeholder: 'مثلاً، بررسی پشتیبان‌گیری هفتگی',
         list_status_label: 'لیست / وضعیت',
         list_status_placeholder: 'یک لیست انتخاب کنید',
-        tags_label: 'برچسب‌ها',
-        tags_placeholder: 'مثلاً، گزارش، حیاتی، مالی',
-        tags_desc: 'برچسب‌ها را با کاما جدا کنید.',
+        labels_label: 'برچسب‌ها',
+        labels_placeholder: 'برچسب‌ها را انتخاب یا ایجاد کنید...',
+        labels_search_placeholder: 'جستجوی برچسب‌ها...',
+        labels_no_results: 'هیچ برچسبی یافت نشد.',
+        labels_create_new: 'ایجاد "{{name}}"',
         priority_label: 'اولویت',
         description_label: 'توضیحات',
         description_placeholder: 'وظیفه را توصیف کنید...',
@@ -733,6 +744,9 @@ export const fa = {
         report_updated_desc: 'گزارش "{{name}}" به‌روز شد.',
         report_scheduled_title: 'گزارش زمانبندی شد',
         report_scheduled_desc: 'گزارش "{{name}}" زمانبندی شد.',
+        label_created: 'برچسب "{{name}}" ایجاد شد.',
+        label_updated: 'برچسب "{{name}}" به‌روز شد.',
+        label_deleted: 'برچسب حذف شد.',
     },
     column_titles: {
         todo: 'برای انجام',
@@ -741,5 +755,3 @@ export const fa = {
     }
   }
 };
-
-    

@@ -113,7 +113,7 @@ export default function SettingsPage() {
             // Merge saved settings with defaults to ensure new fields are present
             const mergedSettings = { ...defaultSettings, ...parsedSettings };
             setSettings(mergedSettings);
-            setReactionsInput(mergedSettings.allowedReactions.join(', '));
+            setReactionsInput((mergedSettings.allowedReactions || []).join(', '));
             
             if (parsedSettings.logo) {
                 setLogoPreview(parsedSettings.logo);

@@ -90,6 +90,12 @@ export type ActivityLog = {
   details: Record<string, any>; // e.g., { from: 'old', to: 'new' } or { text: 'item text' }
 };
 
+export type Label = {
+    id: string;
+    text: string;
+    color: string;
+};
+
 
 export type Task = {
     id: string;
@@ -104,7 +110,7 @@ export type Task = {
     reminders: number[]; // Days before due date to send reminders
     assignees?: string[]; // Array of User IDs
     comments?: Comment[];
-    tags?: string[];
+    labelIds?: string[];
     priority?: 'low' | 'medium' | 'high' | 'critical';
     checklist?: ChecklistItem[];
     attachments?: { name: string; url: string }[];
@@ -126,6 +132,7 @@ export type BoardColumn = {
     title: string;
     boardId: string;
     isArchived: boolean;
+    taskIds: string[];
 };
 
 export type TaskBoard = {
@@ -135,6 +142,7 @@ export type TaskBoard = {
     ownerId: string; // User ID of the creator/owner
     sharedWith?: BoardShare[];
     columns: BoardColumn[]; // New field for columns
+    labels?: Label[];
 }
 
 export type AppearanceSettings = {

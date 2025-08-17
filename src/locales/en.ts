@@ -476,6 +476,7 @@ export const en = {
     no_board_found: 'No board found.',
     share_board: 'Share board',
     email_reports: 'Email Reports',
+    manage_labels: 'Manage Labels',
     view_modes: {
         list: 'List',
         board: 'Board',
@@ -484,9 +485,9 @@ export const en = {
     },
     export_selected: 'Export Selected ({{count}})',
     search_placeholder: 'Search tasks by title...',
-    filter_by_tags: 'Filter by Tags',
-    filter_tags_placeholder: 'Filter tags...',
-    no_tags_found: 'No tags found.',
+    filter_by_tags: 'Filter by Labels',
+    filter_tags_placeholder: 'Filter labels...',
+    no_tags_found: 'No labels found.',
     table: {
         done: 'Done',
         task: 'Task',
@@ -604,6 +605,14 @@ export const en = {
         my_reports_title: 'My Scheduled Reports',
         my_reports_desc: 'Manage your automated email reports for this board.',
         my_reports_next_run: 'Next on {{date}}',
+        manage_labels_title: 'Manage Labels for {{name}}',
+        manage_labels_desc: 'Create, edit, or delete labels for this board.',
+        label_name_placeholder: 'Label name...',
+        add_label_button: 'Add Label',
+        no_labels_yet: 'No labels yet for this board.',
+        label_color: 'Color',
+        delete_label_title: 'Delete Label?',
+        delete_label_desc: 'Are you sure you want to delete the "{{name}}" label? This will remove it from all tasks on this board. This action cannot be undone.',
         task_edit_title: 'Edit Task',
         task_add_title: 'Add New Task',
         task_add_desc: 'Fill out the form below to create or update a task.',
@@ -611,9 +620,11 @@ export const en = {
         title_placeholder: 'e.g., Weekly Backup Check',
         list_status_label: 'List / Status',
         list_status_placeholder: 'Select a list',
-        tags_label: 'Tags',
-        tags_placeholder: 'e.g., reporting, critical, finance',
-        tags_desc: 'Enter tags separated by commas.',
+        labels_label: 'Labels',
+        labels_placeholder: 'Select or create labels...',
+        labels_search_placeholder: 'Search labels...',
+        labels_no_results: 'No labels found.',
+        labels_create_new: 'Create "{{name}}"',
         priority_label: 'Priority',
         description_label: 'Description',
         description_placeholder: 'Describe the task...',
@@ -733,6 +744,9 @@ export const en = {
         report_updated_desc: 'Report "{{name}}" has been updated.',
         report_scheduled_title: 'Report Scheduled',
         report_scheduled_desc: 'Report "{{name}}" has been scheduled.',
+        label_created: 'Label "{{name}}" created.',
+        label_updated: 'Label "{{name}}" updated.',
+        label_deleted: 'Label deleted.',
     },
     column_titles: {
         todo: 'To Do',
@@ -741,5 +755,3 @@ export const en = {
     }
   }
 };
-
-    

@@ -238,10 +238,16 @@ export const taskBoards: TaskBoard[] = [
             { userId: 'U-003', role: 'viewer' },
         ],
         columns: [
-            { id: 'COL-1', title: 'Backlog', boardId: 'TB-001', isArchived: false },
-            { id: 'COL-2', title: 'To Do', boardId: 'TB-001', isArchived: false },
-            { id: 'COL-3', title: 'In Progress', boardId: 'TB-001', isArchived: false },
-            { id: 'COL-4', title: 'Done', boardId: 'TB-001', isArchived: false },
+            { id: 'COL-1', title: 'Backlog', boardId: 'TB-001', isArchived: false, taskIds: [] },
+            { id: 'COL-2', title: 'To Do', boardId: 'TB-001', isArchived: false, taskIds: ['T-003'] },
+            { id: 'COL-3', title: 'In Progress', boardId: 'TB-001', isArchived: false, taskIds: [] },
+            { id: 'COL-4', title: 'Done', boardId: 'TB-001', isArchived: false, taskIds: ['T-004'] },
+        ],
+        labels: [
+            { id: 'LBL-1', text: 'safety', color: '#ef4444' },
+            { id: 'LBL-2', text: 'operations', color: '#f97316' },
+            { id: 'LBL-3', text: 'meeting', color: '#8b5cf6' },
+            { id: 'LBL-4', text: 'daily', color: '#10b981' },
         ]
     },
     {
@@ -251,8 +257,14 @@ export const taskBoards: TaskBoard[] = [
         ownerId: 'U-003', // Jane Smith
         sharedWith: [],
         columns: [
-            { id: 'COL-5', title: 'Tasks', boardId: 'TB-002', isArchived: false },
-            { id: 'COL-6', title: 'Completed', boardId: 'TB-002', isArchived: false },
+            { id: 'COL-5', title: 'Tasks', boardId: 'TB-002', isArchived: false, taskIds: ['T-002', 'T-005'] },
+            { id: 'COL-6', title: 'Completed', boardId: 'TB-002', isArchived: false, taskIds: [] },
+        ],
+        labels: [
+            { id: 'LBL-5', text: 'reporting', color: '#3b82f6' },
+            { id: 'LBL-6', text: 'marketing', color: '#eab308' },
+            { id: 'LBL-7', text: 'design', color: '#ef4444' },
+            { id: 'LBL-8', text: 'creative', color: '#8b5cf6' },
         ]
     },
     {
@@ -265,8 +277,14 @@ export const taskBoards: TaskBoard[] = [
              { userId: 'U-006', role: 'editor' },
         ],
         columns: [
-            { id: 'COL-7', title: 'Pending', boardId: 'TB-003', isArchived: false },
-            { id: 'COL-8', title: 'Completed', boardId: 'TB-003', isArchived: true },
+            { id: 'COL-7', title: 'Pending', boardId: 'TB-003', isArchived: false, taskIds: ['T-001'] },
+            { id: 'COL-8', title: 'Completed', boardId: 'TB-003', isArchived: true, taskIds: ['T-007'] },
+        ],
+        labels: [
+            { id: 'LBL-9', text: 'technical', color: '#3b82f6' },
+            { id: 'LBL-10', text: 'backup', color: '#10b981' },
+            { id: 'LBL-11', text: 'critical', color: '#ef4444' },
+            { id: 'LBL-12', text: 'servers', color: '#f97316' },
         ]
     },
     {
@@ -276,7 +294,11 @@ export const taskBoards: TaskBoard[] = [
         ownerId: 'U-002', // John Doe (Admin for IT Department)
         sharedWith: [],
         columns: [
-            { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004', isArchived: false },
+            { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004', isArchived: false, taskIds: ['T-006'] },
+        ],
+        labels: [
+            { id: 'LBL-13', text: 'personal', color: '#3b82f6' },
+            { id: 'LBL-14', text: 'career', color: '#10b981' },
         ]
     },
 ];
@@ -317,7 +339,7 @@ export const tasks: Task[] = [
         },
         reminders: [1, 0],
         assignees: ['U-002', 'U-006'],
-        tags: ['technical', 'backup', 'critical'],
+        labelIds: ['LBL-9', 'LBL-10', 'LBL-11'],
         priority: 'critical',
         attachments: [{ name: 'backup_procedure.pdf', url: '#' }, { name: 'server_list.xlsx', url: '#' }],
         comments: [
@@ -357,7 +379,7 @@ export const tasks: Task[] = [
         },
         reminders: [2],
         assignees: ['U-003'],
-        tags: ['reporting', 'marketing'],
+        labelIds: ['LBL-5', 'LBL-6'],
         priority: 'high',
         attachments: [],
         comments: [],
@@ -382,7 +404,7 @@ export const tasks: Task[] = [
         },
         reminders: [7],
         assignees: ['U-004', 'U-001'],
-        tags: ['safety', 'operations'],
+        labelIds: ['LBL-1', 'LBL-2'],
         priority: 'medium',
         attachments: [],
         comments: [],
@@ -414,7 +436,7 @@ export const tasks: Task[] = [
         },
         reminders: [],
         assignees: ['U-002', 'U-004'],
-        tags: ['meeting', 'daily'],
+        labelIds: ['LBL-3', 'LBL-4'],
         priority: 'low',
         attachments: [],
         comments: [],
@@ -439,7 +461,7 @@ export const tasks: Task[] = [
         },
         reminders: [3],
         assignees: ['U-003'],
-        tags: ['design', 'marketing', 'creative'],
+        labelIds: ['LBL-6', 'LBL-7', 'LBL-8'],
         priority: 'high',
         attachments: [],
         comments: [],
@@ -464,7 +486,7 @@ export const tasks: Task[] = [
         },
         reminders: [1],
         assignees: ['U-002'],
-        tags: ['personal', 'career'],
+        labelIds: ['LBL-13', 'LBL-14'],
         priority: 'low',
         attachments: [],
         comments: [],
@@ -489,7 +511,7 @@ export const tasks: Task[] = [
         },
         reminders: [1],
         assignees: ['U-002'],
-        tags: ['technical', 'servers'],
+        labelIds: ['LBL-9', 'LBL-12'],
         priority: 'medium',
         attachments: [],
         comments: [],

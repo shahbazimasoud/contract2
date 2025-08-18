@@ -1681,7 +1681,7 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
+                                                            <Droppable droppableId={column.id} type="TASK">
                                                                 {(provided, snapshot) => (
                                                                     <div
                                                                         ref={provided.innerRef}

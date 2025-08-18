@@ -1213,20 +1213,20 @@ export default function TasksPage() {
             onClick={() => handleOpenDetailsSheet(task)}
         >
             <CardContent className="p-3">
-                <p className="font-semibold text-sm mb-2">{task.title}</p>
-
-                <div className="flex flex-wrap gap-1 mt-2">
+                <div className="flex flex-wrap gap-1 mb-2">
                     {(task.labelIds || []).map(labelId => {
                         const label = activeBoard?.labels?.find(l => l.id === labelId);
                         if (!label) return null;
                         return (
-                             <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
+                             <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
                                 {label.text}
                             </Badge>
                         );
                     })}
                 </div>
 
+                <p className="font-semibold text-sm">{task.title}</p>
+                
                 <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center -space-x-2">
                         {(task.assignees || []).map(id => {
@@ -1965,17 +1965,19 @@ export default function TasksPage() {
              </Dialog>
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
-                <DialogContent className="sm:max-w-3xl">
-                     <DialogHeader>
-                        <div className="flex flex-col gap-y-1">
-                            <DialogTitle>
-                                {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
-                            </DialogTitle>
-                            <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <DialogTitle>
+                                    {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
+                                </DialogTitle>
+                                <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => setIsReportManagerOpen(true)}>
+                                {t('tasks.my_reports_desc')}
+                            </Button>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setIsReportManagerOpen(true)}>
-                            {t('tasks.my_reports_desc')}
-                        </Button>
                     </DialogHeader>
                 </DialogContent>
             </Dialog>
@@ -2008,6 +2010,40 @@ export default function TasksPage() {
                          <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
                             {/* Main Content */}
                             <div className="md:col-span-2 space-y-6">
+                                <div id="details-section">
+                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.details')}</h4>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-start justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.assign_to_label')}</span>
+                                            <div className="flex items-center -space-x-2">
+                                                {(selectedTaskForDetails.assignees || []).map(id => {
+                                                    const user = usersOnBoard.find(u => u.id === id);
+                                                    if (!user) return null;
+                                                    return (
+                                                        <TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                                            <Avatar className="h-7 w-7 border-2 border-background">
+                                                                <AvatarImage src={user.avatar} />
+                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                        </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                         <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.date_label')}</span>
+                                            <span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span>
+                                        </div>
+                                         <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.priority_label')}</span>
+                                            <div className="flex items-center gap-2 capitalize">
+                                                <Flag className="h-4 w-4" />
+                                                {t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Separator />
                                 <div id="description">
                                     <Label>{t('tasks.dialog.description_label')}</Label>
                                     <p className="text-sm text-muted-foreground mt-2">{selectedTaskForDetails.description || t('tasks.details.no_description')}</p>
@@ -2032,7 +2068,6 @@ export default function TasksPage() {
                                      <Label className="mb-4 block">{t('tasks.details.tabs.activity_and_comments')}</Label>
                                      <div className="space-y-6">
                                          {/* Combined Comments and Logs */}
-                                         {/* In a real app, this would be one sorted list from the backend */}
                                         {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])]
                                         .sort((a,b) => new Date(b.createdAt || b.timestamp).getTime() - new Date(a.createdAt || a.timestamp).getTime())
                                         .map(item => {
@@ -2107,40 +2142,6 @@ export default function TasksPage() {
                             
                             {/* Sidebar */}
                             <aside className="md:col-span-1 space-y-6">
-                                <div id="details">
-                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.details')}</h4>
-                                    <div className="space-y-3 text-sm">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.assign_to_label')}</span>
-                                            <div className="flex items-center -space-x-2">
-                                                {(selectedTaskForDetails.assignees || []).map(id => {
-                                                    const user = usersOnBoard.find(u => u.id === id);
-                                                    if (!user) return null;
-                                                    return (
-                                                        <TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                                            <Avatar className="h-7 w-7 border-2 border-background">
-                                                                <AvatarImage src={user.avatar} />
-                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
-                                                        </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.date_label')}</span>
-                                            <span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span>
-                                        </div>
-                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.priority_label')}</span>
-                                            <div className="flex items-center gap-2 capitalize">
-                                                <Flag className="h-4 w-4" />
-                                                {t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <Separator />
                                 <div id="labels">
                                     <h4 className="font-medium mb-2">{t('tasks.dialog.labels_label')}</h4>
                                      <div className="flex flex-wrap gap-1">
@@ -2259,3 +2260,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+      

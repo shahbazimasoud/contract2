@@ -1649,8 +1649,8 @@ export default function TasksPage() {
                                             <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                 {(provided) => (
                                                     <div
-                                                        {...provided.draggableProps}
                                                         ref={provided.innerRef}
+                                                        {...provided.draggableProps}
                                                         className="w-80 flex-shrink-0"
                                                     >
                                                         <div className="bg-muted/60 p-2 rounded-lg">
@@ -1681,7 +1681,7 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK">
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div
                                                                         ref={provided.innerRef}
@@ -1968,7 +1968,7 @@ export default function TasksPage() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <div className="flex items-center justify-between">
-                            <div>
+                            <div className="flex-1">
                                 <DialogTitle>
                                     {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
                                 </DialogTitle>
@@ -2260,3 +2260,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

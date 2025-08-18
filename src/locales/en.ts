@@ -627,7 +627,7 @@ export const en = {
         priority_label: 'Priority',
         description_label: 'Description',
         description_placeholder: 'Describe the task...',
-        assign_to_label: 'Assign to',
+        assign_to_label: 'Assigned to',
         assign_to_placeholder: 'Select members...',
         users_selected: '{{count}} user(s) selected',
         no_users_on_board: 'No users found on this board.',

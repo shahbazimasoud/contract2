@@ -1340,7 +1340,7 @@ export default function TasksPage() {
             key: `placeholder-${i}`
         }));
         return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
-    }, [currentMonth]);
+    }, [currentMonth, format]);
 
     const tasksByDate = useMemo(() => {
         return filteredTasks.reduce((acc, task) => {
@@ -1351,7 +1351,7 @@ export default function TasksPage() {
             acc[dueDate].push(task);
             return acc;
         }, {} as Record<string, Task[]>);
-    }, [filteredTasks]);
+    }, [filteredTasks, format]);
 
     const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
     const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
@@ -2069,7 +2069,7 @@ export default function TasksPage() {
                                      <div className="space-y-6">
                                          {/* Combined Comments and Logs */}
                                         {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])]
-                                        .sort((a,b) => new Date(b.createdAt || b.timestamp).getTime() - new Date(a.createdAt || a.timestamp).getTime())
+                                        .sort((a,b) => new Date('createdAt' in a ? a.createdAt : a.timestamp).getTime() - new Date('createdAt' in b ? b.createdAt : b.timestamp).getTime())
                                         .map(item => {
                                             if('action' in item) { // It's a log
                                                 const log = item as ActivityLog;
@@ -2260,5 +2260,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-      

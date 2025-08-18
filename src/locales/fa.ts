@@ -1,5 +1,4 @@
 
-
 export const fa = {
   common: {
       actions: 'اقدامات',
@@ -597,7 +596,7 @@ export const fa = {
         report_intro_label: 'متن مقدمه',
         report_intro_placeholder: 'یک پیام اختیاری به بدنه ایمیل اضافه کنید...',
         report_no_intro_text: 'هیچ متن مقدمه‌ای وجود ندارد.',
-        report_no_tasks_in_list: 'هیچ وظیفه‌ای در این لیست وجود ندارد.',
+        no_tasks_in_list: 'هیچ وظیفه‌ای در این لیست وجود ندارد.',
         report_automated_note: 'این یک گزارش هفتگی خودکار است که برای ارسال هر {{day}} در ساعت {{time}} زمانبندی شده است.',
         report_save_button: 'ذخیره و زمانبندی',
         new_report_label: 'زمانبندی گزارش جدید',
@@ -654,12 +653,16 @@ export const fa = {
         title: 'جزئیات برای: {{name}}',
         task_id: 'شناسه وظیفه: {{id}}',
         view_details: 'جزئیات',
+        task_in_list: 'در لیست {{list}} روی تخته {{board}}',
+        no_description: 'هیچ توضیحی ارائه نشده است.',
         tabs: {
+            details: 'جزئیات',
             checklist: 'چک‌لیست',
             comments: 'نظرات',
             attachments: 'پیوست‌ها',
             activity: 'فعالیت‌ها',
             reactions: 'واکنش‌ها',
+            activity_and_comments: 'فعالیت و نظرات'
         },
         no_checklist_title: 'هیچ مورد چک‌لیستی وجود ندارد.',
         no_checklist_desc: 'شما می‌توانید با ویرایش این وظیفه یک چک‌لیست اضافه کنید.',
@@ -672,6 +675,7 @@ export const fa = {
     },
     logs: {
         created: 'وظیفه را ایجاد کرد: "{{title}}"',
+        updated: 'وظیفه را به‌روز کرد',
         updated_title: 'عنوان وظیفه را از "{{from}}" به "{{to}}" تغییر داد',
         updated_description: 'توضیحات را به‌روزرسانی کرد',
         updated_dueDate: 'تاریخ سررسید را از {{from}} به {{to}} تغییر داد',

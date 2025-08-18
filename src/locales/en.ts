@@ -1,5 +1,4 @@
 
-
 export const en = {
   common: {
       actions: 'Actions',
@@ -597,7 +596,7 @@ export const en = {
         report_intro_label: 'Introduction Text',
         report_intro_placeholder: 'Add an optional message to the email body...',
         report_no_intro_text: 'No introduction text.',
-        report_no_tasks_in_list: 'No tasks in this list.',
+        no_tasks_in_list: 'No tasks in this list.',
         report_automated_note: 'This is an automated weekly report scheduled to be sent every {{day}} at {{time}}.',
         report_save_button: 'Save & Schedule',
         new_report_label: 'Schedule a New Report',
@@ -654,12 +653,16 @@ export const en = {
         title: 'Details for: {{name}}',
         task_id: 'Task ID: {{id}}',
         view_details: 'Details',
+        task_in_list: 'in list {{list}} on board {{board}}',
+        no_description: 'No description provided.',
         tabs: {
+            details: 'Details',
             checklist: 'Checklist',
             comments: 'Comments',
             attachments: 'Attachments',
             activity: 'Activity',
             reactions: 'Reactions',
+            activity_and_comments: 'Activity & Comments'
         },
         no_checklist_title: 'No checklist items.',
         no_checklist_desc: 'You can add a checklist by editing this task.',
@@ -672,6 +675,7 @@ export const en = {
     },
     logs: {
         created: 'created the task: "{{title}}"',
+        updated: 'updated the task',
         updated_title: 'renamed the task from "{{from}}" to "{{to}}"',
         updated_description: 'updated the description',
         updated_dueDate: 'changed the due date from {{from}} to {{to}}',

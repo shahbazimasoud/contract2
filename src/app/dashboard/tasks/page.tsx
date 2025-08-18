@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History, SmilePlus } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History, SmilePlus, GripVertical, Flag } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -110,6 +110,7 @@ import Image from 'next/image';
 import { useLanguage } from '@/context/language-context';
 import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -716,6 +717,7 @@ export default function TasksPage() {
             variant: "destructive"
         });
         setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
+        handleCloseDetailsSheet();
     };
     
     const handleMoveTask = () => {
@@ -761,6 +763,7 @@ export default function TasksPage() {
         
         toast({ title: t('tasks.toast.task_moved_title'), description: t('tasks.toast.task_moved_desc', { task: movingTask.title, board: targetBoard.name })});
         handleCloseMoveDialog();
+        handleCloseDetailsSheet();
     };
 
     const handleExportSelected = () => {
@@ -1033,11 +1036,11 @@ export default function TasksPage() {
         }
 
         if (type === 'COLUMN') {
-            const newColumnOrder = Array.from(activeBoard.columns);
+            const newColumnOrder = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumnOrder.splice(source.index, 1);
             newColumnOrder.splice(destination.index, 0, reorderedItem);
 
-            const updatedBoard = { ...activeBoard, columns: newColumnOrder };
+            const updatedBoard = { ...activeBoard, columns: [...newColumnOrder, ...activeBoard.columns.filter(c => c.isArchived)] };
             setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
@@ -1183,7 +1186,11 @@ export default function TasksPage() {
                     // Add new reaction
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
-                return { ...task, reactions: newReactions };
+                const updatedTask = { ...task, reactions: newReactions };
+                if(selectedTaskForDetails?.id === taskId) {
+                    setSelectedTaskForDetails(updatedTask);
+                }
+                return updatedTask;
             }
             return task;
         }));
@@ -1202,21 +1209,12 @@ export default function TasksPage() {
 
     const renderTaskCard = (task: Task) => (
         <Card
-            className="mb-2 cursor-pointer transition-shadow hover:shadow-md"
+            className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card"
             onClick={() => handleOpenDetailsSheet(task)}
         >
             <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold text-sm">{task.title}</p>
-                    <Checkbox
-                        checked={task.isCompleted}
-                        onCheckedChange={(checked) => handleToggleTaskCompletion(task.id, !!checked)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-5 w-5"
-                    />
-                </div>
-                {task.description && <p className="text-xs text-muted-foreground truncate">{task.description}</p>}
-                
+                <p className="font-semibold text-sm mb-2">{task.title}</p>
+
                 <div className="flex flex-wrap gap-1 mt-2">
                     {(task.labelIds || []).map(labelId => {
                         const label = activeBoard?.labels?.find(l => l.id === labelId);
@@ -1618,9 +1616,9 @@ export default function TasksPage() {
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent>
+                                                            <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>{t('tasks.details.view_details')}</DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>{t('common.edit')}</DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTask(task.id)}>{t('common.delete')}</DropdownMenuItem>
                                                         </DropdownMenuContent>
@@ -1655,7 +1653,7 @@ export default function TasksPage() {
                                                         ref={provided.innerRef}
                                                         className="w-80 flex-shrink-0"
                                                     >
-                                                        <div className="bg-muted p-2 rounded-lg">
+                                                        <div className="bg-muted/60 p-2 rounded-lg">
                                                             <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab">
                                                                 {editingColumnId === column.id ? (
                                                                     <Input
@@ -1724,7 +1722,7 @@ export default function TasksPage() {
                                         {userPermissions !== 'viewer' && (
                                             <div className="w-80 flex-shrink-0">
                                                 {showAddColumnForm ? (
-                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted p-2 rounded-lg space-y-2">
+                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 p-2 rounded-lg space-y-2">
                                                         <Input {...columnForm.register('title')} placeholder={t('tasks.board.enter_list_title')} autoFocus />
                                                         <div className="flex items-center gap-2">
                                                             <Button type="submit">{t('tasks.board.add_list')}</Button>
@@ -1820,7 +1818,6 @@ export default function TasksPage() {
                 </div>
             )}
             
-            {/* Dialogs */}
             <Dialog open={isBoardDialogOpen} onOpenChange={handleCloseBoardDialog}>
                  <DialogContent>
                     <DialogHeader>
@@ -1885,7 +1882,6 @@ export default function TasksPage() {
                         <DialogTitle>{t('tasks.dialog.share_title', { name: sharingBoard?.name || '' })}</DialogTitle>
                         <DialogDescription>{t('tasks.dialog.share_desc')}</DialogDescription>
                     </DialogHeader>
-                    {/* ... Share Dialog Content ... */}
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
                         <Button onClick={onSaveShare}>{t('common.save_changes')}</Button>
@@ -1895,14 +1891,13 @@ export default function TasksPage() {
 
              <Dialog open={isTaskDialogOpen} onOpenChange={handleCloseTaskDialog}>
                  <DialogContent className="sm:max-w-2xl">
-                     <DialogHeader aria-label="Task Details Dialog">
+                     <DialogHeader>
                          <DialogTitle>{editingTask ? t('tasks.dialog.task_edit_title') : t('tasks.dialog.task_add_title')}</DialogTitle>
                          <DialogDescription>{t('tasks.dialog.task_add_desc')}</DialogDescription>
                      </DialogHeader>
                      <Form {...form}>
                          <form onSubmit={form.handleSubmit(onTaskSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-6 -mr-2">
                              <div className="md:col-span-2 space-y-4">
-                               {/* ... Main Task Fields ... */}
                                 <FormField name="title" control={form.control} render={({field}) => (
                                     <FormItem>
                                         <FormLabel>{t('tasks.dialog.title_label')}</FormLabel>
@@ -1959,7 +1954,6 @@ export default function TasksPage() {
                                 />
                              </div>
                               <div className="md:col-span-1 space-y-4">
-                                {/* ... Sidebar Fields ... */}
                               </div>
                                <DialogFooter className="md:col-span-3">
                                 <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
@@ -1972,26 +1966,211 @@ export default function TasksPage() {
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
                 <DialogContent className="sm:max-w-3xl">
-                    <DialogHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col gap-y-1">
-                                <DialogTitle>
-                                    {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
-                                </DialogTitle>
-                                <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => setIsReportManagerOpen(true)}>
-                                {t('tasks.my_reports_desc')}
-                            </Button>
+                     <DialogHeader>
+                        <div className="flex flex-col gap-y-1">
+                            <DialogTitle>
+                                {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
+                            </DialogTitle>
+                            <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
                         </div>
+                        <Button variant="outline" size="sm" onClick={() => setIsReportManagerOpen(true)}>
+                            {t('tasks.my_reports_desc')}
+                        </Button>
                     </DialogHeader>
-                    {/* ... Weekly Report Dialog Content ... */}
                 </DialogContent>
             </Dialog>
 
             <Sheet open={isDetailsSheetOpen} onOpenChange={handleCloseDetailsSheet}>
-                <SheetContent className="sm:max-w-lg flex flex-col">
-                     {/* ... Details Sheet ... */}
+                <SheetContent className="sm:max-w-2xl w-full flex flex-col p-0">
+                     {selectedTaskForDetails && (
+                        <>
+                         <div className="flex items-center justify-between p-4 border-b">
+                            <div>
+                                <h2 className="text-lg font-semibold">{selectedTaskForDetails.title}</h2>
+                                <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                 <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleOpenMoveDialog(selectedTaskForDetails)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleDeleteTask(selectedTaskForDetails.id)} className="text-destructive">{t('common.delete')}</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenTaskDialog(selectedTaskForDetails, selectedTaskForDetails.columnId)}><Edit className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" onClick={handleCloseDetailsSheet}><X className="h-4 w-4" /></Button>
+                            </div>
+                         </div>
+                         <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+                            {/* Main Content */}
+                            <div className="md:col-span-2 space-y-6">
+                                <div id="description">
+                                    <Label>{t('tasks.dialog.description_label')}</Label>
+                                    <p className="text-sm text-muted-foreground mt-2">{selectedTaskForDetails.description || t('tasks.details.no_description')}</p>
+                                </div>
+
+                                {(selectedTaskForDetails.checklist || []).length > 0 && (
+                                     <div id="checklist">
+                                        <Label>{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
+                                        <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
+                                        <div className="space-y-2 mt-4">
+                                            {selectedTaskForDetails.checklist?.map(item => (
+                                                <div key={item.id} className="flex items-center gap-2">
+                                                    <Checkbox id={`checklist-${item.id}`} checked={item.completed} disabled />
+                                                    <label htmlFor={`checklist-${item.id}`} className={cn("text-sm", item.completed && "line-through text-muted-foreground")}>{item.text}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div id="activity">
+                                     <Label className="mb-4 block">{t('tasks.details.tabs.activity_and_comments')}</Label>
+                                     <div className="space-y-6">
+                                         {/* Combined Comments and Logs */}
+                                         {/* In a real app, this would be one sorted list from the backend */}
+                                        {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])]
+                                        .sort((a,b) => new Date(b.createdAt || b.timestamp).getTime() - new Date(a.createdAt || a.timestamp).getTime())
+                                        .map(item => {
+                                            if('action' in item) { // It's a log
+                                                const log = item as ActivityLog;
+                                                const creator = usersOnBoard.find(u => u.id === log.userId);
+                                                return (
+                                                    <div key={log.id} className="flex items-start gap-3">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={creator?.avatar} />
+                                                            <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm">
+                                                                <span className="font-semibold">{log.userName}</span>
+                                                                <span className="text-muted-foreground ml-1">
+                                                                    {t(`tasks.logs.${log.action}`, log.details)}
+                                                                </span>
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">{formatDistance(new Date(log.timestamp))}</p>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            } else { // It's a comment
+                                                const comment = item as Comment;
+                                                const creator = usersOnBoard.find(u => u.id === comment.authorId);
+                                                return (
+                                                     <div key={comment.id} className="flex items-start gap-3">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={creator?.avatar} />
+                                                            <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                         <div className="flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="font-semibold text-sm">{comment.author}</p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {formatDistance(new Date(comment.createdAt))}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            }
+                                        })}
+                                     </div>
+                                      <div className="mt-6 pt-4 border-t">
+                                        <Form {...commentForm}>
+                                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                                            <Avatar className="h-9 w-9">
+                                                <AvatarImage src={currentUser?.avatar} />
+                                                <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <FormField
+                                                control={commentForm.control}
+                                                name="text"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                                />
+                                                <Button type="submit">{t('contracts.details.post_comment_button')}</Button>
+                                            </form>
+                                        </Form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Sidebar */}
+                            <aside className="md:col-span-1 space-y-6">
+                                <div id="details">
+                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.details')}</h4>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.assign_to_label')}</span>
+                                            <div className="flex items-center -space-x-2">
+                                                {(selectedTaskForDetails.assignees || []).map(id => {
+                                                    const user = usersOnBoard.find(u => u.id === id);
+                                                    if (!user) return null;
+                                                    return (
+                                                        <TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                                            <Avatar className="h-7 w-7 border-2 border-background">
+                                                                <AvatarImage src={user.avatar} />
+                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                        </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                         <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.date_label')}</span>
+                                            <span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span>
+                                        </div>
+                                         <div className="flex items-center justify-between">
+                                            <span className="text-muted-foreground">{t('tasks.dialog.priority_label')}</span>
+                                            <div className="flex items-center gap-2 capitalize">
+                                                <Flag className="h-4 w-4" />
+                                                {t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Separator />
+                                <div id="labels">
+                                    <h4 className="font-medium mb-2">{t('tasks.dialog.labels_label')}</h4>
+                                     <div className="flex flex-wrap gap-1">
+                                        {(selectedTaskForDetails.labelIds || []).map(labelId => {
+                                            const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                            if (!label) return null;
+                                            return <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge>
+                                        })}
+                                    </div>
+                                </div>
+                                 <Separator />
+                                <div id="attachments">
+                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.attachments')}</h4>
+                                     {(selectedTaskForDetails.attachments || []).length > 0 ? (
+                                        <div className="space-y-2">
+                                            {selectedTaskForDetails.attachments?.map((file, i) => (
+                                                <a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
+                                                    <Paperclip className="h-4 w-4" />
+                                                    <span className="text-sm truncate">{file.name}</span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                     ) : (
+                                        <p className="text-sm text-muted-foreground">{t('tasks.details.no_attachments_desc')}</p>
+                                     )}
+                                </div>
+                            </aside>
+                         </div>
+                        </>
+                     )}
                 </SheetContent>
             </Sheet>
 

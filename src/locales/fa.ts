@@ -620,7 +620,7 @@ export const fa = {
         list_status_label: 'لیست / وضعیت',
         list_status_placeholder: 'یک لیست انتخاب کنید',
         labels_label: 'برچسب‌ها',
-        labels_placeholder: 'برچسب‌ها را انتخاب یا ایجاد کنید...',
+        labels_placeholder: 'انتخاب یا ایجاد برچسب...',
         labels_search_placeholder: 'جستجوی برچسب‌ها...',
         labels_no_results: 'هیچ برچسبی یافت نشد.',
         labels_create_new: 'ایجاد "{{name}}"',
@@ -628,7 +628,7 @@ export const fa = {
         description_label: 'توضیحات',
         description_placeholder: 'وظیفه را توصیف کنید...',
         assign_to_label: 'محول به',
-        assign_to_placeholder: 'اعضا را انتخاب کنید...',
+        assign_to_placeholder: 'انتخاب اعضا...',
         users_selected: '{{count}} کاربر انتخاب شد',
         no_users_on_board: 'هیچ کاربری در این تخته یافت نشد.',
         recurrence_label: 'تکرار',
@@ -758,3 +758,5 @@ export const fa = {
     }
   }
 };
+
+    

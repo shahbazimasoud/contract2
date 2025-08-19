@@ -212,6 +212,8 @@ export default function TasksPage() {
     
     const [editingLabel, setEditingLabel] = useState<LabelType | null>(null);
     const [labelToDelete, setLabelToDelete] = useState<LabelType | null>(null);
+    const [newLabelSearch, setNewLabelSearch] = useState("");
+
 
     const { toast } = useToast();
     const [usersOnBoard, setUsersOnBoard] = useState<User[]>([]);
@@ -1084,6 +1086,23 @@ export default function TasksPage() {
         labelForm.reset({ text: '', color: defaultColors[0] });
     };
 
+    const handleCreateNewLabel = (searchText: string, field: any) => {
+        if (!activeBoard || !searchText) return;
+        const newLabel: LabelType = {
+            id: `LBL-${Date.now()}`,
+            text: searchText,
+            color: defaultColors[Math.floor(Math.random() * defaultColors.length)],
+        };
+        const updatedBoard = {
+            ...activeBoard,
+            labels: [...(activeBoard.labels || []), newLabel]
+        };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        const newSelection = [...(field.value || []), newLabel.id];
+        field.onChange(newSelection);
+        setNewLabelSearch("");
+    };
+
     const handleDeleteLabel = () => {
         if (!labelToDelete || !activeBoard) return;
 
@@ -1107,21 +1126,20 @@ export default function TasksPage() {
         if (!currentUser) return;
         setTasks(prevTasks => prevTasks.map(task => {
             if (task.id === taskId) {
-                const userReaction = (task.reactions || []).find(r => r.userId === currentUser.id);
                 let newReactions = [...(task.reactions || [])];
+                const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
 
-                if (userReaction) {
-                    // User has reacted.
-                    // If it's the same emoji, remove it (toggle off).
-                    if (userReaction.emoji === emoji) {
-                        newReactions = newReactions.filter(r => r.userId !== currentUser.id);
+                if (userReactionIndex > -1) {
+                    // User has a reaction
+                    if (newReactions[userReactionIndex].emoji === emoji) {
+                        // It's the same emoji, so remove it (toggle off)
+                        newReactions.splice(userReactionIndex, 1);
                     } else {
-                        // If it's a different emoji, remove the old one and add the new one.
-                        newReactions = newReactions.filter(r => r.userId !== currentUser.id);
-                        newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
+                        // It's a different emoji, replace the old one
+                        newReactions[userReactionIndex] = { emoji, userId: currentUser.id, userName: currentUser.name };
                     }
                 } else {
-                    // User has not reacted, add the new reaction.
+                    // User has no reaction, add the new one
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
 
@@ -1181,7 +1199,7 @@ export default function TasksPage() {
                                 const label = activeBoard?.labels?.find(l => l.id === labelId);
                                 if (!label) return null;
                                 return (
-                                    <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
+                                    <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
                                         {label.text}
                                     </Badge>
                                 );
@@ -1361,7 +1379,7 @@ export default function TasksPage() {
                             <div className="flex items-center gap-3 cursor-pointer">
                                 <span className="w-8 h-8 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
                                 <div>
-                                    <PageHeaderHeading>{activeBoard?.name || t('tasks.select_board')}</PageHeaderHeading>
+                                    <h1 className="text-2xl font-bold leading-tight tracking-tighter md:text-3xl lg:leading-[1.1]">{activeBoard?.name || t('tasks.select_board')}</h1>
                                 </div>
                                 <ChevronsUpDown className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -1578,7 +1596,7 @@ export default function TasksPage() {
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                                         {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 p-2 rounded-lg">
@@ -1607,13 +1625,13 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
                                                                             const task = tasks.find(t => t.id === taskId);
                                                                             return task && !task.isArchived ? (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                     {(provided, snapshot) => (
                                                                                         <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                             {renderTaskCard(task)}
@@ -1807,10 +1825,65 @@ export default function TasksPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="columnId" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.list_status_label')}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder={t('tasks.dialog.list_status_placeholder')} /></SelectTrigger></FormControl><SelectContent>{activeBoard?.columns.filter(c => !c.isArchived).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="priority" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.priority_label')}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="low">{t('tasks.priority.low')}</SelectItem><SelectItem value="medium">{t('tasks.priority.medium')}</SelectItem><SelectItem value="high">{t('tasks.priority.high')}</SelectItem><SelectItem value="critical">{t('tasks.priority.critical')}</SelectItem></SelectContent></Select><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="assignees" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.assign_to_label')}</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start">{field.value && field.value.length > 0 ? `${field.value.length} ${t('tasks.dialog.users_selected')}`: <span>{t('tasks.dialog.assign_to_placeholder')}</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.assign_to_placeholder')} /><CommandList><CommandEmpty>{t('tasks.dialog.no_users_on_board')}</CommandEmpty><CommandGroup>{usersOnBoard.map(user => <CommandItem key={user.id} onSelect={() => { const newSelection = field.value?.includes(user.id) ? field.value.filter(id => id !== user.id) : [...(field.value || []), user.id]; field.onChange(newSelection);}}>{user.name}</CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover><FormMessage /></FormItem>)}/>
+                             <FormField control={form.control} name="assignees" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.assign_to_label')}</FormLabel><Popover><PopoverTrigger asChild><FormControl>
+                                    <Button variant="outline" className="w-full justify-start h-auto min-h-10">
+                                        {field.value && field.value.length > 0 ? (
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                {field.value.slice(0, 3).map(id => {
+                                                    const user = usersOnBoard.find(u => u.id === id);
+                                                    return user ? <Avatar key={id} className="h-6 w-6"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar> : null;
+                                                })}
+                                                {field.value.length > 3 && <span className="text-xs text-muted-foreground">+{field.value.length - 3}</span>}
+                                            </div>
+                                        ) : <span>{t('tasks.dialog.assign_to_placeholder')}</span>}
+                                    </Button>
+                                </FormControl></PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.assign_to_placeholder')} />
+                                <CommandList><CommandEmpty>{t('tasks.dialog.no_users_on_board')}</CommandEmpty><CommandGroup>
+                                {usersOnBoard.map(user => (
+                                <CommandItem key={user.id} onSelect={() => { const newSelection = field.value?.includes(user.id) ? field.value.filter(id => id !== user.id) : [...(field.value || []), user.id]; field.onChange(newSelection);}}>
+                                    <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", field.value?.includes(user.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}><Check className="h-4 w-4" /></div>
+                                    <span>{user.name}</span>
+                                </CommandItem>
+                                ))}
+                                </CommandGroup></CommandList></Command></PopoverContent>
+                                </Popover><FormMessage /></FormItem>
+                            )}/>
                             <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>{t('tasks.dialog.date_label')}</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} calendar={calendar} locale={locale} render={(value: any, openCalendar: () => void) => (<Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{value || <span>Pick a date</span>}</Button>)}/></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>{t('units.title')}</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role !== 'super-admin'}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{mockUnits.map(u => <SelectItem value={u.name} key={u.id}>{u.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="labelIds" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start">{field.value && field.value.length > 0 ? `${field.value.length} labels selected` : <span>{t('tasks.dialog.labels_placeholder')}</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.labels_search_placeholder')} /><CommandList><CommandEmpty>{t('tasks.dialog.labels_no_results')}</CommandEmpty><CommandGroup>{(activeBoard?.labels || []).map(label => <CommandItem key={label.id} onSelect={() => { const newSelection = field.value?.includes(label.id) ? field.value.filter(id => id !== label.id) : [...(field.value || []), label.id]; field.onChange(newSelection);}}><div className="flex items-center"><span className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>{label.text}</div></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover><FormMessage /></FormItem>)}/>
+                             <FormField control={form.control} name="labelIds" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel>
+                                <Popover><PopoverTrigger asChild><FormControl>
+                                <Button variant="outline" className="w-full justify-start h-auto min-h-10">
+                                {field.value && field.value.length > 0 ? (<div className="flex flex-wrap gap-1">
+                                    {(field.value || []).map(labelId => {
+                                        const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                        return label ? <Badge key={label.id} style={{backgroundColor: label.color, color: '#fff'}} className="border-transparent">{label.text}</Badge> : null;
+                                    })}
+                                </div>
+                                ) : (<span>{t('tasks.dialog.labels_placeholder')}</span>)}
+                                </Button>
+                                </FormControl></PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command>
+                                <CommandInput placeholder={t('tasks.dialog.labels_search_placeholder')} value={newLabelSearch} onValueChange={setNewLabelSearch} />
+                                <CommandList><CommandEmpty>{t('tasks.dialog.labels_no_results')}</CommandEmpty>
+                                <CommandGroup>
+                                    {(activeBoard?.labels || []).filter(l => l.text.toLowerCase().includes(newLabelSearch.toLowerCase())).map(label => (
+                                        <CommandItem key={label.id} onSelect={() => { const newSelection = field.value?.includes(label.id) ? field.value.filter(id => id !== label.id) : [...(field.value || []), label.id]; field.onChange(newSelection); setNewLabelSearch(""); }}>
+                                            <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", field.value?.includes(label.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}><Check className="h-4 w-4" /></div>
+                                            <div className="flex items-center"><span className="h-2 w-2 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>{label.text}</div>
+                                        </CommandItem>
+                                    ))}
+                                    {newLabelSearch && !(activeBoard?.labels || []).some(l => l.text.toLowerCase() === newLabelSearch.toLowerCase()) && (
+                                        <CommandItem onSelect={() => handleCreateNewLabel(newLabelSearch, field)}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            {t('tasks.dialog.labels_create_new', { name: newLabelSearch })}
+                                        </CommandItem>
+                                    )}
+                                </CommandGroup></CommandList></Command></PopoverContent>
+                                </Popover><FormMessage /></FormItem>
+                            )}/>
                         </div>
                         <FormField control={form.control} name="checklist" render={() => (<FormItem><FormLabel>{t('tasks.dialog.checklist_label')}</FormLabel><FormDescription>{t('tasks.dialog.checklist_desc')}</FormDescription><div className="space-y-2">
                             {checklistFields.map((field, index) => (<div key={field.id} className="flex items-center gap-2">
@@ -1853,8 +1926,8 @@ export default function TasksPage() {
                                     <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
                                     <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
                                 </TabsList>
-                                 <TabsContent value="details" className="flex-1 overflow-y-auto">
-                                   <ScrollArea className="h-full">
+                                 <TabsContent value="details" className="flex-1 flex flex-col min-h-0">
+                                   <div className="flex-1 overflow-y-auto">
                                         <div className="space-y-4 p-4 text-sm">
                                             <div className="space-y-1">
                                                <p className="font-medium text-muted-foreground">{t('tasks.dialog.description_label')}</p>
@@ -1946,7 +2019,7 @@ export default function TasksPage() {
                                                 })}
                                             </div>
                                         </div>
-                                   </ScrollArea>
+                                   </div>
                                 </TabsContent>
                                 <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
                                     <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
@@ -2046,7 +2119,7 @@ export default function TasksPage() {
                          <div className="space-y-2">
                             {(activeBoard?.labels || []).length > 0 ? (activeBoard?.labels || []).map(label => (
                                 <div key={label.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <Badge style={{ backgroundColor: label.color }} className="text-white">{label.text}</Badge>
+                                    <Badge style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge>
                                     <div className="flex gap-2">
                                         <Button variant="ghost" size="icon" onClick={() => setEditingLabel(label)}><Edit className="h-4 w-4"/></Button>
                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setLabelToDelete(label)}><Trash2 className="h-4 w-4"/></Button>
@@ -2074,3 +2147,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

@@ -27,7 +27,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetFooter
+  SheetFooter,
+  SheetDescription
 } from "@/components/ui/sheet";
 import {
   Form,
@@ -101,6 +102,8 @@ import { Progress } from '@/components/ui/progress';
 import { useLanguage } from '@/context/language-context';
 import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div> });
 const Droppable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Droppable), { ssr: false });
@@ -1493,7 +1496,7 @@ export default function TasksPage() {
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                                         {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 p-2 rounded-lg">
@@ -1522,13 +1525,13 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
                                                                             const task = tasks.find(t => t.id === taskId);
                                                                             return task && !task.isArchived ? (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
+                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                     {(provided, snapshot) => (
                                                                                         <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                             {renderTaskCard(task)}
@@ -1753,134 +1756,199 @@ export default function TasksPage() {
             </Dialog>
 
             <Sheet open={isDetailsSheetOpen} onOpenChange={handleCloseDetailsSheet}>
-                <SheetContent className="sm:max-w-2xl w-full flex flex-col p-0">
-                     {selectedTaskForDetails && (<>
-                        <SheetHeader className="p-4 border-b flex flex-row items-center justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                                <Checkbox checked={selectedTaskForDetails.isCompleted} onCheckedChange={(checked) => handleToggleTaskCompletion(selectedTaskForDetails.id, !!checked)} id={`complete-${selectedTaskForDetails.id}`} className="w-5 h-5 mt-1"/>
-                                <div>
-                                    <h2 className={cn("text-lg font-semibold", selectedTaskForDetails.isCompleted && "line-through text-muted-foreground")}>{selectedTaskForDetails.title}</h2>
-                                    <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
-                                </div>
-                            </div>
-                             <div className="flex items-center gap-2 flex-shrink-0">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={() => { handleOpenTaskDialog(selectedTaskForDetails); handleCloseDetailsSheet(); }}>{t('common.edit')}</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleOpenMoveDialog(selectedTaskForDetails)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTask(selectedTaskForDetails.id)}>{t('common.delete')}</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <Button variant="ghost" size="icon" onClick={handleCloseDetailsSheet}><X className="h-4 w-4"/></Button>
-                            </div>
-                        </SheetHeader>
-                        <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-                            <div className="md:col-span-2 space-y-6">
-                                
-                                {selectedTaskForDetails.description && (
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">{selectedTaskForDetails.description}</p>
-                                    </div>
-                                )}
-                                
-                                {(selectedTaskForDetails.checklist || []).length > 0 && (<div>
-                                    <Label className="font-medium text-sm">{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
-                                    <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
-                                    <div className="space-y-2 mt-4">
-                                        {selectedTaskForDetails.checklist?.map(item => (<div key={item.id} className="flex items-center gap-2">
-                                            <Checkbox id={`details-checklist-${item.id}`} checked={item.completed} disabled />
-                                            <label htmlFor={`details-checklist-${item.id}`} className={cn("text-sm", item.completed && "line-through text-muted-foreground")}>{item.text}</label>
-                                        </div>))}
-                                    </div>
-                                </div>)}
-                                <div id="activity">
-                                    <h4 className="font-medium text-sm mb-4 block">{t('tasks.details.tabs.activity_and_comments')}</h4>
-                                    <div className="space-y-6">
-                                        {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])].sort((a,b) => new Date('createdAt' in a ? a.createdAt : a.timestamp).getTime() - new Date('createdAt' in b ? b.createdAt : b.timestamp).getTime()).map(item => {
-                                            if('action' in item) {
-                                                const log = item as ActivityLog;
-                                                const creator = usersOnBoard.find(u => u.id === log.userId);
-                                                return (<div key={log.id} className="flex items-start gap-3"><Avatar className="h-8 w-8"><AvatarImage src={creator?.avatar} /><AvatarFallback>{log.userName.charAt(0)}</AvatarFallback></Avatar><div><p className="text-sm"><span className="font-semibold">{log.userName}</span><span className="text-muted-foreground ml-1">{t(`tasks.logs.${log.action}`, log.details)}</span></p><p className="text-xs text-muted-foreground mt-0.5">{formatDistance(new Date(log.timestamp), new Date(), {addSuffix: true})}</p></div></div>)
-                                            } else {
-                                                const comment = item as Comment;
-                                                const creator = usersOnBoard.find(u => u.id === comment.authorId);
-                                                return (<div key={comment.id} className="flex items-start gap-3"><Avatar className="h-8 w-8"><AvatarImage src={creator?.avatar} /><AvatarFallback>{comment.author.charAt(0)}</AvatarFallback></Avatar><div className="flex-1"><div className="flex items-center gap-2"><p className="font-semibold text-sm">{comment.author}</p><p className="text-xs text-muted-foreground">{formatDistance(new Date(comment.createdAt), new Date(), {addSuffix: true})}</p></div><div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</div></div></div>)
-                                            }
-                                        })}
-                                    </div>
-                                    <div className="mt-6 pt-4 border-t"><Form {...commentForm}><form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2"><Avatar className="h-9 w-9"><AvatarImage src={currentUser?.avatar} /><AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback></Avatar><FormField control={commentForm.control} name="text" render={({ field }) => (<FormItem className="flex-1"><FormControl><Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" /></FormControl><FormMessage /></FormItem>)}/><Button type="submit">{t('contracts.details.post_comment_button')}</Button></form></Form></div>
-                                </div>
-                            </div>
-                            <aside className="md:col-span-1 space-y-4">
-                                <h4 className="font-medium text-sm">{t('tasks.details.tabs.details')}</h4>
-                                <div className="grid grid-cols-1 gap-y-3 text-sm">
-                                   <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.assign_to_label')}</span>
-                                        <div className="flex items-center flex-wrap gap-1">
-                                            {(selectedTaskForDetails.assignees || []).map(id => {
-                                                const user = usersOnBoard.find(u => u.id === id);
-                                                return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                                        <Avatar className="h-7 w-7 border-2 border-background"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
-                                                </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
-                                            })}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.date_label')}</span><span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span></div>
-                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.priority_label')}</span><div className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" />{t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}</div></div>
-                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.table.recurrence')}</span><span className="capitalize">{selectedTaskForDetails.recurrence.type}</span></div>
-                                </div>
-                                <Separator />
-
-                                { (activeBoard?.labels || []).length > 0 && 
-                                    <div><h4 className="font-medium text-sm mb-2">{t('tasks.dialog.labels_label')}</h4><div className="flex flex-wrap gap-1">
-                                        {(selectedTaskForDetails.labelIds || []).map(labelId => {
-                                            const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                            return label ? <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge> : null;
-                                        })}
-                                    </div></div>
-                                }
-                                 <Separator />
-                                <div><h4 className="font-medium text-sm mb-2">{t('tasks.details.tabs.attachments')}</h4>{(selectedTaskForDetails.attachments || []).length > 0 ? (<div className="space-y-2">
-                                    {selectedTaskForDetails.attachments?.map((file, i) => (<a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"><Paperclip className="h-4 w-4" /><span className="text-sm truncate">{file.name}</span></a>))}
-                                </div>) : (<p className="text-sm text-muted-foreground">{t('tasks.details.no_attachments_desc')}</p>)}</div>
-                                <Separator />
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-medium text-sm">{t('tasks.details.tabs.reactions')}</h4>
-                                    <Popover>
-                                        <PopoverTrigger asChild><Button size="icon" variant="ghost"><SmilePlus className="h-5 w-5 text-muted-foreground"/></Button></PopoverTrigger>
-                                        <PopoverContent className="w-auto p-2">
-                                            <div className="flex gap-1">
-                                                {(appearanceSettings?.allowedReactions || []).map(emoji => (
-                                                    <Button key={emoji} variant="ghost" size="icon" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
-                                                        <span className="text-lg">{emoji}</span>
-                                                    </Button>
-                                                ))}
+                <SheetContent className="flex flex-col sm:max-w-lg">
+                     {selectedTaskForDetails && (
+                        <>
+                            <SheetHeader>
+                                <SheetTitle>{t('tasks.details.title', { name: selectedTaskForDetails.title })}</SheetTitle>
+                                <SheetDescription>
+                                    {t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}
+                                </SheetDescription>
+                            </SheetHeader>
+                            <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
+                                <TabsList className="grid w-full grid-cols-3">
+                                    <TabsTrigger value="details">{t('tasks.details.tabs.details')}</TabsTrigger>
+                                    <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
+                                    <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
+                                </TabsList>
+                                 <TabsContent value="details" className="flex-1 overflow-y-auto">
+                                   <ScrollArea className="h-full">
+                                        <div className="space-y-4 p-4 text-sm">
+                                            <div className="space-y-1">
+                                               <p className="font-medium text-muted-foreground">{t('tasks.dialog.description_label')}</p>
+                                               <p>{selectedTaskForDetails.description || 'N/A'}</p>
                                             </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries((selectedTaskForDetails.reactions || []).reduce((acc, r) => {
-                                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                                        return acc;
-                                    }, {} as Record<string, number>)).map(([emoji, count]) => {
-                                        const userHasReacted = (selectedTaskForDetails.reactions || []).some(r => r.userId === currentUser?.id && r.emoji === emoji);
-                                        return (<TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
-                                            <Button variant={userHasReacted ? 'secondary': 'outline'} size="sm" className="rounded-full" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
-                                                <span className="mr-1">{emoji}</span> {count}
-                                            </Button>
-                                        </TooltipTrigger><TooltipContent>
-                                            {(selectedTaskForDetails.reactions || []).filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}
-                                        </TooltipContent></Tooltip></TooltipProvider>)
-                                    })}
-                                </div>
-                            </aside>
-                         </div>
-                     </>)}
+                                             <Separator />
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                               <div className="space-y-1">
+                                                    <p className="font-medium text-muted-foreground">{t('tasks.dialog.date_label')}</p>
+                                                    <p>{format(new Date(selectedTaskForDetails.dueDate), 'yyyy/MM/dd')}</p>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="font-medium text-muted-foreground">{t('tasks.dialog.priority_label')}</p>
+                                                    <p className="capitalize">{t(`tasks.priority.${selectedTaskForDetails.priority}`)}</p>
+                                                </div>
+                                                 <div className="space-y-1">
+                                                    <p className="font-medium text-muted-foreground">{t('units.title')}</p>
+                                                    <p>{selectedTaskForDetails.unit}</p>
+                                                </div>
+                                                 <div className="space-y-1">
+                                                    <p className="font-medium text-muted-foreground">{t('tasks.table.recurrence')}</p>
+                                                    <p className="capitalize">{selectedTaskForDetails.recurrence.type}</p>
+                                                </div>
+                                                <div className="space-y-1 col-span-2">
+                                                    <p className="font-medium text-muted-foreground">{t('tasks.dialog.assign_to_label')}</p>
+                                                     <div className="flex items-center -space-x-2">
+                                                        {(selectedTaskForDetails.assignees || []).map(id => {
+                                                            const user = usersOnBoard.find(u => u.id === id);
+                                                            if (!user) return null;
+                                                            return (
+                                                                <TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                                                    <Avatar className="h-8 w-8 border-2 border-background">
+                                                                        <AvatarImage src={user.avatar} alt={user.name} />
+                                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                                    </Avatar>
+                                                                </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                             <Separator />
+                                            {(selectedTaskForDetails.checklist || []).length > 0 && (<div>
+                                                <Label className="font-medium text-base">{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
+                                                <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
+                                                <div className="space-y-2 mt-4">
+                                                    {selectedTaskForDetails.checklist?.map(item => (<div key={item.id} className="flex items-center gap-2">
+                                                        <Checkbox id={`details-checklist-${item.id}`} checked={item.completed} disabled />
+                                                        <label htmlFor={`details-checklist-${item.id}`} className={cn("text-sm", item.completed && "line-through text-muted-foreground")}>{item.text}</label>
+                                                    </div>))}
+                                                </div>
+                                            </div>)}
+                                             <Separator />
+                                             <div>
+                                                <Label className="font-medium text-base">{t('tasks.details.tabs.attachments')}</Label>
+                                                {(selectedTaskForDetails.attachments || []).length > 0 ? (<div className="space-y-2 mt-2">
+                                                    {selectedTaskForDetails.attachments?.map((file, i) => (<a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"><Paperclip className="h-4 w-4" /><span className="text-sm truncate">{file.name}</span></a>))}
+                                                </div>) : (<p className="text-sm text-muted-foreground mt-2">{t('tasks.details.no_attachments_desc')}</p>)}
+                                             </div>
+                                             <Separator />
+                                             <div className="flex items-center justify-between">
+                                                <h4 className="font-medium text-base">{t('tasks.details.tabs.reactions')}</h4>
+                                                <Popover>
+                                                    <PopoverTrigger asChild><Button size="icon" variant="ghost"><SmilePlus className="h-5 w-5 text-muted-foreground"/></Button></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-2">
+                                                        <div className="flex gap-1">
+                                                            {(appearanceSettings?.allowedReactions || []).map(emoji => (
+                                                                <Button key={emoji} variant="ghost" size="icon" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
+                                                                    <span className="text-lg">{emoji}</span>
+                                                                </Button>
+                                                            ))}
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {Object.entries((selectedTaskForDetails.reactions || []).reduce((acc, r) => {
+                                                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                                    return acc;
+                                                }, {} as Record<string, number>)).map(([emoji, count]) => {
+                                                    const userHasReacted = (selectedTaskForDetails.reactions || []).some(r => r.userId === currentUser?.id && r.emoji === emoji);
+                                                    return (<TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
+                                                        <Button variant={userHasReacted ? 'secondary': 'outline'} size="sm" className="rounded-full" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
+                                                            <span className="mr-1">{emoji}</span> {count}
+                                                        </Button>
+                                                    </TooltipTrigger><TooltipContent>
+                                                        {(selectedTaskForDetails.reactions || []).filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}
+                                                    </TooltipContent></Tooltip></TooltipProvider>)
+                                                })}
+                                            </div>
+                                        </div>
+                                   </ScrollArea>
+                                </TabsContent>
+                                <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
+                                    <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
+                                        {(selectedTaskForDetails.comments || []).length > 0 ? (
+                                            (selectedTaskForDetails.comments || []).map(comment => {
+                                            const creator = usersOnBoard.find(u => u.id === comment.authorId);
+                                            return (
+                                                <div key={comment.id} className="flex items-start gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={creator?.avatar} alt={creator?.name}/>
+                                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="font-semibold text-sm">{comment.author}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {formatDistance(new Date(comment.createdAt), new Date())}
+                                                            </p>
+                                                        </div>
+                                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                                    </div>
+                                                </div>
+                                            )
+                                            })
+                                        ) : (
+                                            <div className="text-center text-muted-foreground py-10">
+                                                <MessageSquare className="mx-auto h-12 w-12" />
+                                                <p className="mt-4">{t('contracts.details.no_comments_title')}</p>
+                                                <p>{t('contracts.details.no_comments_desc')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="mt-auto pt-4 border-t">
+                                        <Form {...commentForm}>
+                                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
+                                            <FormField
+                                                control={commentForm.control}
+                                                name="text"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                                />
+                                                <Button type="submit">{t('contracts.details.post_comment_button')}</Button>
+                                            </form>
+                                        </Form>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="activity" className="flex-1 overflow-y-auto">
+                                    <ScrollArea className="h-full">
+                                        <div className="space-y-4 py-4">
+                                            {(selectedTaskForDetails.logs || []).length > 0 ? (
+                                                [...(selectedTaskForDetails.logs || [])].reverse().map(log => {
+                                                    const creator = usersOnBoard.find(u => u.id === log.userId);
+                                                    return (
+                                                    <div key={log.id} className="flex items-center gap-3">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={creator?.avatar} alt={creator?.name} />
+                                                            <AvatarFallback>{creator?.name.charAt(0) || 'U'}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="text-sm"><span className="font-semibold">{log.userName}</span> <span className="text-muted-foreground">{t(`tasks.logs.${log.action}`, log.details)}</span></p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {formatDistance(new Date(log.timestamp), new Date(), {addSuffix: true})}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )})
+                                            ) : (
+                                                <div className="text-center text-muted-foreground py-10">
+                                                    <History className="mx-auto h-12 w-12" />
+                                                    <p className="mt-4">{t('tasks.details.no_activity_title')}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </TabsContent>
+                            </Tabs>
+                        </>
+                    )}
                 </SheetContent>
             </Sheet>
 
@@ -1924,7 +1992,5 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    
 
     

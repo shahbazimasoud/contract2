@@ -654,7 +654,6 @@ export const fa = {
         task_id: 'شناسه وظیفه: {{id}}',
         view_details: 'جزئیات',
         task_in_list: 'در لیست {{list}} روی تخته {{board}}',
-        no_description: 'هیچ توضیحی ارائه نشده است.',
         tabs: {
             details: 'جزئیات',
             checklist: 'چک‌لیست',
@@ -662,8 +661,8 @@ export const fa = {
             attachments: 'پیوست‌ها',
             activity: 'فعالیت‌ها',
             reactions: 'واکنش‌ها',
-            activity_and_comments: 'فعالیت و نظرات'
         },
+        no_description: 'هیچ توضیحی ارائه نشده است.',
         no_checklist_title: 'هیچ مورد چک‌لیستی وجود ندارد.',
         no_checklist_desc: 'شما می‌توانید با ویرایش این وظیفه یک چک‌لیست اضافه کنید.',
         no_attachments_title: 'هیچ پیوستی یافت نشد.',

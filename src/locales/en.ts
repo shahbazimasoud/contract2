@@ -654,7 +654,6 @@ export const en = {
         task_id: 'Task ID: {{id}}',
         view_details: 'Details',
         task_in_list: 'in list {{list}} on board {{board}}',
-        no_description: 'No description provided.',
         tabs: {
             details: 'Details',
             checklist: 'Checklist',
@@ -662,8 +661,8 @@ export const en = {
             attachments: 'Attachments',
             activity: 'Activity',
             reactions: 'Reactions',
-            activity_and_comments: 'Activity & Comments'
         },
+        no_description: 'No description provided.',
         no_checklist_title: 'No checklist items.',
         no_checklist_desc: 'You can add a checklist by editing this task.',
         no_attachments_title: 'No attachments found.',
@@ -753,9 +752,9 @@ export const en = {
         label_deleted: 'Label deleted.',
     },
     column_titles: {
-        todo: 'To Do',
-        in_progress: 'In Progress',
-        done: 'Done',
+        todo: 'برای انجام',
+        in_progress: 'در حال انجام',
+        done: 'انجام شده',
     }
   }
 };

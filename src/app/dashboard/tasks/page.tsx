@@ -102,8 +102,7 @@ import { useLanguage } from '@/context/language-context';
 import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
 
-// Dynamically import react-beautiful-dnd components to ensure they only run on the client
-const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false });
+const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <Loader2 className="animate-spin" /> });
 const Droppable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Droppable), { ssr: false });
 const Draggable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Draggable), { ssr: false });
 
@@ -1666,7 +1665,10 @@ export default function TasksPage() {
 
              <AlertDialog open={isDeleteBoardAlertOpen} onOpenChange={setIsDeleteBoardAlertOpen}>
                 <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle><AlertDialogDescription>{t('tasks.dialog.delete_board_desc')}</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle>
+                      <AlertDialogDescription>{t('tasks.dialog.delete_board_desc')}</AlertDialogDescription>
+                    </AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => activeBoard && handleDeleteBoard(activeBoard.id)}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -1738,15 +1740,19 @@ export default function TasksPage() {
              </Dialog>
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                                <DialogTitle>{editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}</DialogTitle>
-                                <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
-                            </div>
-                        </div>
-                    </DialogHeader>
+                <DialogContent>
+                  <DialogHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <DialogTitle>
+                          {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {t('tasks.dialog.report_desc', { name: activeBoard?.name })}
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
                 </DialogContent>
             </Dialog>
 
@@ -1912,7 +1918,5 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    
 
     

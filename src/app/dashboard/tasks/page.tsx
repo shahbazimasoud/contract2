@@ -967,7 +967,7 @@ export default function TasksPage() {
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
 
-        if (!destination || !activeBoard || (userPermissions ? userPermissions === 'viewer' : true)) {
+        if (!destination || !activeBoard || (userPermissions !== 'owner' && userPermissions !== 'editor')) {
             return;
         }
 
@@ -1259,7 +1259,7 @@ export default function TasksPage() {
     const goToToday = () => setCurrentMonth(new Date());
 
 
-    if (!currentUser) {
+    if (!currentUser || !Droppable || !Draggable) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -1678,7 +1678,7 @@ export default function TasksPage() {
             
             <Dialog open={isShareDialogOpen} onOpenChange={handleCloseShareDialog}>
                 <DialogContent>
-                    <DialogHeader>
+                     <DialogHeader>
                         <DialogTitle>{t('tasks.dialog.share_title', { name: sharingBoard?.name || '' })}</DialogTitle>
                         <DialogDescription>{t('tasks.dialog.share_desc')}</DialogDescription>
                     </DialogHeader>
@@ -1992,7 +1992,5 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    
 
     

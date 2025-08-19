@@ -1319,9 +1319,7 @@ export default function TasksPage() {
                     <div className="flex items-center gap-2">
                          {activeBoard && (
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
+                                <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>{activeBoard.name}</DropdownMenuLabel>
                                     <DropdownMenuItem onClick={() => handleOpenBoardDialog(activeBoard)} disabled={userPermissions === 'viewer'}>
@@ -1525,7 +1523,7 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK">
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
@@ -1759,7 +1757,7 @@ export default function TasksPage() {
                             <div className="flex items-center gap-2">
                                 <Checkbox checked={selectedTaskForDetails.isCompleted} onCheckedChange={(checked) => handleToggleTaskCompletion(selectedTaskForDetails.id, !!checked)} id={`complete-${selectedTaskForDetails.id}`}/>
                                 <div>
-                                    <SheetTitle className={cn("text-lg font-semibold", selectedTaskForDetails.isCompleted && "line-through text-muted-foreground")}>{selectedTaskForDetails.title}</SheetTitle>
+                                    <h2 className={cn("text-lg font-semibold", selectedTaskForDetails.isCompleted && "line-through text-muted-foreground")}>{selectedTaskForDetails.title}</h2>
                                     <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
                                 </div>
                             </div>
@@ -1914,5 +1912,7 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    
 
     

@@ -159,6 +159,7 @@ const weeklyReportSchema = z.object({
     recipients: z.string().min(1, "At least one recipient is required"),
     subject: z.string().min(1, "Subject is required"),
     body: z.string().optional(),
+    reportType: z.string().min(1, "Report type is required"),
 });
 
 const labelSchema = z.object({
@@ -281,6 +282,7 @@ export default function TasksPage() {
             recipients: "",
             subject: "",
             body: "",
+            reportType: "weekly-my-tasks",
         },
     });
 
@@ -428,6 +430,7 @@ export default function TasksPage() {
                 recipients: recipients,
                 subject: subject,
                 body: editingReport ? editingReport.body : `Here is the weekly status summary for the "${activeBoard.name}" board.`,
+                reportType: editingReport ? editingReport.type : "weekly-my-tasks",
             });
         }
     }, [isWeeklyReportDialogOpen, editingReport, activeBoard, appearanceSettings, weeklyReportForm, currentUser]);
@@ -537,8 +540,7 @@ export default function TasksPage() {
         copyColumnForm.reset();
     };
     
-    const handleOpenReportDialog = (type: ScheduledReportType, report?: ScheduledReport) => {
-        setReportConfigType(type);
+    const handleOpenReportDialog = (report?: ScheduledReport) => {
         setEditingReport(report || null);
         setIsWeeklyReportDialogOpen(true);
     };
@@ -1035,6 +1037,7 @@ export default function TasksPage() {
             const updatedReport: ScheduledReport = {
                 ...editingReport,
                 name: values.name,
+                type: values.reportType as ScheduledReportType,
                 schedule: { dayOfWeek: parseInt(values.dayOfWeek, 10), time: values.time },
                 recipients: recipients,
                 subject: values.subject,
@@ -1047,7 +1050,7 @@ export default function TasksPage() {
                 id: `SR-${Date.now()}`,
                 boardId: activeBoard.id,
                 name: values.name,
-                type: reportConfigType!,
+                type: values.reportType as ScheduledReportType,
                 schedule: { dayOfWeek: parseInt(values.dayOfWeek, 10), time: values.time },
                 recipients: recipients,
                 subject: values.subject,
@@ -1130,7 +1133,7 @@ export default function TasksPage() {
                 const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
 
                 if (userReactionIndex > -1) {
-                    // User has a reaction
+                    // User already has a reaction
                     if (newReactions[userReactionIndex].emoji === emoji) {
                         // It's the same emoji, so remove it (toggle off)
                         newReactions.splice(userReactionIndex, 1);
@@ -1261,7 +1264,9 @@ export default function TasksPage() {
                                         size="icon" 
                                         variant="ghost" 
                                         className="h-7 w-7 rounded-full"
-                                        onClick={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                        }}
                                     >
                                         <SmilePlus className="h-4 w-4 text-muted-foreground" />
                                     </Button>
@@ -1379,7 +1384,27 @@ export default function TasksPage() {
                             <div className="flex items-center gap-3 cursor-pointer">
                                 <span className="w-8 h-8 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
                                 <div>
-                                    <h1 className="text-2xl font-bold leading-tight tracking-tighter md:text-3xl lg:leading-[1.1]">{activeBoard?.name || t('tasks.select_board')}</h1>
+                                    <h1 className="text-2xl font-bold leading-tight tracking-tighter">{activeBoard?.name || t('tasks.select_board')}</h1>
+                                </div>
+                                <div className="flex items-center -space-x-2">
+                                    {(activeBoard?.sharedWith || []).map(share => {
+                                        const user = mockUsers.find(u => u.id === share.userId);
+                                        return user ? (
+                                            <TooltipProvider key={user.id}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Avatar className="h-6 w-6 border-2 border-background">
+                                                            <AvatarImage src={user.avatar} alt={user.name} />
+                                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{t('tasks.tooltips.shared_with', { name: user.name })}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : null
+                                    })}
                                 </div>
                                 <ChevronsUpDown className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -1443,12 +1468,13 @@ export default function TasksPage() {
                                         </DropdownMenuSubTrigger>
                                         <DropdownMenuPortal>
                                             <DropdownMenuSubContent>
-                                                <DropdownMenuItem onClick={() => handleOpenReportDialog('weekly-board-summary')}>
-                                                    <span>{t('tasks.report_types.weekly-board-summary')}</span>
+                                                <DropdownMenuItem onClick={() => handleOpenReportDialog()}>
+                                                    <PlusCircle className="mr-2 h-4 w-4"/>
+                                                    <span>{t('tasks.dialog.new_report_label')}</span>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setIsReportManagerOpen(true)}>
                                                     <SlidersHorizontal className="mr-2 h-4 w-4" />
-                                                    <span>{t('tasks.my_reports_desc')}</span>
+                                                    <span>{t('tasks.dialog.view_scheduled_reports')}</span>
                                                 </DropdownMenuItem>
                                             </DropdownMenuSubContent>
                                         </DropdownMenuPortal>
@@ -1514,6 +1540,17 @@ export default function TasksPage() {
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
+                                            {filters.labelIds.length > 0 && (
+                                                <>
+                                                    <Separator />
+                                                    <CommandGroup>
+                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive">
+                                                            <X className="mr-2 h-4 w-4" />
+                                                            {t('contracts.filter.clear_button')}
+                                                        </CommandItem>
+                                                    </CommandGroup>
+                                                </>
+                                            )}
                                         </CommandList>
                                     </Command>
                                 </PopoverContent>
@@ -1599,7 +1636,7 @@ export default function TasksPage() {
                                             <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
-                                                        <div className="bg-muted/60 p-2 rounded-lg">
+                                                        <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
                                                             <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab">
                                                                 {editingColumnId === column.id ? (
                                                                     <Input
@@ -1656,7 +1693,7 @@ export default function TasksPage() {
                                         {userPermissions !== 'viewer' && (
                                             <div className="w-80 flex-shrink-0">
                                                 {showAddColumnForm ? (
-                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 p-2 rounded-lg space-y-2">
+                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg space-y-2">
                                                         <Input {...columnForm.register('title')} placeholder={t('tasks.board.enter_list_title')} autoFocus />
                                                         <div className="flex items-center gap-2">
                                                             <Button type="submit">{t('tasks.board.add_list')}</Button>
@@ -1664,7 +1701,7 @@ export default function TasksPage() {
                                                         </div>
                                                     </form>
                                                 ) : (
-                                                    <Button variant="ghost" className="w-full bg-muted/50" onClick={() => setShowAddColumnForm(true)}>
+                                                    <Button variant="ghost" className="w-full bg-muted/50 dark:bg-slate-800/50" onClick={() => setShowAddColumnForm(true)}>
                                                         <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_another_list')}
                                                     </Button>
                                                 )}
@@ -1898,15 +1935,87 @@ export default function TasksPage() {
              </Dialog>
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-4xl">
                   <DialogHeader>
                     <DialogTitle>
-                      {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
+                      {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')}
                     </DialogTitle>
                     <DialogDescription>
                       {t('tasks.dialog.report_desc', { name: activeBoard?.name })}
                     </DialogDescription>
                   </DialogHeader>
+                   <Form {...weeklyReportForm}>
+                    <form onSubmit={weeklyReportForm.handleSubmit(handleWeeklyReportSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="space-y-6">
+                            <FormField control={weeklyReportForm.control} name="name" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.report_name_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.report_name_placeholder')} /></FormControl><FormDescription>{t('tasks.dialog.report_name_desc')}</FormDescription><FormMessage/></FormItem>
+                            )}/>
+
+                            <FormField control={weeklyReportForm.control} name="reportType" render={({ field }) => (
+                               <FormItem><FormLabel>{t('tasks.dialog.report_type_label')}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="weekly-my-tasks">{t('tasks.report_types.weekly-my-tasks')}</SelectItem>
+                                    <SelectItem value="weekly-all-tasks">{t('tasks.report_types.weekly-all-tasks')}</SelectItem>
+                                    <SelectItem value="weekly-overdue">{t('tasks.report_types.weekly-overdue')}</SelectItem>
+                                    <SelectItem value="weekly-due-soon">{t('tasks.report_types.weekly-due-soon')}</SelectItem>
+                                </SelectContent>
+                               </Select><FormMessage/></FormItem>
+                            )}/>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={weeklyReportForm.control} name="dayOfWeek" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.report_day_label')}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {[...Array(7).keys()].map(i => <SelectItem key={i} value={String(i)}>{new Date(2024, 0, i+1).toLocaleString(locale.locale, { weekday: 'long' })}</SelectItem>)}
+                                </SelectContent>
+                                </Select><FormMessage/></FormItem>
+                                )}/>
+                                <FormField control={weeklyReportForm.control} name="time" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.time_label')}</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage/></FormItem>
+                                )}/>
+                            </div>
+
+                             <FormField control={weeklyReportForm.control} name="recipients" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.report_recipients_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.report_recipients_placeholder')} /></FormControl><FormDescription>{t('tasks.dialog.report_recipients_desc')}</FormDescription><FormMessage/></FormItem>
+                            )}/>
+
+                             <FormField control={weeklyReportForm.control} name="subject" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.report_subject_label')}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage/></FormItem>
+                            )}/>
+                            
+                            <FormField control={weeklyReportForm.control} name="body" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.report_intro_label')}</FormLabel><FormControl><Textarea {...field} placeholder={t('tasks.dialog.report_intro_placeholder')} /></FormControl><FormMessage/></FormItem>
+                            )}/>
+                       </div>
+
+                       <div className="bg-muted p-4 rounded-lg space-y-4">
+                            <h4 className="font-semibold text-center">{t('tasks.dialog.report_preview_title')}</h4>
+                            <div className="bg-background rounded-md shadow-sm p-4 text-sm">
+                                <div className="border-b pb-2 mb-2">
+                                    <p><span className="font-semibold">{t('tasks.dialog.report_preview_subject')}:</span> {weeklyReportForm.watch('subject')}</p>
+                                    <p><span className="font-semibold">{t('tasks.dialog.report_preview_to')}:</span> {weeklyReportForm.watch('recipients')}</p>
+                                </div>
+                                <p className="italic mb-4">{weeklyReportForm.watch('body') || t('tasks.dialog.report_no_intro_text')}</p>
+                                
+                                <h5 className="font-semibold mb-2">{t(`tasks.report_types.${weeklyReportForm.watch('reportType') as ScheduledReportType}`)}</h5>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between p-2 rounded bg-secondary/50"><span>Sample Task 1</span> <Badge variant="outline">In Progress</Badge></div>
+                                    <div className="flex items-center justify-between p-2 rounded bg-secondary/50"><span>Sample Task 2</span> <Badge variant="outline">To Do</Badge></div>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground mt-4 text-center">{t('tasks.dialog.report_automated_note', {day: new Date(2024, 0, parseInt(weeklyReportForm.watch('dayOfWeek'),10)+1).toLocaleString(locale.locale, { weekday: 'long' }), time: weeklyReportForm.watch('time')})}</p>
+                            </div>
+                       </div>
+                       <DialogFooter className="col-span-1 md:col-span-2">
+                          <Button type="button" variant="secondary">{t('contracts.dialog.send_test_button')}</Button>
+                          <div className="flex-grow"></div>
+                          <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                          <Button type="submit">{t('tasks.dialog.report_save_button')}</Button>
+                       </DialogFooter>
+                    </form>
+                   </Form>
                 </DialogContent>
             </Dialog>
 
@@ -1926,8 +2035,8 @@ export default function TasksPage() {
                                     <TabsTrigger value="comments">{t('tasks.details.tabs.comments')}</TabsTrigger>
                                     <TabsTrigger value="activity">{t('tasks.details.tabs.activity')}</TabsTrigger>
                                 </TabsList>
-                                 <TabsContent value="details" className="flex-1 flex flex-col min-h-0">
-                                   <div className="flex-1 overflow-y-auto">
+                                 <TabsContent value="details" className="flex-1 min-h-0">
+                                   <ScrollArea className="h-full">
                                         <div className="space-y-4 p-4 text-sm">
                                             <div className="space-y-1">
                                                <p className="font-medium text-muted-foreground">{t('tasks.dialog.description_label')}</p>
@@ -2019,7 +2128,7 @@ export default function TasksPage() {
                                                 })}
                                             </div>
                                         </div>
-                                   </div>
+                                   </ScrollArea>
                                 </TabsContent>
                                 <TabsContent value="comments" className="flex-1 flex flex-col min-h-0">
                                     <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-4 py-4">
@@ -2113,7 +2222,7 @@ export default function TasksPage() {
                     <div className="space-y-4">
                         <Form {...labelForm}><form onSubmit={labelForm.handleSubmit(onLabelSubmit)} className="flex items-end gap-2">
                             <FormField name="text" control={labelForm.control} render={({field}) => (<FormItem className="flex-1"><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.label_name_placeholder')} /></FormControl></FormItem>)}/>
-                            <FormField name="color" control={labelForm.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.label_color')}</FormLabel><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="w-full justify-start"><div className="w-5 h-5 rounded-full mr-2 border" style={{ backgroundColor: field.value }}></div>{field.value}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><div className="grid grid-cols-6 gap-2 p-2">{defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}</div></PopoverContent></Popover></FormItem>)}/>
+                            <FormField name="color" control={labelForm.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.label_color')}</FormLabel><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="w-full justify-start"><div className="w-5 h-5 rounded-full mr-2 border" style={{ backgroundColor: field.value }}></div></Button></PopoverTrigger><PopoverContent className="w-auto p-0"><div className="grid grid-cols-6 gap-2 p-2">{defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-6 w-6 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}</div></PopoverContent></Popover></FormItem>)}/>
                             <Button type="submit">{editingLabel ? t('common.save_changes') : t('tasks.dialog.add_label_button')}</Button>
                         </form></Form>
                          <div className="space-y-2">
@@ -2122,12 +2231,36 @@ export default function TasksPage() {
                                     <Badge style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge>
                                     <div className="flex gap-2">
                                         <Button variant="ghost" size="icon" onClick={() => setEditingLabel(label)}><Edit className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setLabelToDelete(label)}><Trash2 className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setLabelToDelete(label)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 </div>
                             )) : <p className="text-sm text-muted-foreground text-center py-4">{t('tasks.dialog.no_labels_yet')}</p>}
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCopyColumnDialogOpen} onOpenChange={handleCloseCopyColumnDialog}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('tasks.dialog.copy_list_title')}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.copy_list_desc', { name: columnToCopy?.title || '' })}</DialogDescription>
+                    </DialogHeader>
+                    <Form {...copyColumnForm}>
+                        <form onSubmit={copyColumnForm.handleSubmit(onCopyColumnSubmit)} className="space-y-4">
+                            <FormField control={copyColumnForm.control} name="title" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('tasks.dialog.copy_list_name_label')}</FormLabel>
+                                    <FormControl><Input {...field} autoFocus /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
+                                <Button type="submit">{t('tasks.board.copy_list')}</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </DialogContent>
             </Dialog>
             
@@ -2147,5 +2280,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

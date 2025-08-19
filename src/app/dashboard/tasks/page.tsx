@@ -1,18 +1,15 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, CalendarPlus, Download, CheckCircle, ArrowUpDown, Tag, Palette, Settings, Trash2, Edit, Share2, ListChecks, Paperclip, Upload, Move, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ListVideo, PencilRuler, ChevronsUpDown, Check, SortAsc, SortDesc, History, SmilePlus, GripVertical, Flag } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag } from 'lucide-react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday, nextDay, Day } from 'date-fns';
+import { parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isToday } from 'date-fns';
 import * as ics from 'ics';
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import DatePicker, { DateObject } from "react-multi-date-picker"
+import DatePicker, { DateObject } from "react-multi-date-picker";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-
 
 import { Button } from '@/components/ui/button';
 import {
@@ -23,15 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetFooter,
 } from "@/components/ui/sheet";
 import {
   Form,
@@ -68,8 +62,6 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -81,19 +73,17 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PageHeader, PageHeaderHeading, PageHeaderDescription } from '@/components/page-header';
+import { PageHeader, PageHeaderHeading } from '@/components/page-header';
 import { tasks as mockTasks, units as mockUnits, users as mockUsers, taskBoards as mockTaskBoards, scheduledReports as mockScheduledReports } from '@/lib/mock-data';
-import type { Task, User, Comment, TaskBoard, BoardShare, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType, ActivityLog, Reaction, Label as LabelType } from '@/lib/types';
+import type { Task, User, Comment, TaskBoard, BoardPermissionRole, ChecklistItem, BoardColumn, AppearanceSettings, ScheduledReport, ScheduledReportType, ActivityLog, Label as LabelType } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -103,14 +93,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import Image from 'next/image';
 import { useLanguage } from '@/context/language-context';
 import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -118,10 +106,6 @@ const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'list' | 'board' | 'archived' | 'calendar';
-
-const reminderDaysSchema = z.object({
-  days: z.number().min(0, "Cannot be negative").max(365, "Cannot be more than 365 days"),
-});
 
 const checklistItemSchema = z.object({
     id: z.string(),
@@ -138,14 +122,8 @@ const taskSchema = z.object({
     labelIds: z.array(z.string()).optional(),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     dueDate: z.any({ required_error: "Date is required" }),
-    recurrenceType: z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']),
-    time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:mm)"),
-    dayOfWeek: z.number().optional(),
-    dayOfMonth: z.number().optional(),
-    reminders: z.array(reminderDaysSchema).min(1, "At least one reminder is required."),
     checklist: z.array(checklistItemSchema).optional(),
     attachments: z.any().optional(),
-    isCompleted: z.boolean(),
 });
 
 const commentSchema = z.object({
@@ -180,7 +158,6 @@ const labelSchema = z.object({
 });
 
 
-const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
 
 
@@ -199,7 +176,7 @@ export default function TasksPage() {
     const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-    const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+    const [isDeleteBoardAlertOpen, setIsDeleteBoardAlertOpen] = useState(false);
     const [isDeleteColumnAlertOpen, setIsDeleteColumnAlertOpen] = useState(false);
     const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
@@ -231,21 +208,18 @@ export default function TasksPage() {
     const [usersOnBoard, setUsersOnBoard] = useState<User[]>([]);
     
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-    const [taskLabelInput, setTaskLabelInput] = useState('');
 
     const [isDetailsSheetOpen, setIsDetailsSheetOpen] = useState(false);
     const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
 
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     
-    // Filtering and Sorting State
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ status: 'all', unit: 'all', labelIds: [] as string[], priority: 'all' });
+    const [filters, setFilters] = useState({ labelIds: [] as string[] });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
     
-    // Calendar State
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
 
@@ -260,12 +234,8 @@ export default function TasksPage() {
             labelIds: [],
             priority: 'medium',
             dueDate: new Date(),
-            recurrenceType: "none",
-            time: "09:00",
-            reminders: [{ days: 1 }],
             checklist: [],
             attachments: [],
-            isCompleted: false,
         },
     });
 
@@ -311,9 +281,6 @@ export default function TasksPage() {
         },
     });
 
-    const reportBody = weeklyReportForm.watch('body');
-
-
     useEffect(() => {
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
         if (storedUser) {
@@ -337,20 +304,13 @@ export default function TasksPage() {
     
     useEffect(() => {
         if (visibleBoards.length > 0 && !activeBoardId) {
-            if (currentUser) {
-                const ownedBoard = visibleBoards.find(b => b.ownerId === currentUser.id);
-                if (ownedBoard) {
-                    setActiveBoardId(ownedBoard.id);
-                } else {
-                    setActiveBoardId(visibleBoards[0]?.id);
-                }
-            }
+            setActiveBoardId(visibleBoards[0]?.id);
         } else if (visibleBoards.length > 0 && activeBoardId && !visibleBoards.find(b => b.id === activeBoardId)) {
            setActiveBoardId(visibleBoards[0]?.id);
         } else if (visibleBoards.length === 0) {
             setActiveBoardId(null);
         }
-    }, [currentUser, visibleBoards, activeBoardId]);
+    }, [visibleBoards, activeBoardId]);
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
     
@@ -375,13 +335,7 @@ export default function TasksPage() {
         }
     }, [activeBoard]);
 
-
-     const { fields: reminderDayFields, append: appendReminderDay, remove: removeReminderDay } = useFieldArray({
-        control: form.control,
-        name: "reminders"
-    });
-    
-     const { fields: checklistFields, append: appendChecklistItem, remove: removeChecklistItem } = useFieldArray({
+    const { fields: checklistFields, append: appendChecklistItem, remove: removeChecklistItem } = useFieldArray({
         control: form.control,
         name: "checklist"
     });
@@ -401,14 +355,8 @@ export default function TasksPage() {
                 labelIds: editingTask.labelIds || [],
                 priority: editingTask.priority || 'medium',
                 dueDate: new DateObject({ date: editingTask.dueDate, calendar: calendar, locale: locale }),
-                recurrenceType: editingTask.recurrence.type,
-                time: editingTask.recurrence.time,
-                dayOfWeek: editingTask.recurrence.dayOfWeek,
-                dayOfMonth: editingTask.recurrence.dayOfMonth,
-                reminders: editingTask.reminders.map(days => ({ days })),
                 checklist: editingTask.checklist || [],
                 attachments: [],
-                isCompleted: editingTask.isCompleted,
             });
              setAttachedFiles([]);
         } else {
@@ -421,12 +369,8 @@ export default function TasksPage() {
                 labelIds: [],
                 priority: 'medium',
                 dueDate: new DateObject({ calendar, locale }),
-                recurrenceType: 'none',
-                time: "09:00",
-                reminders: [{ days: 1 }],
                 checklist: [],
                 attachments: [],
-                isCompleted: false,
             });
         }
     }, [editingTask, form, currentUser, activeBoard, calendar, locale]);
@@ -491,7 +435,6 @@ export default function TasksPage() {
         }
     }, [isLabelManagerOpen, editingLabel, labelForm]);
 
-
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (newColumnFormRef.current && !newColumnFormRef.current.contains(event.target as Node)) {
@@ -520,9 +463,8 @@ export default function TasksPage() {
     const handleOpenTaskDialog = (task: Task | null, columnId?: string) => {
         setEditingTask(task);
         if (!task && columnId && activeBoard && currentUser) {
-            const defaultUnit = currentUser?.unit || "";
             form.setValue('columnId', columnId);
-            form.setValue('unit', defaultUnit);
+            form.setValue('unit', currentUser.unit);
         }
         setIsTaskDialogOpen(true);
     };
@@ -540,7 +482,6 @@ export default function TasksPage() {
         form.setValue('attachments', Array.from(event.target.files));
       }
     };
-
 
     const handleOpenBoardDialog = (board: TaskBoard | null) => {
         setEditingBoard(board);
@@ -595,29 +536,19 @@ export default function TasksPage() {
         if (!currentUser || !activeBoard) return;
 
         const dueDateObj = values.dueDate as DateObject;
-        const [hours, minutes] = values.time.split(':').map(Number);
         const finalDueDate = dueDateObj.toDate();
-        finalDueDate.setHours(hours, minutes);
 
         if (editingTask) {
             const updatedTask: Task = {
                 ...editingTask,
                 ...values,
                 dueDate: finalDueDate.toISOString(),
-                reminders: values.reminders.map(r => r.days),
-                recurrence: {
-                    type: values.recurrenceType,
-                    time: values.time,
-                    dayOfWeek: values.dayOfWeek,
-                    dayOfMonth: values.dayOfMonth,
-                },
                 attachments: attachedFiles.length > 0 ? attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })) : editingTask.attachments,
                 labelIds: values.labelIds || [],
                 logs: [...(editingTask.logs || []), createLogEntry('updated', { title: values.title })],
             };
             setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
 
-            // If column changed, update board columns
             if (editingTask.columnId !== values.columnId) {
                 const updatedBoards = boards.map(b => {
                     if (b.id === activeBoard.id) {
@@ -645,14 +576,10 @@ export default function TasksPage() {
                 boardId: activeBoard.id,
                 ...values,
                 dueDate: finalDueDate.toISOString(),
-                reminders: values.reminders.map(r => r.days),
                 createdBy: currentUser.name,
-                recurrence: {
-                    type: values.recurrenceType,
-                    time: values.time,
-                    dayOfWeek: values.dayOfWeek,
-                    dayOfMonth: values.dayOfMonth,
-                },
+                // These fields don't exist in the new schema but are in mock data, add them for consistency
+                reminders: [], 
+                recurrence: { type: 'none', time: '09:00'}, 
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 isArchived: false,
                 isCompleted: false,
@@ -686,6 +613,9 @@ export default function TasksPage() {
             t.id === taskId ? { ...t, isCompleted, logs: [...(t.logs || []), log] } : t
         );
         setTasks(updatedTasks);
+        if (selectedTaskForDetails?.id === taskId) {
+            setSelectedTaskForDetails(prev => prev ? {...prev, isCompleted} : null);
+        }
         toast({
             title: isCompleted ? t('tasks.toast.task_completed_title') : t('tasks.toast.task_incomplete_title'),
             description: t('tasks.toast.task_status_updated_desc', { name: task.title }),
@@ -698,7 +628,6 @@ export default function TasksPage() {
         
         setTasks(tasks.filter(t => t.id !== taskId));
         
-        // Remove task id from its column
         const updatedBoards = boards.map(b => {
             if (b.id === taskToDelete.boardId) {
                 return {
@@ -734,7 +663,6 @@ export default function TasksPage() {
             return;
         }
 
-        // 1. Remove task from old board's column
         const sourceBoard = boards.find(b => b.id === movingTask.boardId)!;
         const updatedSourceBoard = {
             ...sourceBoard,
@@ -744,7 +672,6 @@ export default function TasksPage() {
             }))
         };
 
-        // 2. Add task to new board's first column
         const updatedTargetBoard = {
             ...targetBoard,
             columns: targetBoard.columns.map(col => 
@@ -758,10 +685,9 @@ export default function TasksPage() {
             return b;
         }));
 
-        // 3. Update the task itself
         const log = createLogEntry('moved_task', { from: sourceBoard.name, to: targetBoard.name });
         const updatedTask = { ...movingTask, boardId: targetBoard.id, columnId: targetColumn.id, logs: [...(movingTask.logs || []), log] };
-        setTasks(tasks.map(t => t.id === movingTask.id ? updatedTask : t));
+        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
         
         toast({ title: t('tasks.toast.task_moved_title'), description: t('tasks.toast.task_moved_desc', { task: movingTask.title, board: targetBoard.name })});
         handleCloseMoveDialog();
@@ -841,7 +767,7 @@ export default function TasksPage() {
 
     const handleDeleteBoard = (boardId: string) => {
         const boardToDelete = boards.find(b => b.id === boardId);
-        if (!boardToDelete || !currentUser || boardToDelete.ownerId !== currentUser.id) return;
+        if (!boardToDelete || userPermissions !== 'owner') return;
 
         const remainingBoards = boards.filter(b => b.id !== boardId);
         const remainingTasks = tasks.filter(t => t.boardId !== boardId);
@@ -858,7 +784,7 @@ export default function TasksPage() {
             description: t('tasks.toast.board_deleted_desc', { name: boardToDelete.name }),
             variant: "destructive",
         });
-        setIsBoardSwitcherOpen(false); // Close switcher after deletion
+        setIsBoardSwitcherOpen(false);
     };
     
     const handleAddColumn = (values: z.infer<typeof columnSchema>) => {
@@ -948,7 +874,7 @@ export default function TasksPage() {
         ...task,
         id: `T-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         columnId: newColumnId,
-        isCompleted: false, // Reset completion status on copy
+        isCompleted: false,
       }));
 
       const newColumn: BoardColumn = {
@@ -975,7 +901,6 @@ export default function TasksPage() {
       handleCloseCopyColumnDialog();
     };
 
-
      const handleShareUpdate = (userId: string, role: BoardPermissionRole) => {
         if (!sharingBoard) return;
         
@@ -988,7 +913,7 @@ export default function TasksPage() {
             newSharedWith.push({ userId, role });
         }
         
-        setSharingBoard({ ...sharingBoard, sharedWith: newSharedWith }); // Update local state for immediate UI feedback
+        setSharingBoard({ ...sharingBoard, sharedWith: newSharedWith });
     };
 
     const handleRemoveShare = (userId: string) => {
@@ -1033,7 +958,7 @@ export default function TasksPage() {
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
 
-        if (!destination || !activeBoard) {
+        if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
 
@@ -1053,7 +978,6 @@ export default function TasksPage() {
         if (!startColumn || !finishColumn) return;
 
         if (startColumn === finishColumn) {
-            // Moving within the same column
             const newTaskIds = Array.from(startColumn.taskIds || []);
             const [reorderedItem] = newTaskIds.splice(source.index, 1);
             newTaskIds.splice(destination.index, 0, reorderedItem);
@@ -1067,7 +991,6 @@ export default function TasksPage() {
             return;
         }
 
-        // Moving from one column to another
         const startTaskIds = Array.from(startColumn.taskIds || []);
         startTaskIds.splice(source.index, 1);
         const newStartColumn = { ...startColumn, taskIds: startTaskIds };
@@ -1086,7 +1009,6 @@ export default function TasksPage() {
         };
         setBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
 
-        // Update the task itself
         const task = tasks.find(t => t.id === draggableId);
         if (task) {
             const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
@@ -1099,7 +1021,6 @@ export default function TasksPage() {
         if (!activeBoard || !currentUser) return;
         const recipients = values.recipients.split(',').map(e => e.trim());
         if (editingReport) {
-            // Update
             const updatedReport: ScheduledReport = {
                 ...editingReport,
                 name: values.name,
@@ -1111,7 +1032,6 @@ export default function TasksPage() {
             setScheduledReports(prev => prev.map(r => r.id === editingReport.id ? updatedReport : r));
             toast({ title: t('tasks.toast.report_updated_title'), description: t('tasks.toast.report_updated_desc', { name: values.name }) });
         } else {
-            // Create
             const newReport: ScheduledReport = {
                 id: `SR-${Date.now()}`,
                 boardId: activeBoard.id,
@@ -1182,10 +1102,8 @@ export default function TasksPage() {
                 let newReactions = [...(task.reactions || [])];
                 
                 if (existingReactionIndex > -1) {
-                    // User is removing their existing reaction
                     newReactions.splice(existingReactionIndex, 1);
                 } else {
-                    // Add new reaction
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
                 const updatedTask = { ...task, reactions: newReactions };
@@ -1215,19 +1133,21 @@ export default function TasksPage() {
             onClick={() => handleOpenDetailsSheet(task)}
         >
             <CardContent className="p-3">
-                <div className="flex flex-wrap gap-1 mb-2">
-                    {(task.labelIds || []).map(labelId => {
-                        const label = activeBoard?.labels?.find(l => l.id === labelId);
-                        if (!label) return null;
-                        return (
-                             <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
-                                {label.text}
-                            </Badge>
-                        );
-                    })}
-                </div>
+                {(task.labelIds && task.labelIds.length > 0) && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                        {task.labelIds.map(labelId => {
+                            const label = activeBoard?.labels?.find(l => l.id === labelId);
+                            if (!label) return null;
+                            return (
+                                <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
+                                    {label.text}
+                                </Badge>
+                            );
+                        })}
+                    </div>
+                )}
 
-                <p className="font-semibold text-sm">{task.title}</p>
+                <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
                 
                 <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center -space-x-2">
@@ -1235,40 +1155,24 @@ export default function TasksPage() {
                             const user = usersOnBoard.find(u => u.id === id);
                             if (!user) return null;
                             return (
-                                <TooltipProvider key={id}>
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Avatar className="h-6 w-6 border-2 border-background">
-                                                <AvatarImage src={user.avatar} alt={user.name} />
-                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                <TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                    <Avatar className="h-6 w-6 border-2 border-background">
+                                        <AvatarImage src={user.avatar} alt={user.name} />
+                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>
                             );
                         })}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         {(task.comments?.length || 0) > 0 && (
-                             <span className="flex items-center gap-1">
-                                 <MessageSquare className="h-3 w-3" />
-                                 {task.comments?.length}
-                             </span>
+                             <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
                         )}
                         {(task.attachments?.length || 0) > 0 && (
-                            <span className="flex items-center gap-1">
-                                <Paperclip className="h-3 w-3" />
-                                {task.attachments?.length}
-                            </span>
+                            <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
                         )}
                         {(task.checklist?.length || 0) > 0 && (
-                             <span className="flex items-center gap-1">
-                                 <ListChecks className="h-3 w-3" />
-                                 {task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}
-                             </span>
+                             <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
                         )}
                     </div>
                 </div>
@@ -1287,7 +1191,6 @@ export default function TasksPage() {
              baseTasks = baseTasks.filter(t => t.isArchived);
         }
         
-        // Apply text search
         if (searchTerm) {
             baseTasks = baseTasks.filter(
                 (task) =>
@@ -1296,24 +1199,16 @@ export default function TasksPage() {
             );
         }
     
-        // Apply label filter
         if (filters.labelIds.length > 0) {
             baseTasks = baseTasks.filter(task => 
                 filters.labelIds.every(labelId => (task.labelIds || []).includes(labelId))
             );
         }
 
-        // Apply priority filter
-        if (filters.priority !== 'all') {
-            baseTasks = baseTasks.filter(c => c.priority === filters.priority);
-        }
-    
-        // Apply sorting for list view
         if (viewMode === 'list') {
             baseTasks.sort((a, b) => {
                 const field = sorting.field;
                 const direction = sorting.direction === 'asc' ? 1 : -1;
-                
                 const valA = a[field as keyof Task];
                 const valB = b[field as keyof Task];
 
@@ -1321,8 +1216,8 @@ export default function TasksPage() {
                     return (new Date(valA as string).getTime() - new Date(valB as string).getTime()) * direction;
                 }
 
-                if (valA! < valB!) return -1 * direction;
-                if (valA! > valB!) return 1 * direction;
+                if (String(valA) < String(valB)) return -1 * direction;
+                if (String(valA) > String(valB)) return 1 * direction;
                 return 0;
             });
         }
@@ -1336,20 +1231,15 @@ export default function TasksPage() {
         const start = startOfMonth(currentMonth);
         const end = endOfMonth(currentMonth);
         const days = eachDayOfInterval({ start, end });
-        const startingDayIndex = getDay(start); // 0 for Sunday, 1 for Monday...
-        const placeholders = Array.from({ length: startingDayIndex }, (_, i) => ({
-            date: null,
-            key: `placeholder-${i}`
-        }));
+        const startingDayIndex = getDay(start);
+        const placeholders = Array.from({ length: startingDayIndex }, (_, i) => ({ date: null, key: `placeholder-${i}` }));
         return [...placeholders, ...days.map(d => ({date:d, key: format(d, 'yyyy-MM-dd')}))];
     }, [currentMonth, format]);
 
     const tasksByDate = useMemo(() => {
         return filteredTasks.reduce((acc, task) => {
             const dueDate = format(new Date(task.dueDate), 'yyyy-MM-dd');
-            if (!acc[dueDate]) {
-                acc[dueDate] = [];
-            }
+            if (!acc[dueDate]) { acc[dueDate] = []; }
             acc[dueDate].push(task);
             return acc;
         }, {} as Record<string, Task[]>);
@@ -1380,8 +1270,7 @@ export default function TasksPage() {
                             <div className="flex items-center gap-3 cursor-pointer">
                                 <span className="w-8 h-8 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
                                 <div>
-                                    <h1 className="text-2xl font-bold">{activeBoard?.name || t('tasks.select_board')}</h1>
-                                    <p className="text-sm text-muted-foreground">{activeBoard ? `${t('tasks.board.list_actions')}...` : t('tasks.no_board_found')}</p>
+                                    <PageHeaderHeading>{activeBoard?.name || t('tasks.select_board')}</PageHeaderHeading>
                                 </div>
                                 <ChevronsUpDown className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -1437,7 +1326,7 @@ export default function TasksPage() {
                                         <span>{t('tasks.share_board')}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => setIsLabelManagerOpen(true)} disabled={userPermissions === 'viewer'}>
-                                        <PencilRuler className="mr-2 h-4 w-4" />
+                                        <Tag className="mr-2 h-4 w-4" />
                                         <span>{t('tasks.manage_labels')}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuSub>
@@ -1448,7 +1337,6 @@ export default function TasksPage() {
                                         <DropdownMenuPortal>
                                             <DropdownMenuSubContent>
                                                 <DropdownMenuItem onClick={() => handleOpenReportDialog('weekly-board-summary')}>
-                                                    <ListVideo className="mr-2 h-4 w-4" />
                                                     <span>{t('tasks.report_types.weekly-board-summary')}</span>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => setIsReportManagerOpen(true)}>
@@ -1459,7 +1347,7 @@ export default function TasksPage() {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteAlertOpen(true)} disabled={userPermissions !== 'owner'}>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteBoardAlertOpen(true)} disabled={userPermissions !== 'owner'}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         <span>{t('common.delete')}</span>
                                     </DropdownMenuItem>
@@ -1528,95 +1416,56 @@ export default function TasksPage() {
                             )}
                         </div>
                         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
-                            <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}>
-                                <LayoutGrid className="h-4 w-4"/>
-                            </Button>
-                             <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
-                                <List className="h-4 w-4"/>
-                            </Button>
-                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}>
-                                <CalendarViewIcon className="h-4 w-4"/>
-                            </Button>
-                             <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}>
-                                <Archive className="h-4 w-4"/>
-                            </Button>
+                            <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}><List className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}><Archive className="h-4 w-4"/></Button>
                         </div>
                     </div>
 
                     <div className="min-h-[60vh]">
                     {viewMode === 'list' ? (
-                        // List View
                         <div className="rounded-md border">
                             <Table>
-                                <TableHeader>
-                                     <TableRow>
-                                        <TableHead padding="checkbox" className="w-[5%]">
-                                            <Checkbox
-                                                checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
-                                                indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < filteredTasks.length}
-                                                onCheckedChange={(checked) => {
-                                                    setSelectedTaskIds(checked ? filteredTasks.map(t => t.id) : []);
-                                                }}
-                                            />
-                                        </TableHead>
-                                        <TableHead className="w-[35%]">{t('tasks.table.task')}</TableHead>
-                                        <TableHead className="w-[15%]">{t('tasks.table.status')}</TableHead>
-                                        <TableHead className="w-[10%]">{t('tasks.table.priority')}</TableHead>
-                                        <TableHead className="w-[15%]">{t('tasks.table.assigned_to')}</TableHead>
-                                        <TableHead className="w-[15%]">{t('tasks.table.next_due')}</TableHead>
-                                        <TableHead className="w-[5%] text-right">{t('common.actions')}</TableHead>
-                                     </TableRow>
-                                </TableHeader>
+                                <TableHeader><TableRow>
+                                    <TableHead className="w-[5%]"><Checkbox
+                                        checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                                        indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < filteredTasks.length}
+                                        onCheckedChange={(checked) => setSelectedTaskIds(checked ? filteredTasks.map(t => t.id) : [])}
+                                    /></TableHead>
+                                    <TableHead className="w-[35%]">{t('tasks.table.task')}</TableHead>
+                                    <TableHead className="w-[15%]">{t('tasks.table.status')}</TableHead>
+                                    <TableHead className="w-[10%]">{t('tasks.table.priority')}</TableHead>
+                                    <TableHead className="w-[15%]">{t('tasks.table.assigned_to')}</TableHead>
+                                    <TableHead className="w-[15%]">{t('tasks.table.next_due')}</TableHead>
+                                    <TableHead className="w-[5%] text-right">{t('common.actions')}</TableHead>
+                                </TableRow></TableHeader>
                                 <TableBody>
                                     {filteredTasks.length > 0 ? filteredTasks.map(task => {
                                         const column = activeBoard.columns.find(c => c.id === task.columnId);
                                         return (
                                             <TableRow key={task.id}>
-                                                <TableCell>
-                                                    <Checkbox
-                                                        checked={selectedTaskIds.includes(task.id)}
-                                                        onCheckedChange={(checked) => {
-                                                            setSelectedTaskIds(
-                                                                checked
-                                                                    ? [...selectedTaskIds, task.id]
-                                                                    : selectedTaskIds.filter(id => id !== task.id)
-                                                            );
-                                                        }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="font-medium">{task.title}</div>
-                                                    <div className="text-sm text-muted-foreground">{activeBoard.name}</div>
-                                                </TableCell>
+                                                <TableCell><Checkbox
+                                                    checked={selectedTaskIds.includes(task.id)}
+                                                    onCheckedChange={(checked) => setSelectedTaskIds(checked ? [...selectedTaskIds, task.id] : selectedTaskIds.filter(id => id !== task.id))}
+                                                /></TableCell>
+                                                <TableCell><div className="font-medium">{task.title}</div></TableCell>
                                                 <TableCell><Badge variant="outline">{column?.title}</Badge></TableCell>
                                                 <TableCell className="capitalize">{t(`tasks.priority.${task.priority}`)}</TableCell>
-                                                <TableCell>
-                                                     <div className="flex items-center -space-x-2">
-                                                        {(task.assignees || []).map(id => {
-                                                            const user = usersOnBoard.find(u => u.id === id);
-                                                            if (!user) return null;
-                                                            return (
-                                                                <TooltipProvider key={id}>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <Avatar className="h-8 w-8 border-2 border-background">
-                                                                                <AvatarImage src={user.avatar} alt={user.name} />
-                                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                                            </Avatar>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </TableCell>
+                                                <TableCell><div className="flex items-center -space-x-2">
+                                                    {(task.assignees || []).map(id => {
+                                                        const user = usersOnBoard.find(u => u.id === id);
+                                                        return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                                            <Avatar className="h-8 w-8 border-2 border-background">
+                                                                <AvatarImage src={user.avatar} alt={user.name} />
+                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
+                                                    })}
+                                                </div></TableCell>
                                                 <TableCell>{format(new Date(task.dueDate), 'yyyy/MM/dd')}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent>
                                                             <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>{t('tasks.details.view_details')}</DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>{t('common.edit')}</DropdownMenuItem>
@@ -1629,11 +1478,7 @@ export default function TasksPage() {
                                             </TableRow>
                                         )
                                     }) : (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center">
-                                                {t('tasks.no_tasks_found')}
-                                            </TableCell>
-                                        </TableRow>
+                                        <TableRow><TableCell colSpan={7} className="h-24 text-center">{t('tasks.no_tasks_found')}</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -1642,19 +1487,11 @@ export default function TasksPage() {
                         <DragDropContext onDragEnd={onDragEnd}>
                             <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
                                 {(provided) => (
-                                    <div
-                                        {...provided.droppableProps}
-                                        ref={provided.innerRef}
-                                        className="flex gap-4 items-start overflow-x-auto pb-4"
-                                    >
+                                    <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                                         {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
                                             <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                 {(provided) => (
-                                                    <div
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        className="w-80 flex-shrink-0"
-                                                    >
+                                                    <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 p-2 rounded-lg">
                                                             <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab">
                                                                 {editingColumnId === column.id ? (
@@ -1674,39 +1511,27 @@ export default function TasksPage() {
                                                                     }}>{column.title}</h3>
                                                                 )}
                                                                 <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
                                                                         <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
+                                                            <Droppable droppableId={column.id} type="TASK">
                                                                 {(provided, snapshot) => (
-                                                                    <div
-                                                                        ref={provided.innerRef}
-                                                                        {...provided.droppableProps}
-                                                                        className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}
-                                                                    >
+                                                                    <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
                                                                             const task = tasks.find(t => t.id === taskId);
-                                                                            if (!task || task.isArchived) return null;
-                                                                            return (
+                                                                            return task && !task.isArchived ? (
                                                                                 <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                     {(provided, snapshot) => (
-                                                                                        <div
-                                                                                            ref={provided.innerRef}
-                                                                                            {...provided.draggableProps}
-                                                                                            {...provided.dragHandleProps}
-                                                                                            className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}
-                                                                                        >
+                                                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                             {renderTaskCard(task)}
                                                                                         </div>
                                                                                     )}
                                                                                 </Draggable>
-                                                                            );
+                                                                            ) : null;
                                                                         })}
                                                                         {provided.placeholder}
                                                                     </div>
@@ -1743,7 +1568,6 @@ export default function TasksPage() {
                             </Droppable>
                         </DragDropContext>
                     ) : viewMode === 'calendar' ? (
-                        // Calendar View
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-2">
@@ -1754,20 +1578,14 @@ export default function TasksPage() {
                                 <Button variant="outline" onClick={goToToday}>{t('tasks.calendar.today_button')}</Button>
                             </div>
                             <div className="grid grid-cols-7 border-t border-b">
-                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                    <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div>
-                                ))}
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => ( <div key={day} className="p-2 text-center font-medium text-sm text-muted-foreground">{day}</div> ))}
                             </div>
                             <div className="grid grid-cols-7">
                                 {calendarDays.map((dayObj) => {
                                     const tasksOnDay = dayObj.date ? tasksByDate[format(dayObj.date, 'yyyy-MM-dd')] || [] : [];
                                     return (
                                     <div key={dayObj.key} className={cn("h-40 border-r border-b p-2 overflow-y-auto", dayObj.date && !isSameMonth(dayObj.date, currentMonth) && "bg-muted/50")}>
-                                        {dayObj.date && (
-                                            <span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>
-                                                {format(dayObj.date, 'd')}
-                                            </span>
-                                        )}
+                                        {dayObj.date && (<span className={cn("font-semibold", isToday(dayObj.date) && "bg-primary text-primary-foreground rounded-full h-6 w-6 flex items-center justify-center")}>{format(dayObj.date, 'd')}</span>)}
                                         <div className="space-y-1 mt-1">
                                             {tasksOnDay.map(task => (
                                                 <div key={task.id} onClick={() => handleOpenDetailsSheet(task)} className="bg-primary/20 text-primary-foreground p-1 rounded-md text-xs cursor-pointer hover:bg-primary/30">
@@ -1780,7 +1598,6 @@ export default function TasksPage() {
                             </div>
                         </div>
                     ) : (
-                         // Archived View
                         <div className="space-y-4">
                         {(activeBoard.columns.filter(c => c.isArchived)).length > 0 ? (
                             activeBoard.columns.filter(c => c.isArchived).map(column => (
@@ -1828,53 +1645,24 @@ export default function TasksPage() {
                     </DialogHeader>
                     <Form {...boardForm}>
                         <form onSubmit={boardForm.handleSubmit(onBoardSubmit)} className="space-y-4">
-                             <FormField
-                                control={boardForm.control}
-                                name="name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>{t('tasks.dialog.board_name')}</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder={t('tasks.dialog.board_name_placeholder')} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={boardForm.control}
-                                name="color"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>{t('tasks.dialog.board_color')}</FormLabel>
-                                     <div className="flex gap-2">
-                                        {defaultColors.map(color => (
-                                            <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />
-                                        ))}
-                                     </div>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
-                                <Button type="submit">{t('common.save_changes')}</Button>
-                            </DialogFooter>
+                             <FormField control={boardForm.control} name="name" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.board_name')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.board_name_placeholder')} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                             <FormField control={boardForm.control} name="color" render={({ field }) => (
+                                <FormItem><FormLabel>{t('tasks.dialog.board_color')}</FormLabel><div className="flex gap-2">
+                                    {defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}
+                                </div><FormMessage /></FormItem>
+                            )}/>
+                             <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose><Button type="submit">{t('common.save_changes')}</Button></DialogFooter>
                         </form>
                     </Form>
                  </DialogContent>
             </Dialog>
 
-             <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+             <AlertDialog open={isDeleteBoardAlertOpen} onOpenChange={setIsDeleteBoardAlertOpen}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle>
-                        <AlertDialogDescription>{t('tasks.dialog.delete_board_desc')}</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => activeBoard && handleDeleteBoard(activeBoard.id)}>{t('common.delete')}</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle><AlertDialogDescription>{t('tasks.dialog.delete_board_desc')}</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => activeBoard && handleDeleteBoard(activeBoard.id)}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
             
@@ -1884,398 +1672,184 @@ export default function TasksPage() {
                         <DialogTitle>{t('tasks.dialog.share_title', { name: sharingBoard?.name || '' })}</DialogTitle>
                         <DialogDescription>{t('tasks.dialog.share_desc')}</DialogDescription>
                     </DialogHeader>
-                    {sharingBoard && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>{t('tasks.dialog.share_with_label')}</Label>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {(sharingBoard.sharedWith || []).map(share => {
-                                        const user = mockUsers.find(u => u.id === share.userId);
-                                        return user ? (
-                                            <div key={user.id} className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <Avatar className="h-8 w-8">
-                                                        <AvatarImage src={user.avatar} />
-                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div>
-                                                        <p className="font-medium">{user.name}</p>
-                                                        <p className="text-sm text-muted-foreground">{user.email}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                     <Select value={share.role} onValueChange={(role) => handleShareUpdate(user.id, role as BoardPermissionRole)}>
-                                                        <SelectTrigger className="w-32">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="editor">{t('tasks.permissions.editor')}</SelectItem>
-                                                            <SelectItem value="viewer">{t('tasks.permissions.viewer')}</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveShare(user.id)}><Trash2 className="h-4 w-4"/></Button>
-                                                </div>
-                                            </div>
-                                        ) : null;
-                                    })}
-                                </div>
-                            </div>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full">
-                                        <PlusCircle className="mr-2 h-4 w-4"/>
-                                        {t('tasks.dialog.share_search_placeholder')}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                        <CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
-                                        <CommandList>
-                                            <CommandEmpty>{t('tasks.dialog.share_no_users_found')}</CommandEmpty>
-                                            <CommandGroup>
-                                                {mockUsers.filter(u => u.id !== currentUser?.id && !(sharingBoard.sharedWith || []).some(s => s.userId === u.id)).map(user => (
-                                                    <CommandItem key={user.id} onSelect={() => handleShareUpdate(user.id, 'viewer')}>
-                                                        {user.name} ({user.email})
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    )}
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
-                        <Button onClick={onSaveShare}>{t('common.save_changes')}</Button>
-                    </DialogFooter>
+                    {sharingBoard && (<div className="space-y-4">
+                        <div className="space-y-2"><Label>{t('tasks.dialog.share_with_label')}</Label><div className="space-y-2 max-h-60 overflow-y-auto">
+                            {(sharingBoard.sharedWith || []).map(share => {
+                                const user = mockUsers.find(u => u.id === share.userId);
+                                return user ? (<div key={user.id} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
+                                        <div><p className="font-medium">{user.name}</p><p className="text-sm text-muted-foreground">{user.email}</p></div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Select value={share.role} onValueChange={(role) => handleShareUpdate(user.id, role as BoardPermissionRole)}>
+                                            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                                            <SelectContent><SelectItem value="editor">{t('tasks.permissions.editor')}</SelectItem><SelectItem value="viewer">{t('tasks.permissions.viewer')}</SelectItem></SelectContent>
+                                        </Select>
+                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveShare(user.id)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                </div>) : null;
+                            })}
+                        </div></div>
+                        <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full"><PlusCircle className="mr-2 h-4 w-4"/>{t('tasks.dialog.share_search_placeholder')}</Button></PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command>
+                                <CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
+                                <CommandList><CommandEmpty>{t('tasks.dialog.share_no_users_found')}</CommandEmpty><CommandGroup>
+                                    {mockUsers.filter(u => u.id !== currentUser?.id && !(sharingBoard.sharedWith || []).some(s => s.userId === u.id)).map(user => (
+                                        <CommandItem key={user.id} onSelect={() => handleShareUpdate(user.id, 'viewer')}>{user.name} ({user.email})</CommandItem>
+                                    ))}
+                                </CommandGroup></CommandList>
+                            </Command></PopoverContent>
+                        </Popover>
+                    </div>)}
+                    <DialogFooter><DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose><Button onClick={onSaveShare}>{t('common.save_changes')}</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
              <Dialog open={isTaskDialogOpen} onOpenChange={handleCloseTaskDialog}>
-                 <DialogContent className="sm:max-w-2xl">
-                     <DialogHeader>
-                         <DialogTitle>{editingTask ? t('tasks.dialog.task_edit_title') : t('tasks.dialog.task_add_title')}</DialogTitle>
-                         <DialogDescription>{t('tasks.dialog.task_add_desc')}</DialogDescription>
-                     </DialogHeader>
-                     <Form {...form}>
-                         <form onSubmit={form.handleSubmit(onTaskSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-6 -mr-2">
-                             <div className="md:col-span-2 space-y-4">
-                                <FormField name="title" control={form.control} render={({field}) => (
-                                    <FormItem>
-                                        <FormLabel>{t('tasks.dialog.title_label')}</FormLabel>
-                                        <FormControl><Input {...field} placeholder={t('tasks.dialog.title_placeholder')} /></FormControl>
-                                        <FormMessage/>
-                                    </FormItem>
-                                )}/>
-                                 <FormField name="description" control={form.control} render={({field}) => (
-                                    <FormItem>
-                                        <FormLabel>{t('tasks.dialog.description_label')}</FormLabel>
-                                        <FormControl><Textarea {...field} placeholder={t('tasks.dialog.description_placeholder')} /></FormControl>
-                                        <FormMessage/>
-                                    </FormItem>
-                                )}/>
-                                  <FormField
-                                    control={form.control}
-                                    name="checklist"
-                                    render={() => (
-                                        <FormItem>
-                                            <FormLabel>{t('tasks.dialog.checklist_label')}</FormLabel>
-                                            <FormDescription>{t('tasks.dialog.checklist_desc')}</FormDescription>
-                                            <div className="space-y-2">
-                                                {checklistFields.map((field, index) => (
-                                                    <div key={field.id} className="flex items-center gap-2">
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`checklist.${index}.completed`}
-                                                            render={({ field: checkField }) => (
-                                                                <FormControl>
-                                                                    <Checkbox checked={checkField.value} onCheckedChange={checkField.onChange} />
-                                                                </FormControl>
-                                                            )}
-                                                        />
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`checklist.${index}.text`}
-                                                            render={({ field: textField }) => (
-                                                                <FormControl>
-                                                                    <Input {...textField} placeholder={t('tasks.dialog.checklist_item_placeholder')} />
-                                                                </FormControl>
-                                                            )}
-                                                        />
-                                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}>
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <Button type="button" variant="outline" size="sm" onClick={() => appendChecklistItem({ id: `CL-${Date.now()}`, text: '', completed: false })}>
-                                                {t('tasks.dialog.add_checklist_item_button')}
-                                            </Button>
-                                        </FormItem>
-                                    )}
-                                />
-                             </div>
-                              <div className="md:col-span-1 space-y-4">
-                              </div>
-                               <DialogFooter className="md:col-span-3">
-                                <DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose>
-                                <Button type="submit">{editingTask ? t('common.save_changes') : t('tasks.dialog.create_task_button')}</Button>
-                            </DialogFooter>
-                         </form>
-                     </Form>
+                 <DialogContent className="sm:max-w-xl">
+                     <DialogHeader><DialogTitle>{editingTask ? t('tasks.dialog.task_edit_title') : t('tasks.dialog.task_add_title')}</DialogTitle><DialogDescription>{t('tasks.dialog.task_add_desc')}</DialogDescription></DialogHeader>
+                     <Form {...form}><form onSubmit={form.handleSubmit(onTaskSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <FormField name="title" control={form.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.title_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.title_placeholder')} /></FormControl><FormMessage/></FormItem>)}/>
+                        <FormField name="description" control={form.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.description_label')}</FormLabel><FormControl><Textarea {...field} placeholder={t('tasks.dialog.description_placeholder')} /></FormControl><FormMessage/></FormItem>)}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="columnId" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.list_status_label')}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder={t('tasks.dialog.list_status_placeholder')} /></SelectTrigger></FormControl><SelectContent>{activeBoard?.columns.filter(c => !c.isArchived).map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="priority" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.priority_label')}</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="low">{t('tasks.priority.low')}</SelectItem><SelectItem value="medium">{t('tasks.priority.medium')}</SelectItem><SelectItem value="high">{t('tasks.priority.high')}</SelectItem><SelectItem value="critical">{t('tasks.priority.critical')}</SelectItem></SelectContent></Select><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="assignees" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.assign_to_label')}</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start">{field.value && field.value.length > 0 ? `${field.value.length} ${t('tasks.dialog.users_selected')}`: <span>{t('tasks.dialog.assign_to_placeholder')}</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.assign_to_placeholder')} /><CommandList><CommandEmpty>{t('tasks.dialog.no_users_on_board')}</CommandEmpty><CommandGroup>{usersOnBoard.map(user => <CommandItem key={user.id} onSelect={() => { const newSelection = field.value?.includes(user.id) ? field.value.filter(id => id !== user.id) : [...(field.value || []), user.id]; field.onChange(newSelection);}}>{user.name}</CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>{t('tasks.dialog.date_label')}</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} calendar={calendar} locale={locale} render={(value: any, openCalendar: () => void) => (<Button type="button" variant="outline" onClick={openCalendar} className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{value || <span>Pick a date</span>}</Button>)}/></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="unit" render={({ field }) => (<FormItem><FormLabel>{t('units.title')}</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={currentUser?.role !== 'super-admin'}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{mockUnits.map(u => <SelectItem value={u.name} key={u.id}>{u.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="labelIds" render={({ field }) => (<FormItem><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className="w-full justify-start">{field.value && field.value.length > 0 ? `${field.value.length} labels selected` : <span>{t('tasks.dialog.labels_placeholder')}</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.labels_search_placeholder')} /><CommandList><CommandEmpty>{t('tasks.dialog.labels_no_results')}</CommandEmpty><CommandGroup>{(activeBoard?.labels || []).map(label => <CommandItem key={label.id} onSelect={() => { const newSelection = field.value?.includes(label.id) ? field.value.filter(id => id !== label.id) : [...(field.value || []), label.id]; field.onChange(newSelection);}}><div className="flex items-center"><span className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>{label.text}</div></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover><FormMessage /></FormItem>)}/>
+                        </div>
+                        <FormField control={form.control} name="checklist" render={() => (<FormItem><FormLabel>{t('tasks.dialog.checklist_label')}</FormLabel><FormDescription>{t('tasks.dialog.checklist_desc')}</FormDescription><div className="space-y-2">
+                            {checklistFields.map((field, index) => (<div key={field.id} className="flex items-center gap-2">
+                                <FormField control={form.control} name={`checklist.${index}.completed`} render={({ field: checkField }) => (<FormControl><Checkbox checked={checkField.value} onCheckedChange={checkField.onChange} /></FormControl>)}/>
+                                <FormField control={form.control} name={`checklist.${index}.text`} render={({ field: textField }) => (<FormControl><Input {...textField} placeholder={t('tasks.dialog.checklist_item_placeholder')} /></FormControl>)}/>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeChecklistItem(index)}><X className="h-4 w-4" /></Button>
+                            </div>))}
+                        </div><Button type="button" variant="outline" size="sm" onClick={() => appendChecklistItem({ id: `CL-${Date.now()}`, text: '', completed: false })}>{t('tasks.dialog.add_checklist_item_button')}</Button></FormItem>)}/>
+                         <DialogFooter className="pt-4"><DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose><Button type="submit">{editingTask ? t('common.save_changes') : t('tasks.dialog.create_task_button')}</Button></DialogFooter>
+                     </form></Form>
                  </DialogContent>
              </Dialog>
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                     <DialogHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                                <DialogTitle>
-                                    {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
-                                </DialogTitle>
-                                <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => setIsReportManagerOpen(true)}>
-                                {t('tasks.my_reports_desc')}
-                            </Button>
-                        </div>
-                    </DialogHeader>
-                </DialogContent>
+                <DialogContent className="sm:max-w-md"><DialogHeader>
+                    <div className="flex items-center justify-between"><div className="flex-1">
+                        <DialogTitle>{editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.report_desc', { name: activeBoard?.name })}</DialogDescription>
+                    </div></div>
+                </DialogHeader></DialogContent>
             </Dialog>
 
             <Sheet open={isDetailsSheetOpen} onOpenChange={handleCloseDetailsSheet}>
                 <SheetContent className="sm:max-w-2xl w-full flex flex-col p-0">
-                     {selectedTaskForDetails && (
-                        <>
-                         <div className="flex items-center justify-between p-4 border-b">
-                            <div>
-                                <h2 className="text-lg font-semibold">{selectedTaskForDetails.title}</h2>
-                                <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
-                            </div>
+                     {selectedTaskForDetails && (<>
+                        <SheetHeader className="p-4 border-b">
                             <div className="flex items-center gap-2">
-                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleOpenMoveDialog(selectedTaskForDetails)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleDeleteTask(selectedTaskForDetails.id)} className="text-destructive">{t('common.delete')}</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenTaskDialog(selectedTaskForDetails, selectedTaskForDetails.columnId)}><Edit className="h-4 w-4"/></Button>
-                                <Button variant="ghost" size="icon" onClick={handleCloseDetailsSheet}><X className="h-4 w-4" /></Button>
+                                <Checkbox checked={selectedTaskForDetails.isCompleted} onCheckedChange={(checked) => handleToggleTaskCompletion(selectedTaskForDetails.id, !!checked)} id={`complete-${selectedTaskForDetails.id}`}/>
+                                <label htmlFor={`complete-${selectedTaskForDetails.id}`} className={cn("text-lg font-semibold", selectedTaskForDetails.isCompleted && "line-through text-muted-foreground")}>{selectedTaskForDetails.title}</label>
                             </div>
-                         </div>
-                         <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-                            {/* Main Content */}
+                            <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
+                        </SheetHeader>
+                        <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
                             <div className="md:col-span-2 space-y-6">
-                                <div id="details-section">
-                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.details')}</h4>
-                                    <div className="space-y-3 text-sm">
-                                        <div className="flex items-start justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.assign_to_label')}</span>
-                                            <div className="flex items-center -space-x-2">
-                                                {(selectedTaskForDetails.assignees || []).map(id => {
-                                                    const user = usersOnBoard.find(u => u.id === id);
-                                                    if (!user) return null;
-                                                    return (
-                                                        <TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                                            <Avatar className="h-7 w-7 border-2 border-background">
-                                                                <AvatarImage src={user.avatar} />
-                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
-                                                        </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.date_label')}</span>
-                                            <span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span>
-                                        </div>
-                                         <div className="flex items-center justify-between">
-                                            <span className="text-muted-foreground">{t('tasks.dialog.priority_label')}</span>
-                                            <div className="flex items-center gap-2 capitalize">
-                                                <Flag className="h-4 w-4" />
-                                                {t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="space-y-3 text-sm">
+                                    <div className="flex items-start justify-between"><span className="text-muted-foreground font-medium">{t('tasks.dialog.assign_to_label')}</span><div className="flex items-center -space-x-2">
+                                        {(selectedTaskForDetails.assignees || []).map(id => {
+                                            const user = usersOnBoard.find(u => u.id === id);
+                                            return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger><Avatar className="h-7 w-7 border-2 border-background"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar></TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
+                                        })}
+                                    </div></div>
+                                    <div className="flex items-center justify-between"><span className="text-muted-foreground font-medium">{t('tasks.dialog.date_label')}</span><span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span></div>
+                                    <div className="flex items-center justify-between"><span className="text-muted-foreground font-medium">{t('tasks.dialog.priority_label')}</span><div className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" />{t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}</div></div>
                                 </div>
                                 <Separator />
-                                <div id="description">
-                                    <Label>{t('tasks.dialog.description_label')}</Label>
-                                    <p className="text-sm text-muted-foreground mt-2">{selectedTaskForDetails.description || t('tasks.details.no_description')}</p>
-                                </div>
-
-                                {(selectedTaskForDetails.checklist || []).length > 0 && (
-                                     <div id="checklist">
-                                        <Label>{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
-                                        <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
-                                        <div className="space-y-2 mt-4">
-                                            {selectedTaskForDetails.checklist?.map(item => (
-                                                <div key={item.id} className="flex items-center gap-2">
-                                                    <Checkbox id={`checklist-${item.id}`} checked={item.completed} disabled />
-                                                    <label htmlFor={`checklist-${item.id}`} className={cn("text-sm", item.completed && "line-through text-muted-foreground")}>{item.text}</label>
-                                                </div>
-                                            ))}
-                                        </div>
+                                <div><Label className="font-medium">{t('tasks.dialog.description_label')}</Label><p className="text-sm text-muted-foreground mt-2">{selectedTaskForDetails.description || t('tasks.details.no_description')}</p></div>
+                                {(selectedTaskForDetails.checklist || []).length > 0 && (<div>
+                                    <Label className="font-medium">{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
+                                    <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
+                                    <div className="space-y-2 mt-4">
+                                        {selectedTaskForDetails.checklist?.map(item => (<div key={item.id} className="flex items-center gap-2">
+                                            <Checkbox id={`details-checklist-${item.id}`} checked={item.completed} disabled />
+                                            <label htmlFor={`details-checklist-${item.id}`} className={cn("text-sm", item.completed && "line-through text-muted-foreground")}>{item.text}</label>
+                                        </div>))}
                                     </div>
-                                )}
-                                
+                                </div>)}
                                 <div id="activity">
-                                     <Label className="mb-4 block">{t('tasks.details.tabs.activity_and_comments')}</Label>
-                                     <div className="space-y-6">
-                                         {/* Combined Comments and Logs */}
-                                        {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])]
-                                        .sort((a,b) => new Date('createdAt' in a ? a.createdAt : a.timestamp).getTime() - new Date('createdAt' in b ? b.createdAt : b.timestamp).getTime())
-                                        .map(item => {
-                                            if('action' in item) { // It's a log
+                                    <Label className="font-medium mb-4 block">{t('tasks.details.tabs.activity_and_comments')}</Label>
+                                    <div className="space-y-6">
+                                        {[...(selectedTaskForDetails.comments || []), ...(selectedTaskForDetails.logs || [])].sort((a,b) => new Date('createdAt' in a ? a.createdAt : a.timestamp).getTime() - new Date('createdAt' in b ? b.createdAt : b.timestamp).getTime()).map(item => {
+                                            if('action' in item) {
                                                 const log = item as ActivityLog;
                                                 const creator = usersOnBoard.find(u => u.id === log.userId);
-                                                return (
-                                                    <div key={log.id} className="flex items-start gap-3">
-                                                        <Avatar className="h-8 w-8">
-                                                            <AvatarImage src={creator?.avatar} />
-                                                            <AvatarFallback>{log.userName.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <p className="text-sm">
-                                                                <span className="font-semibold">{log.userName}</span>
-                                                                <span className="text-muted-foreground ml-1">
-                                                                    {t(`tasks.logs.${log.action}`, log.details)}
-                                                                </span>
-                                                            </p>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">{formatDistance(new Date(log.timestamp))}</p>
-                                                        </div>
-                                                    </div>
-                                                )
-                                            } else { // It's a comment
+                                                return (<div key={log.id} className="flex items-start gap-3"><Avatar className="h-8 w-8"><AvatarImage src={creator?.avatar} /><AvatarFallback>{log.userName.charAt(0)}</AvatarFallback></Avatar><div><p className="text-sm"><span className="font-semibold">{log.userName}</span><span className="text-muted-foreground ml-1">{t(`tasks.logs.${log.action}`, log.details)}</span></p><p className="text-xs text-muted-foreground mt-0.5">{formatDistance(new Date(log.timestamp), new Date(), {addSuffix: true})}</p></div></div>)
+                                            } else {
                                                 const comment = item as Comment;
                                                 const creator = usersOnBoard.find(u => u.id === comment.authorId);
-                                                return (
-                                                     <div key={comment.id} className="flex items-start gap-3">
-                                                        <Avatar className="h-8 w-8">
-                                                            <AvatarImage src={creator?.avatar} />
-                                                            <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="font-semibold text-sm">{comment.author}</p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {formatDistance(new Date(comment.createdAt))}
-                                                                </p>
-                                                            </div>
-                                                            <div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</div>
-                                                        </div>
-                                                    </div>
-                                                )
+                                                return (<div key={comment.id} className="flex items-start gap-3"><Avatar className="h-8 w-8"><AvatarImage src={creator?.avatar} /><AvatarFallback>{comment.author.charAt(0)}</AvatarFallback></Avatar><div className="flex-1"><div className="flex items-center gap-2"><p className="font-semibold text-sm">{comment.author}</p><p className="text-xs text-muted-foreground">{formatDistance(new Date(comment.createdAt), new Date(), {addSuffix: true})}</p></div><div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</div></div></div>)
                                             }
                                         })}
-                                     </div>
-                                      <div className="mt-6 pt-4 border-t">
-                                        <Form {...commentForm}>
-                                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
-                                            <Avatar className="h-9 w-9">
-                                                <AvatarImage src={currentUser?.avatar} />
-                                                <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <FormField
-                                                control={commentForm.control}
-                                                name="text"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                                />
-                                                <Button type="submit">{t('contracts.details.post_comment_button')}</Button>
-                                            </form>
-                                        </Form>
                                     </div>
+                                    <div className="mt-6 pt-4 border-t"><Form {...commentForm}><form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2"><Avatar className="h-9 w-9"><AvatarImage src={currentUser?.avatar} /><AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback></Avatar><FormField control={commentForm.control} name="text" render={({ field }) => (<FormItem className="flex-1"><FormControl><Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" /></FormControl><FormMessage /></FormItem>)}/><Button type="submit">{t('contracts.details.post_comment_button')}</Button></form></Form></div>
                                 </div>
                             </div>
-                            
-                            {/* Sidebar */}
                             <aside className="md:col-span-1 space-y-6">
-                                <div id="labels">
-                                    <h4 className="font-medium mb-2">{t('tasks.dialog.labels_label')}</h4>
-                                     <div className="flex flex-wrap gap-1">
-                                        {(selectedTaskForDetails.labelIds || []).map(labelId => {
-                                            const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                            if (!label) return null;
-                                            return <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge>
-                                        })}
-                                    </div>
+                                <div><h4 className="font-medium mb-2">{t('tasks.dialog.labels_label')}</h4><div className="flex flex-wrap gap-1">
+                                    {(selectedTaskForDetails.labelIds || []).map(labelId => {
+                                        const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                        return label ? <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge> : null;
+                                    })}
+                                </div></div>
+                                <Separator />
+                                <div><h4 className="font-medium mb-2">{t('tasks.details.tabs.attachments')}</h4>{(selectedTaskForDetails.attachments || []).length > 0 ? (<div className="space-y-2">
+                                    {selectedTaskForDetails.attachments?.map((file, i) => (<a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"><Paperclip className="h-4 w-4" /><span className="text-sm truncate">{file.name}</span></a>))}
+                                </div>) : (<p className="text-sm text-muted-foreground">{t('tasks.details.no_attachments_desc')}</p>)}</div>
+                                <Separator />
+                                <div className="flex items-center justify-between">
+                                    <h4 className="font-medium">{t('tasks.details.tabs.reactions')}</h4>
+                                    <Popover>
+                                        <PopoverTrigger asChild><Button size="icon" variant="ghost"><SmilePlus className="h-5 w-5 text-muted-foreground"/></Button></PopoverTrigger>
+                                        <PopoverContent className="w-auto p-2">
+                                            <div className="flex gap-1">
+                                                {(appearanceSettings?.allowedReactions || []).map(emoji => (
+                                                    <Button key={emoji} variant="ghost" size="icon" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
+                                                        <span className="text-lg">{emoji}</span>
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
-                                 <Separator />
-                                <div id="attachments">
-                                    <h4 className="font-medium mb-2">{t('tasks.details.tabs.attachments')}</h4>
-                                     {(selectedTaskForDetails.attachments || []).length > 0 ? (
-                                        <div className="space-y-2">
-                                            {selectedTaskForDetails.attachments?.map((file, i) => (
-                                                <a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
-                                                    <Paperclip className="h-4 w-4" />
-                                                    <span className="text-sm truncate">{file.name}</span>
-                                                </a>
-                                            ))}
-                                        </div>
-                                     ) : (
-                                        <p className="text-sm text-muted-foreground">{t('tasks.details.no_attachments_desc')}</p>
-                                     )}
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries((selectedTaskForDetails.reactions || []).reduce((acc, r) => {
+                                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([emoji, count]) => {
+                                        const userHasReacted = (selectedTaskForDetails.reactions || []).some(r => r.userId === currentUser?.id && r.emoji === emoji);
+                                        return (<TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
+                                            <Button variant={userHasReacted ? 'secondary': 'outline'} size="sm" className="rounded-full" onClick={() => handleAddReaction(selectedTaskForDetails.id, emoji)}>
+                                                <span className="mr-1">{emoji}</span> {count}
+                                            </Button>
+                                        </TooltipTrigger><TooltipContent>
+                                            {(selectedTaskForDetails.reactions || []).filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}
+                                        </TooltipContent></Tooltip></TooltipProvider>)
+                                    })}
                                 </div>
                             </aside>
                          </div>
-                        </>
-                     )}
+                     </>)}
                 </SheetContent>
             </Sheet>
 
             <Dialog open={isLabelManagerOpen} onOpenChange={setIsLabelManagerOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('tasks.dialog.manage_labels_title', { name: activeBoard?.name || '' })}</DialogTitle>
-                        <DialogDescription>{t('tasks.dialog.manage_labels_desc')}</DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>{t('tasks.dialog.manage_labels_title', { name: activeBoard?.name || '' })}</DialogTitle><DialogDescription>{t('tasks.dialog.manage_labels_desc')}</DialogDescription></DialogHeader>
                     <div className="space-y-4">
-                        <Form {...labelForm}>
-                            <form onSubmit={labelForm.handleSubmit(onLabelSubmit)} className="flex items-end gap-2">
-                                <FormField name="text" control={labelForm.control} render={({field}) => (
-                                    <FormItem className="flex-1">
-                                        <FormLabel>{t('tasks.dialog.labels_label')}</FormLabel>
-                                        <FormControl><Input {...field} placeholder={t('tasks.dialog.label_name_placeholder')} /></FormControl>
-                                    </FormItem>
-                                )}/>
-                                <FormField name="color" control={labelForm.control} render={({field}) => (
-                                     <FormItem>
-                                        <FormLabel>{t('tasks.dialog.label_color')}</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button type="button" variant="outline" className="w-full justify-start">
-                                                    <div className="w-5 h-5 rounded-full mr-2 border" style={{ backgroundColor: field.value }}></div>
-                                                    {field.value}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <div className="grid grid-cols-6 gap-2 p-2">
-                                                    {defaultColors.map(color => (
-                                                        <button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />
-                                                    ))}
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </FormItem>
-                                )}/>
-                                <Button type="submit">{editingLabel ? t('common.save_changes') : t('tasks.dialog.add_label_button')}</Button>
-                            </form>
-                        </Form>
+                        <Form {...labelForm}><form onSubmit={labelForm.handleSubmit(onLabelSubmit)} className="flex items-end gap-2">
+                            <FormField name="text" control={labelForm.control} render={({field}) => (<FormItem className="flex-1"><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.label_name_placeholder')} /></FormControl></FormItem>)}/>
+                            <FormField name="color" control={labelForm.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.label_color')}</FormLabel><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="w-full justify-start"><div className="w-5 h-5 rounded-full mr-2 border" style={{ backgroundColor: field.value }}></div>{field.value}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><div className="grid grid-cols-6 gap-2 p-2">{defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}</div></PopoverContent></Popover></FormItem>)}/>
+                            <Button type="submit">{editingLabel ? t('common.save_changes') : t('tasks.dialog.add_label_button')}</Button>
+                        </form></Form>
                          <div className="space-y-2">
                             {(activeBoard?.labels || []).length > 0 ? (activeBoard?.labels || []).map(label => (
                                 <div key={label.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
@@ -2293,31 +1867,15 @@ export default function TasksPage() {
             
             {labelToDelete && (
                  <AlertDialog open={!!labelToDelete} onOpenChange={() => setLabelToDelete(null)}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>{t('tasks.dialog.delete_label_title')}</AlertDialogTitle>
-                            <AlertDialogDescription>{t('tasks.dialog.delete_label_desc', { name: labelToDelete.text })}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteLabel}>{t('common.delete')}</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
+                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('tasks.dialog.delete_label_title')}</AlertDialogTitle><AlertDialogDescription>{t('tasks.dialog.delete_label_desc', { name: labelToDelete.text })}</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={handleDeleteLabel}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                 </AlertDialog>
             )}
 
              {columnToDelete && (
                  <AlertDialog open={isDeleteColumnAlertOpen} onOpenChange={setIsDeleteColumnAlertOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>{t('tasks.dialog.delete_list_title')}</AlertDialogTitle>
-                            <AlertDialogDescription>{t('tasks.dialog.delete_list_desc', { name: columnToDelete.title })}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setColumnToDelete(null)}>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteColumnPermanently}>{t('common.delete')}</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
+                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('tasks.dialog.delete_list_title')}</AlertDialogTitle><AlertDialogDescription>{t('tasks.dialog.delete_list_desc', { name: columnToDelete.title })}</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel onClick={() => setColumnToDelete(null)}>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={handleDeleteColumnPermanently}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                 </AlertDialog>
             )}
         </div>

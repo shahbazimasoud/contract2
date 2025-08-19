@@ -1147,17 +1147,30 @@ export default function TasksPage() {
                 className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
                 onClick={() => handleOpenDetailsSheet(task)}
             >
-                 {appearanceSettings?.taskReactionsEnabled && (
-                    <div className="absolute top-1 right-1 z-10 flex items-center gap-1 rounded-full border bg-background/70 p-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/taskcard:opacity-100">
-                        {(appearanceSettings.allowedReactions || []).map(emoji => (
-                             <TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
-                                <button onClick={(e) => { e.stopPropagation(); handleAddReaction(task.id, emoji) }} className="rounded-full hover:bg-muted p-1">
-                                    <span className="text-sm">{emoji}</span>
-                                </button>
-                            </TooltipTrigger><TooltipContent><p>{emoji}</p></TooltipContent></Tooltip></TooltipProvider>
-                        ))}
-                    </div>
-                )}
+                 <div className="absolute top-1 right-1 z-10 opacity-0 group-hover/taskcard:opacity-100 transition-opacity">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full">
+                                <SmilePlus className="h-4 w-4" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1">
+                            <div className="flex gap-1">
+                                {(appearanceSettings?.allowedReactions || []).map(emoji => (
+                                    <Button 
+                                        key={emoji} 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => { e.stopPropagation(); handleAddReaction(task.id, emoji) }}
+                                        className="h-8 w-8 text-lg"
+                                    >
+                                        {emoji}
+                                    </Button>
+                                ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                </div>
                 <CardContent className="p-3">
                     {(task.labelIds && task.labelIds.length > 0) && (
                         <div className="flex flex-wrap gap-1 mb-2">

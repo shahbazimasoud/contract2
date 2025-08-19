@@ -964,7 +964,7 @@ export default function TasksPage() {
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
 
-        if (!destination || !activeBoard || userPermissions === 'viewer') {
+        if (!destination || !activeBoard || (userPermissions ? userPermissions === 'viewer' : false)) {
             return;
         }
 
@@ -1493,7 +1493,7 @@ export default function TasksPage() {
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                                         {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 p-2 rounded-lg">
@@ -1522,13 +1522,13 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
                                                                             const task = tasks.find(t => t.id === taskId);
                                                                             return task && !task.isArchived ? (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                                                     {(provided, snapshot) => (
                                                                                         <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                             {renderTaskCard(task)}
@@ -1924,5 +1924,7 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    
 
     

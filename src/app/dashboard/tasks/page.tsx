@@ -967,7 +967,7 @@ export default function TasksPage() {
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
 
-        if (!destination || !activeBoard || (userPermissions ? userPermissions === 'viewer' : false)) {
+        if (!destination || !activeBoard || (userPermissions ? userPermissions === 'viewer' : true)) {
             return;
         }
 
@@ -1992,5 +1992,7 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    
 
     

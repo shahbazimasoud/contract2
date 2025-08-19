@@ -102,7 +102,7 @@ import { useLanguage } from '@/context/language-context';
 import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
 
-const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <Loader2 className="animate-spin" /> });
+const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div> });
 const Droppable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Droppable), { ssr: false });
 const Draggable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Draggable), { ssr: false });
 
@@ -1256,7 +1256,7 @@ export default function TasksPage() {
     const goToToday = () => setCurrentMonth(new Date());
 
 
-    if (!currentUser || !Droppable || !Draggable) {
+    if (!currentUser) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -1924,3 +1924,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

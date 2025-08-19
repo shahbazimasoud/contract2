@@ -1256,7 +1256,7 @@ export default function TasksPage() {
     const goToToday = () => setCurrentMonth(new Date());
 
 
-    if (!currentUser || !DragDropContext || !Droppable || !Draggable) {
+    if (!currentUser || !Droppable || !Draggable) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -1742,16 +1742,12 @@ export default function TasksPage() {
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
                 <DialogContent>
                   <DialogHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <DialogTitle>
-                          {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
-                        </DialogTitle>
-                        <DialogDescription>
-                          {t('tasks.dialog.report_desc', { name: activeBoard?.name })}
-                        </DialogDescription>
-                      </div>
-                    </div>
+                    <DialogTitle>
+                      {editingReport ? t('tasks.dialog.edit_report_title') : t('tasks.dialog.configure_report_title')} {t(`tasks.report_types.${reportConfigType}` as any)}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t('tasks.dialog.report_desc', { name: activeBoard?.name })}
+                    </DialogDescription>
                   </DialogHeader>
                 </DialogContent>
             </Dialog>
@@ -1759,15 +1755,15 @@ export default function TasksPage() {
             <Sheet open={isDetailsSheetOpen} onOpenChange={handleCloseDetailsSheet}>
                 <SheetContent className="sm:max-w-2xl w-full flex flex-col p-0">
                      {selectedTaskForDetails && (<>
-                        <SheetHeader className="p-4 border-b flex flex-row items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Checkbox checked={selectedTaskForDetails.isCompleted} onCheckedChange={(checked) => handleToggleTaskCompletion(selectedTaskForDetails.id, !!checked)} id={`complete-${selectedTaskForDetails.id}`}/>
+                        <SheetHeader className="p-4 border-b flex flex-row items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <Checkbox checked={selectedTaskForDetails.isCompleted} onCheckedChange={(checked) => handleToggleTaskCompletion(selectedTaskForDetails.id, !!checked)} id={`complete-${selectedTaskForDetails.id}`} className="w-5 h-5 mt-1"/>
                                 <div>
                                     <h2 className={cn("text-lg font-semibold", selectedTaskForDetails.isCompleted && "line-through text-muted-foreground")}>{selectedTaskForDetails.title}</h2>
                                     <p className="text-sm text-muted-foreground">{t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}</p>
                                 </div>
                             </div>
-                             <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button>
@@ -1785,23 +1781,13 @@ export default function TasksPage() {
                         </SheetHeader>
                         <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
                             <div className="md:col-span-2 space-y-6">
-                                <div className="space-y-3">
-                                    <h4 className="font-medium text-sm">{t('tasks.details.tabs.details')}</h4>
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                        <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.assign_to_label')}</span>
-                                            <div className="flex items-center -space-x-2">
-                                                {(selectedTaskForDetails.assignees || []).map(id => {
-                                                    const user = usersOnBoard.find(u => u.id === id);
-                                                    return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger><Avatar className="h-7 w-7 border-2 border-background"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar></TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
-                                                })}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.date_label')}</span><span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span></div>
-                                        <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.priority_label')}</span><div className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" />{t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}</div></div>
-                                        <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.table.recurrence')}</span><span className="capitalize">{selectedTaskForDetails.recurrence.type}</span></div>
+                                
+                                {selectedTaskForDetails.description && (
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">{selectedTaskForDetails.description}</p>
                                     </div>
-                                </div>
-                                <div><Label className="font-medium text-sm">{t('tasks.dialog.description_label')}</Label><p className="text-sm text-muted-foreground mt-2">{selectedTaskForDetails.description || t('tasks.details.no_description')}</p></div>
+                                )}
+                                
                                 {(selectedTaskForDetails.checklist || []).length > 0 && (<div>
                                     <Label className="font-medium text-sm">{t('tasks.dialog.checklist_label')} ({selectedTaskForDetails.checklist?.filter(i => i.completed).length}/{selectedTaskForDetails.checklist?.length})</Label>
                                     <Progress value={((selectedTaskForDetails.checklist?.filter(i => i.completed).length || 0) / (selectedTaskForDetails.checklist?.length || 1)) * 100} className="mt-2" />
@@ -1831,12 +1817,32 @@ export default function TasksPage() {
                                 </div>
                             </div>
                             <aside className="md:col-span-1 space-y-4">
-                                <div><h4 className="font-medium text-sm mb-2">{t('tasks.dialog.labels_label')}</h4><div className="flex flex-wrap gap-1">
-                                    {(selectedTaskForDetails.labelIds || []).map(labelId => {
-                                        const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                        return label ? <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge> : null;
-                                    })}
-                                </div></div>
+                                <h4 className="font-medium text-sm">{t('tasks.details.tabs.details')}</h4>
+                                <div className="grid grid-cols-1 gap-y-3 text-sm">
+                                   <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.assign_to_label')}</span>
+                                        <div className="flex items-center flex-wrap gap-1">
+                                            {(selectedTaskForDetails.assignees || []).map(id => {
+                                                const user = usersOnBoard.find(u => u.id === id);
+                                                return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                                        <Avatar className="h-7 w-7 border-2 border-background"><AvatarImage src={user.avatar} /><AvatarFallback>{user.name.charAt(0)}</AvatarFallback></Avatar>
+                                                </TooltipTrigger><TooltipContent><p>{user.name}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.date_label')}</span><span>{format(new Date(selectedTaskForDetails.dueDate), 'PPP')}</span></div>
+                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.dialog.priority_label')}</span><div className="flex items-center gap-2 capitalize"><Flag className="h-4 w-4" />{t(`tasks.priority.${selectedTaskForDetails.priority || 'medium'}`)}</div></div>
+                                    <div className="flex items-start gap-2"><span className="text-muted-foreground w-24">{t('tasks.table.recurrence')}</span><span className="capitalize">{selectedTaskForDetails.recurrence.type}</span></div>
+                                </div>
+                                <Separator />
+
+                                { (activeBoard?.labels || []).length > 0 && 
+                                    <div><h4 className="font-medium text-sm mb-2">{t('tasks.dialog.labels_label')}</h4><div className="flex flex-wrap gap-1">
+                                        {(selectedTaskForDetails.labelIds || []).map(labelId => {
+                                            const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                            return label ? <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="border-transparent">{label.text}</Badge> : null;
+                                        })}
+                                    </div></div>
+                                }
                                  <Separator />
                                 <div><h4 className="font-medium text-sm mb-2">{t('tasks.details.tabs.attachments')}</h4>{(selectedTaskForDetails.attachments || []).length > 0 ? (<div className="space-y-2">
                                     {selectedTaskForDetails.attachments?.map((file, i) => (<a href={file.url} target="_blank" rel="noopener noreferrer" key={i} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted"><Paperclip className="h-4 w-4" /><span className="text-sm truncate">{file.name}</span></a>))}
@@ -1918,5 +1924,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

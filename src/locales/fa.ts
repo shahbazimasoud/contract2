@@ -758,5 +758,3 @@ export const fa = {
     }
   }
 };
-
-    

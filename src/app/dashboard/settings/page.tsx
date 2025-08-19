@@ -379,14 +379,18 @@ export default function SettingsPage() {
                  {/* Task Reactions Settings */}
                  <div className="space-y-6 p-6 border rounded-lg">
                     <h3 className="text-lg font-medium">{t('settings.reactions.title')}</h3>
-                    <div className="space-y-2">
-                        <Label htmlFor="taskReactionsEnabled">{t('settings.reactions.enable_label')}</Label>
+                    <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Label htmlFor="taskReactionsEnabled" className="flex flex-col space-y-1">
+                          <span>{t('settings.reactions.enable_label')}</span>
+                           <span className="font-normal leading-snug text-muted-foreground">
+                             {t('settings.reactions.enable_desc')}
+                           </span>
+                        </Label>
                         <Switch
                             id="taskReactionsEnabled"
                             checked={settings.taskReactionsEnabled}
                             onCheckedChange={(checked) => setSettings(prev => ({ ...prev, taskReactionsEnabled: checked }))}
                         />
-                        <p className="text-sm text-muted-foreground">{t('settings.reactions.enable_desc')}</p>
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="allowedReactions">{t('settings.reactions.allowed_emojis_label')}</Label>

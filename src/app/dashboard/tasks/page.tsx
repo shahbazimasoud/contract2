@@ -1136,58 +1136,93 @@ export default function TasksPage() {
         commentForm.reset();
     };
 
-    const renderTaskCard = (task: Task) => (
-        <Card
-            className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card"
-            onClick={() => handleOpenDetailsSheet(task)}
-        >
-            <CardContent className="p-3">
-                {(task.labelIds && task.labelIds.length > 0) && (
-                    <div className="flex flex-wrap gap-1 mb-2">
-                        {task.labelIds.map(labelId => {
-                            const label = activeBoard?.labels?.find(l => l.id === labelId);
-                            if (!label) return null;
-                            return (
-                                <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
-                                    {label.text}
-                                </Badge>
-                            );
-                        })}
+    const renderTaskCard = (task: Task) => {
+        const groupedReactions = (task.reactions || []).reduce((acc, r) => {
+            acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        return (
+            <Card
+                className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
+                onClick={() => handleOpenDetailsSheet(task)}
+            >
+                 {appearanceSettings?.taskReactionsEnabled && (
+                    <div className="absolute top-1 right-1 z-10 flex items-center gap-1 rounded-full border bg-background/70 p-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/taskcard:opacity-100">
+                        {(appearanceSettings.allowedReactions || []).map(emoji => (
+                             <TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
+                                <button onClick={(e) => { e.stopPropagation(); handleAddReaction(task.id, emoji) }} className="rounded-full hover:bg-muted p-1">
+                                    <span className="text-sm">{emoji}</span>
+                                </button>
+                            </TooltipTrigger><TooltipContent><p>{emoji}</p></TooltipContent></Tooltip></TooltipProvider>
+                        ))}
                     </div>
                 )}
+                <CardContent className="p-3">
+                    {(task.labelIds && task.labelIds.length > 0) && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            {task.labelIds.map(labelId => {
+                                const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                if (!label) return null;
+                                return (
+                                    <Badge key={label.id} style={{ backgroundColor: label.color }} className="text-xs px-2 py-0.5 border-transparent text-white">
+                                        {label.text}
+                                    </Badge>
+                                );
+                            })}
+                        </div>
+                    )}
 
-                <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
-                
-                <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center -space-x-2">
-                        {(task.assignees || []).map(id => {
-                            const user = usersOnBoard.find(u => u.id === id);
-                            if (!user) return null;
-                            return (
-                                <TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                    <Avatar className="h-6 w-6 border-2 border-background">
-                                        <AvatarImage src={user.avatar} alt={user.name} />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>
-                            );
-                        })}
+                    <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
+                    
+                    <div className="flex items-center justify-between mt-3">
+                        <div className="flex items-center -space-x-2">
+                            {(task.assignees || []).map(id => {
+                                const user = usersOnBoard.find(u => u.id === id);
+                                if (!user) return null;
+                                return (
+                                    <TooltipProvider key={id}><Tooltip><TooltipTrigger>
+                                        <Avatar className="h-6 w-6 border-2 border-background">
+                                            <AvatarImage src={user.avatar} alt={user.name} />
+                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {(task.comments?.length || 0) > 0 && (
+                                 <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
+                            )}
+                            {(task.attachments?.length || 0) > 0 && (
+                                <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
+                            )}
+                            {(task.checklist?.length || 0) > 0 && (
+                                 <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {(task.comments?.length || 0) > 0 && (
-                             <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
-                        )}
-                        {(task.attachments?.length || 0) > 0 && (
-                            <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
-                        )}
-                        {(task.checklist?.length || 0) > 0 && (
-                             <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
+                     {(task.reactions && task.reactions.length > 0) && (
+                        <div className="mt-3 flex flex-wrap gap-1">
+                            {Object.entries(groupedReactions).map(([emoji, count]) => {
+                                 const userHasReacted = task.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji);
+                                 return (
+                                     <TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
+                                        <button onClick={(e) => { e.stopPropagation(); handleAddReaction(task.id, emoji) }} className={cn("flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs", userHasReacted ? 'border-primary bg-primary/20' : 'border-border bg-transparent hover:bg-muted')}>
+                                            <span>{emoji}</span>
+                                            <span>{count}</span>
+                                        </button>
+                                     </TooltipTrigger><TooltipContent>
+                                        <p>{task.reactions?.filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}</p>
+                                    </TooltipContent></Tooltip></TooltipProvider>
+                                 )
+                            })}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    }
 
 
     const filteredTasks = useMemo(() => {
@@ -1496,7 +1531,7 @@ export default function TasksPage() {
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                                         {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 p-2 rounded-lg">
@@ -1525,13 +1560,13 @@ export default function TasksPage() {
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
+                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {(column.taskIds || []).map((taskId, index) => {
                                                                             const task = tasks.find(t => t.id === taskId);
                                                                             return task && !task.isArchived ? (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions ? userPermissions === 'viewer' : false}>
                                                                                     {(provided, snapshot) => (
                                                                                         <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                             {renderTaskCard(task)}
@@ -1992,5 +2027,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

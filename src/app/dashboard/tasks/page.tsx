@@ -328,6 +328,7 @@ export default function TasksPage() {
     
     const visibleBoards = useMemo(() => {
         if (!currentUser) return [];
+        if (currentUser.role === 'super-admin') return boards;
         return boards.filter(board => 
             board.ownerId === currentUser.id || 
             board.sharedWith?.some(s => s.userId === currentUser.id)
@@ -355,6 +356,7 @@ export default function TasksPage() {
     
     const userPermissions = useMemo((): BoardPermissionRole | 'owner' | 'none' => {
         if (!currentUser || !activeBoard) return 'none';
+        if (currentUser.role === 'super-admin') return 'owner';
         if (activeBoard.ownerId === currentUser.id) return 'owner';
         const shareInfo = activeBoard.sharedWith?.find(s => s.userId === currentUser.id);
         return shareInfo ? shareInfo.role : 'none';
@@ -1877,16 +1879,77 @@ export default function TasksPage() {
             </AlertDialog>
             
             <Dialog open={isShareDialogOpen} onOpenChange={handleCloseShareDialog}>
-                 <DialogContent>
+                <DialogContent>
                     <DialogHeader>
                         <DialogTitle>{t('tasks.dialog.share_title', { name: sharingBoard?.name || '' })}</DialogTitle>
                         <DialogDescription>{t('tasks.dialog.share_desc')}</DialogDescription>
                     </DialogHeader>
+                    {sharingBoard && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>{t('tasks.dialog.share_with_label')}</Label>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {(sharingBoard.sharedWith || []).map(share => {
+                                        const user = mockUsers.find(u => u.id === share.userId);
+                                        return user ? (
+                                            <div key={user.id} className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={user.avatar} />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-medium">{user.name}</p>
+                                                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                     <Select value={share.role} onValueChange={(role) => handleShareUpdate(user.id, role as BoardPermissionRole)}>
+                                                        <SelectTrigger className="w-32">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="editor">{t('tasks.permissions.editor')}</SelectItem>
+                                                            <SelectItem value="viewer">{t('tasks.permissions.viewer')}</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveShare(user.id)}><Trash2 className="h-4 w-4"/></Button>
+                                                </div>
+                                            </div>
+                                        ) : null;
+                                    })}
+                                </div>
+                            </div>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-full">
+                                        <PlusCircle className="mr-2 h-4 w-4"/>
+                                        {t('tasks.dialog.share_search_placeholder')}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                        <CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
+                                        <CommandList>
+                                            <CommandEmpty>{t('tasks.dialog.share_no_users_found')}</CommandEmpty>
+                                            <CommandGroup>
+                                                {mockUsers.filter(u => u.id !== currentUser?.id && !(sharingBoard.sharedWith || []).some(s => s.userId === u.id)).map(user => (
+                                                    <CommandItem key={user.id} onSelect={() => handleShareUpdate(user.id, 'viewer')}>
+                                                        {user.name} ({user.email})
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    )}
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">{t('common.cancel')}</Button></DialogClose>
                         <Button onClick={onSaveShare}>{t('common.save_changes')}</Button>
                     </DialogFooter>
-                 </DialogContent>
+                </DialogContent>
             </Dialog>
 
              <Dialog open={isTaskDialogOpen} onOpenChange={handleCloseTaskDialog}>
@@ -1966,7 +2029,7 @@ export default function TasksPage() {
 
             <Dialog open={isWeeklyReportDialogOpen} onOpenChange={setIsWeeklyReportDialogOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
+                     <DialogHeader>
                         <div className="flex items-center justify-between">
                             <div className="flex-1">
                                 <DialogTitle>

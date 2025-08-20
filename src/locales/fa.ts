@@ -517,11 +517,11 @@ export const fa = {
         move_list: 'انتقال لیست',
         move_list_title: 'انتقال لیست',
         move_list_desc: 'لیست "{{name}}" را به موقعیت جدید منتقل کنید.',
-        move_list_target_label: 'موقعیت هدف',
+        move_list_target_label: 'لیست هدف',
         move_list_select_placeholder: 'یک لیست انتخاب کنید...',
+        move_list_position_label: 'موقعیت',
         move_before: 'قبل از این لیست',
         move_after: 'بعد از این لیست',
-        move_list_button: 'انتقال لیست',
     },
     actions: {
         move_task: 'انتقال وظیفه',

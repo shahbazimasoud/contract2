@@ -114,7 +114,7 @@ const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
-type ViewMode = 'board' | 'calendar';
+type ViewMode = 'board' | 'calendar' | 'archive';
 type BoardViewMode = 'active' | 'archived';
 
 
@@ -194,18 +194,17 @@ export default function TasksPage() {
     const [boardToDelete, setBoardToDelete] = useState<TaskBoard | null>(null);
     const [isDeleteColumnAlertOpen, setIsDeleteColumnAlertOpen] = useState(false);
     const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
-    const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
+    const [isMoveColumnDialogOpen, setIsMoveColumnDialogOpen] = useState(false);
     const [isCopyColumnDialogOpen, setIsCopyColumnDialogOpen] = useState(false);
     const [columnToCopy, setColumnToCopy] = useState<BoardColumn | null>(null);
     const [isWeeklyReportDialogOpen, setIsWeeklyReportDialogOpen] = useState(false);
     const [isReportManagerOpen, setIsReportManagerOpen] = useState(false);
     const [reportToDelete, setReportToDelete] = useState<ScheduledReport | null>(null);
     const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
-    const [isArchiveManagerOpen, setIsArchiveManagerOpen] = useState(false);
+    
 
     
-    const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
-    const [editingColumnTitle, setEditingColumnTitle] = useState("");
+    const [columnToMove, setColumnToMove] = useState<BoardColumn | null>(null);
     const [showAddColumnForm, setShowAddColumnForm] = useState(false);
     const [moveColumnTargetId, setMoveColumnTargetId] = useState<string | null>(null);
     const [moveColumnPosition, setMoveColumnPosition] = useState<'before' | 'after'>('after');
@@ -215,8 +214,6 @@ export default function TasksPage() {
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
     const [sharingBoard, setSharingBoard] = useState<TaskBoard | null>(null);
-    const [movingTask, setMovingTask] = useState<Task | null>(null);
-    const [moveTargetBoardId, setMoveTargetBoardId] = useState<string>("");
     
     const [reportConfigType, setReportConfigType] = useState<ScheduledReportType | null>(null);
     const [editingReport, setEditingReport] = useState<ScheduledReport | null>(null);
@@ -328,7 +325,7 @@ export default function TasksPage() {
 
     const archivedBoards = useMemo(() => {
         if (!currentUser) return [];
-        return boards.filter(board => board.isArchived && board.ownerId === currentUser.id);
+        return boards.filter(board => board.isArchived && (currentUser.role === 'super-admin' || board.ownerId === currentUser.id));
     }, [boards, currentUser]);
     
     useEffect(() => {
@@ -538,16 +535,18 @@ export default function TasksPage() {
         setIsShareDialogOpen(false);
     }
     
-    const handleOpenMoveDialog = (task: Task) => {
-        setMovingTask(task);
-        setMoveTargetBoardId(""); // Reset selection
-        setIsMoveTaskDialogOpen(true);
+    const handleOpenMoveColumnDialog = (column: BoardColumn) => {
+        setColumnToMove(column);
+        setMoveColumnTargetId(null);
+        setMoveColumnPosition('after');
+        setIsMoveColumnDialogOpen(true);
     };
 
-    const handleCloseMoveDialog = () => {
-        setMovingTask(null);
-        setIsMoveTaskDialogOpen(false);
+    const handleCloseMoveColumnDialog = () => {
+        setColumnToMove(null);
+        setIsMoveColumnDialogOpen(false);
     };
+
 
     const handleOpenCopyColumnDialog = (column: BoardColumn) => {
         setColumnToCopy(column);
@@ -686,47 +685,17 @@ export default function TasksPage() {
         }
     };
     
-    const handleMoveTask = () => {
-        if (!movingTask || !moveTargetBoardId) return;
-        
-        const targetBoard = boards.find(b => b.id === moveTargetBoardId);
-        if (!targetBoard) return;
-        
-        const targetColumn = targetBoard.columns.find(c => !c.isArchived);
-        if (!targetColumn) {
-            toast({ title: t('common.error'), description: t('tasks.toast.move_no_columns_error'), variant: 'destructive'});
-            return;
-        }
+    const handleArchiveTask = (taskId: string) => {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        setTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: true } : t));
+    };
 
-        const sourceBoard = boards.find(b => b.id === movingTask.boardId)!;
-        const updatedSourceBoard = {
-            ...sourceBoard,
-            columns: sourceBoard.columns.map(col => ({
-                ...col,
-                taskIds: (col.taskIds || []).filter(id => id !== movingTask.id)
-            }))
-        };
-
-        const updatedTargetBoard = {
-            ...targetBoard,
-            columns: targetBoard.columns.map(col => 
-                col.id === targetColumn.id ? { ...col, taskIds: [movingTask.id, ...(col.taskIds || [])] } : col
-            )
-        };
-        
-        setBoards(boards.map(b => {
-            if (b.id === sourceBoard.id) return updatedSourceBoard;
-            if (b.id === targetBoard.id) return updatedTargetBoard;
-            return b;
-        }));
-
-        const log = createLogEntry('moved_task', { from: sourceBoard.name, to: targetBoard.name });
-        const updatedTask = { ...movingTask, boardId: targetBoard.id, columnId: targetColumn.id, logs: [...(movingTask.logs || []), log] };
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-        
-        toast({ title: t('tasks.toast.task_moved_title'), description: t('tasks.toast.task_moved_desc', { task: movingTask.title, board: targetBoard.name })});
-        handleCloseMoveDialog();
-        handleCloseDetailsSheet();
+    const handleRestoreTask = (taskId: string) => {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        setTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: false } : t));
+        toast({ title: t('tasks.toast.task_restored') });
     };
 
     const handleExportSelected = () => {
@@ -860,42 +829,29 @@ export default function TasksPage() {
         setShowAddColumnForm(false);
     };
 
-    const handleEditColumn = (columnId: string, newTitle: string) => {
-        if (!activeBoard || !newTitle) {
-            setEditingColumnId(null);
-            return;
-        };
-
-        const updatedColumns = activeBoard.columns.map(c => c.id === columnId ? { ...c, title: newTitle } : c);
-        const updatedBoard = { ...activeBoard, columns: updatedColumns };
-        
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-        setEditingColumnId(null);
-        toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: newTitle })});
-    };
-
     const handleMoveColumn = () => {
-        if (!activeBoard || !editingColumnId || !moveColumnTargetId) return;
+        if (!activeBoard || !columnToMove || !moveColumnTargetId) return;
     
         const columns = [...activeBoard.columns];
-        const sourceIndex = columns.findIndex(c => c.id === editingColumnId);
+        const sourceIndex = columns.findIndex(c => c.id === columnToMove.id);
         const targetIndex = columns.findIndex(c => c.id === moveColumnTargetId);
+    
         if (sourceIndex === -1 || targetIndex === -1) return;
     
         const [movedColumn] = columns.splice(sourceIndex, 1);
-        const newTargetIndex = columns.findIndex(c => c.id === moveColumnTargetId);
+        const newTargetIndexAfterSplice = columns.findIndex(c => c.id === moveColumnTargetId);
     
         if (moveColumnPosition === 'before') {
-            columns.splice(newTargetIndex, 0, movedColumn);
+            columns.splice(newTargetIndexAfterSplice, 0, movedColumn);
         } else {
-            columns.splice(newTargetIndex + 1, 0, movedColumn);
+            columns.splice(newTargetIndexAfterSplice + 1, 0, movedColumn);
         }
     
         const updatedBoard = { ...activeBoard, columns };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         
         toast({ title: t('tasks.toast.list_moved_title') });
-        setEditingColumnId(null);
+        handleCloseMoveColumnDialog();
     };
     
     const handleArchiveColumn = (columnId: string) => {
@@ -1040,7 +996,7 @@ export default function TasksPage() {
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
 
-        if (!destination || !activeBoard || (userPermissions !== 'owner' && userPermissions !== 'editor')) {
+        if (!destination || !activeBoard || (userPermissions === 'viewer')) {
             return;
         }
 
@@ -1277,7 +1233,7 @@ export default function TasksPage() {
              <Card
                 className={cn(
                     "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                    task.isCompleted && "border-l-4 border-green-500"
+                     task.isCompleted && "border-l-4 border-green-500",
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
@@ -1287,7 +1243,8 @@ export default function TasksPage() {
                         handleToggleTaskCompletion(task.id, !task.isCompleted);
                     }}
                     className={cn(
-                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover/taskcard:opacity-100",
+                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
+                        "opacity-0 group-hover/taskcard:opacity-100",
                         task.isCompleted ? "opacity-100 border-green-500 bg-green-500" : "border-muted-foreground/50",
                     )}
                 >
@@ -1305,7 +1262,7 @@ export default function TasksPage() {
                 </button>
 
                 <CardContent className="p-3">
-                    <div className={cn("pl-0 group-hover/taskcard:pl-6 transition-all duration-200")}>
+                     <div className={cn("pl-0 group-hover/taskcard:pl-6 transition-all duration-200")}>
                         {(task.labelIds && task.labelIds.length > 0) && (
                             <div className="flex flex-wrap gap-1 mb-2">
                                 {task.labelIds.map(labelId => {
@@ -1467,7 +1424,7 @@ export default function TasksPage() {
     
     return (
         <div className="container mx-auto px-4 py-8">
-            <PageHeader className="pb-4">
+             <PageHeader className="pb-4">
                 <div className="flex items-center justify-between">
                      <Popover open={isBoardSwitcherOpen} onOpenChange={setIsBoardSwitcherOpen}>
                         <PopoverTrigger asChild>
@@ -1601,11 +1558,6 @@ export default function TasksPage() {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onClick={() => setIsArchiveManagerOpen(true)}>
-                                        <Archive className="mr-2 h-4 w-4" />
-                                        <span>{t('tasks.archived.view_archived_items')}</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-amber-600 focus:bg-amber-100 focus:text-amber-700 dark:focus:bg-amber-900/40" onClick={() => handleArchiveBoard(activeBoard.id)} disabled={userPermissions !== 'owner'}>
                                         <Archive className="mr-2 h-4 w-4" />
                                         <span>{t('tasks.board.archive_board')}</span>
@@ -1630,7 +1582,6 @@ export default function TasksPage() {
                     </div>
                 </div>
             </PageHeader>
-
             <DragDropContext onDragEnd={onDragEnd}>
             {activeBoard ? (
                 <>
@@ -1700,6 +1651,7 @@ export default function TasksPage() {
                         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archive')}><Archive className="h-4 w-4" /></Button>
                         </div>
                     </div>
 
@@ -1714,33 +1666,12 @@ export default function TasksPage() {
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
                                                             <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab">
-                                                                {editingColumnId === column.id ? (
-                                                                    <Input
-                                                                        autoFocus
-                                                                        value={editingColumnTitle}
-                                                                        onChange={(e) => setEditingColumnTitle(e.target.value)}
-                                                                        onBlur={() => handleEditColumn(column.id, editingColumnTitle)}
-                                                                        onKeyDown={(e) => e.key === 'Enter' && handleEditColumn(column.id, editingColumnTitle)}
-                                                                    />
-                                                                ) : (
-                                                                    <h3 className="font-semibold" onClick={() => {
-                                                                        if (userPermissions !== 'viewer') {
-                                                                            setEditingColumnId(column.id);
-                                                                            setEditingColumnTitle(column.title);
-                                                                        }
-                                                                    }}>{column.title}</h3>
-                                                                )}
+                                                                <h3 className="font-semibold">{column.title}</h3>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
                                                                         <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
-                                                                        <DropdownMenuSub>
-                                                                            <DropdownMenuSubTrigger>{t('tasks.board.move_list')}</DropdownMenuSubTrigger>
-                                                                            <DropdownMenuPortal><DropdownMenuSubContent>
-                                                                                <DropdownMenuItem onClick={() => { setEditingColumnId(column.id); setMoveColumnPosition('before'); }} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_before')}</DropdownMenuItem>
-                                                                                <DropdownMenuItem onClick={() => { setEditingColumnId(column.id); setMoveColumnPosition('after'); }} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_after')}</DropdownMenuItem>
-                                                                            </DropdownMenuSubContent></DropdownMenuPortal>
-                                                                        </DropdownMenuSub>
+                                                                        <DropdownMenuItem onClick={() => handleOpenMoveColumnDialog(column)} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_list')}</DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
@@ -1790,7 +1721,7 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </Droppable>
-                    ) : (
+                    ) : viewMode === 'calendar' ? (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-2">
@@ -1820,6 +1751,49 @@ export default function TasksPage() {
                                 )})}
                             </div>
                         </div>
+                    ) : (
+                         <Card>
+                            <CardHeader>
+                                <CardTitle>{t('tasks.archived.view_archived_items')}</CardTitle>
+                                <CardDescription>{t('tasks.archived.manager_desc', { name: activeBoard.name })}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Tabs defaultValue="tasks" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="tasks">{t('tasks.archived.archived_tasks_title')}</TabsTrigger>
+                                        <TabsTrigger value="lists">{t('tasks.board.lists')}</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="tasks">
+                                        <div className="space-y-2 max-h-96 overflow-y-auto mt-4 border rounded-lg p-2">
+                                            {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).map(task => (
+                                                <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                                    <p className="font-medium line-through">{task.title}</p>
+                                                    <div className="flex gap-2">
+                                                        <Button variant="ghost" size="sm" onClick={() => handleRestoreTask(task.id)}> <ArchiveRestore className="mr-2 h-4 w-4" /> {t('tasks.archived.restore_button')}</Button>
+                                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTask(task.id, true)}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_tasks_title')}</p>}
+                                        </div>
+                                    </TabsContent>
+                                    <TabsContent value="lists">
+                                        <div className="space-y-2 max-h-96 overflow-y-auto mt-4 border rounded-lg p-2">
+                                            {activeBoard.columns.filter(c => c.isArchived).map(column => (
+                                                <div key={column.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                                    <p className="font-medium line-through">{column.title}</p>
+                                                    <div className="flex gap-2">
+                                                        <Button variant="ghost" size="sm" onClick={() => handleRestoreColumn(column.id)}><ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.archived.restore_button')}</Button>
+                                                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(activeBoard.columns.filter(c => c.isArchived).length || 0) === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_lists_title')}</p>}
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            </CardContent>
+                        </Card>
                     )}
                     </div>
                 </>
@@ -1904,8 +1878,7 @@ export default function TasksPage() {
                             })}
                         </div></div>
                         <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full"><PlusCircle className="mr-2 h-4 w-4"/>{t('tasks.dialog.share_search_placeholder')}</Button></PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command>
-                                <CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder={t('tasks.dialog.share_search_placeholder')} />
                                 <CommandList><CommandEmpty>{t('tasks.dialog.share_no_users_found')}</CommandEmpty><CommandGroup>
                                     {mockUsers.filter(u => u.id !== currentUser?.id && !(sharingBoard.sharedWith || []).some(s => s.userId === u.id)).map(user => (
                                         <CommandItem key={user.id} onSelect={() => handleShareUpdate(user.id, 'viewer')}>{user.name} ({user.email})</CommandItem>
@@ -2353,7 +2326,7 @@ export default function TasksPage() {
                                     <p className="text-sm text-muted-foreground">{t(`tasks.report_types.${report.type}`)} - {t('tasks.dialog.my_reports_next_run', { date: format(new Date(), "PP")})}</p>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" onClick={() => handleOpenReportDialog(report)}><Edit className="h-4 w-4"/></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => { setIsReportManagerOpen(false); handleOpenReportDialog(report); }}><Edit className="h-4 w-4"/></Button>
                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setReportToDelete(report)}><Trash2 className="h-4 w-4"/></Button>
                                 </div>
                             </div>
@@ -2362,49 +2335,41 @@ export default function TasksPage() {
                 </DialogContent>
             </Dialog>
 
-             <Dialog open={isArchiveManagerOpen} onOpenChange={setIsArchiveManagerOpen}>
+            <Dialog open={isMoveColumnDialogOpen} onOpenChange={handleCloseMoveColumnDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{t('tasks.archived.view_archived_items')}</DialogTitle>
-                        <DialogDescription>{t('tasks.archived.manager_desc', { name: activeBoard?.name })}</DialogDescription>
+                        <DialogTitle>{t('tasks.board.move_list_title')}</DialogTitle>
+                        <DialogDescription>{t('tasks.board.move_list_desc', { name: columnToMove?.title })}</DialogDescription>
                     </DialogHeader>
-                    <Tabs defaultValue="tasks" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                             <TabsTrigger value="tasks">{t('tasks.title')}</TabsTrigger>
-                             <TabsTrigger value="lists">{t('tasks.board.lists')}</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="tasks">
-                             <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
-                                {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).map(task => (
-                                    <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                                        <p className="font-medium line-through">{task.title}</p>
-                                        <div className="flex gap-2">
-                                            <Button variant="ghost" size="sm" onClick={() => { setTasks(tasks.map(t => t.id === task.id ? {...t, isArchived: false} : t)); toast({ title: t('tasks.toast.task_restored') }); }}> <ArchiveRestore className="mr-2 h-4 w-4" /> {t('tasks.archived.restore_button')}</Button>
-                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTask(task.id, true)}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
-                                        </div>
-                                    </div>
-                                ))}
-                                {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_tasks_title')}</p>}
-                            </div>
-                        </TabsContent>
-                         <TabsContent value="lists">
-                             <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
-                                {activeBoard?.columns.filter(c => c.isArchived).map(column => (
-                                    <div key={column.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                                        <p className="font-medium line-through">{column.title}</p>
-                                        <div className="flex gap-2">
-                                            <Button variant="ghost" size="sm" onClick={() => handleRestoreColumn(column.id)}><ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.archived.restore_button')}</Button>
-                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(activeBoard?.columns.filter(c => c.isArchived).length || 0) === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_lists_title')}</p>}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+                     <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                           <Label>{t('tasks.board.move_list_target_label')}</Label>
+                           <Select onValueChange={setMoveColumnTargetId} value={moveColumnTargetId || ""}>
+                               <SelectTrigger><SelectValue placeholder={t('tasks.board.move_list_select_placeholder')} /></SelectTrigger>
+                               <SelectContent>
+                                   {activeBoard?.columns.filter(c => !c.isArchived && c.id !== columnToMove?.id).map(c => (
+                                       <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                                   ))}
+                               </SelectContent>
+                           </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t('tasks.board.move_list_position_label')}</Label>
+                             <Select onValueChange={(v) => setMoveColumnPosition(v as 'before' | 'after')} value={moveColumnPosition}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="before">{t('tasks.board.move_before')}</SelectItem>
+                                    <SelectItem value="after">{t('tasks.board.move_after')}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={handleCloseMoveColumnDialog}>{t('common.cancel')}</Button>
+                        <Button onClick={handleMoveColumn} disabled={!moveColumnTargetId}>{t('tasks.board.move_list')}</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
-
 
             {reportToDelete && (
                 <AlertDialog open={!!reportToDelete} onOpenChange={() => setReportToDelete(null)}>
@@ -2450,34 +2415,8 @@ export default function TasksPage() {
                     <AlertDialogFooter><AlertDialogCancel onClick={() => setColumnToDelete(null)}>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={handleDeleteColumnPermanently}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                 </AlertDialog>
             )}
-
-            {editingColumnId && (
-                <Dialog open={!!editingColumnId} onOpenChange={() => setEditingColumnId(null)}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>{t('tasks.board.move_list_title')}</DialogTitle>
-                            <DialogDescription>{t('tasks.board.move_list_desc', { name: activeBoard?.columns.find(c => c.id === editingColumnId)?.title })}</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-2">
-                            <Label>{t('tasks.board.move_list_target_label')}</Label>
-                            <Select onValueChange={setMoveColumnTargetId}>
-                                <SelectTrigger><SelectValue placeholder={t('tasks.board.move_list_select_placeholder')} /></SelectTrigger>
-                                <SelectContent>
-                                    {activeBoard?.columns.filter(c => !c.isArchived && c.id !== editingColumnId).map(c => (
-                                        <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="ghost" onClick={() => setEditingColumnId(null)}>{t('common.cancel')}</Button>
-                            <Button onClick={handleMoveColumn}>{t('tasks.board.move_list')}</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
-
         </div>
     );
 }
+
 

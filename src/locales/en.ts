@@ -517,11 +517,11 @@ export const en = {
         move_list: 'Move List',
         move_list_title: 'Move List',
         move_list_desc: 'Move the list "{{name}}" to a new position.',
-        move_list_target_label: 'Target Position',
+        move_list_target_label: 'Target List',
         move_list_select_placeholder: 'Select a list...',
+        move_list_position_label: 'Position',
         move_before: 'Before this list',
         move_after: 'After this list',
-        move_list_button: 'Move List',
     },
     actions: {
         move_task: 'Move Task',

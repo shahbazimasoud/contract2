@@ -1,17 +1,18 @@
 
 
+export type Reaction = {
+    emoji: string;
+    userId: string;
+    userName: string;
+};
+
 export type Comment = {
   id: string;
   text: string;
   author: string;
   authorId: string;
   createdAt: string;
-};
-
-export type Reaction = {
-    emoji: string;
-    userId: string;
-    userName: string;
+  reactions?: Reaction[];
 };
 
 export type ContractVersion = {

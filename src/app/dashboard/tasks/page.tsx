@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { DropResult } from "react-beautiful-dnd";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -114,7 +114,7 @@ const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
-type ViewMode = 'board' | 'calendar' | 'archived-tasks';
+type ViewMode = 'board' | 'calendar';
 type BoardViewMode = 'active' | 'archived';
 
 
@@ -126,6 +126,7 @@ const checklistItemSchema = z.object({
 
 const taskSchema = z.object({
     title: z.string().min(1, "Title is required"),
+    isCompleted: z.boolean(),
     description: z.string().optional(),
     unit: z.string().min(1, "Unit is required"),
     columnId: z.string().min(1, "A list must be selected"),
@@ -200,10 +201,15 @@ export default function TasksPage() {
     const [isReportManagerOpen, setIsReportManagerOpen] = useState(false);
     const [reportToDelete, setReportToDelete] = useState<ScheduledReport | null>(null);
     const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
+    const [isArchiveManagerOpen, setIsArchiveManagerOpen] = useState(false);
+
     
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [editingColumnTitle, setEditingColumnTitle] = useState("");
     const [showAddColumnForm, setShowAddColumnForm] = useState(false);
+    const [moveColumnTargetId, setMoveColumnTargetId] = useState<string | null>(null);
+    const [moveColumnPosition, setMoveColumnPosition] = useState<'before' | 'after'>('after');
+
 
 
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -243,6 +249,7 @@ export default function TasksPage() {
         resolver: zodResolver(taskSchema),
         defaultValues: {
             title: "",
+            isCompleted: false,
             description: "",
             unit: "",
             columnId: "",
@@ -312,7 +319,7 @@ export default function TasksPage() {
     
     const userBoards = useMemo(() => {
         if (!currentUser) return [];
-        if (currentUser.role === 'super-admin') return boards;
+        if (currentUser.role === 'super-admin') return boards.filter(b => !b.isArchived);
         return boards.filter(board => 
             !board.isArchived &&
             (board.ownerId === currentUser.id || board.sharedWith?.some(s => s.userId === currentUser.id))
@@ -329,6 +336,8 @@ export default function TasksPage() {
             setActiveBoardId(userBoards[0].id);
         } else if (boardViewMode === 'archived' && archivedBoards.length > 0 && (!activeBoardId || !archivedBoards.find(b => b.id === activeBoardId))) {
             setActiveBoardId(archivedBoards[0].id);
+        } else if (userBoards.length === 0 && archivedBoards.length === 0) {
+            setActiveBoardId(null);
         }
     }, [userBoards, archivedBoards, activeBoardId, boardViewMode]);
 
@@ -369,6 +378,7 @@ export default function TasksPage() {
         if (editingTask) {
             form.reset({
                 title: editingTask.title,
+                isCompleted: editingTask.isCompleted,
                 description: editingTask.description,
                 unit: editingTask.unit,
                 columnId: editingTask.columnId,
@@ -383,6 +393,7 @@ export default function TasksPage() {
         } else {
             form.reset({
                 title: "",
+                isCompleted: false,
                 description: "",
                 unit: defaultUnit,
                 columnId: form.getValues('columnId') || activeColumns?.[0]?.id || "",
@@ -487,6 +498,7 @@ export default function TasksPage() {
         if (!task && columnId && activeBoard && currentUser) {
             form.setValue('columnId', columnId);
             form.setValue('unit', currentUser.unit);
+            form.setValue('isCompleted', false);
         }
         setIsTaskDialogOpen(true);
     };
@@ -602,7 +614,6 @@ export default function TasksPage() {
                 recurrence: { type: 'none', time: '09:00'}, 
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
                 isArchived: false,
-                isCompleted: false,
                 comments: [],
                 checklist: values.checklist || [],
                 logs: [createLogEntry('created', { title: values.title })],
@@ -642,25 +653,27 @@ export default function TasksPage() {
         });
     };
 
-    const handleDeleteTask = (taskId: string) => {
+    const handleDeleteTask = (taskId: string, fromArchive = false) => {
         const taskToDelete = tasks.find(t => t.id === taskId);
         if (!taskToDelete) return;
         
         setTasks(tasks.filter(t => t.id !== taskId));
         
-        const updatedBoards = boards.map(b => {
-            if (b.id === taskToDelete.boardId) {
-                return {
-                    ...b,
-                    columns: b.columns.map(col => ({
-                        ...col,
-                        taskIds: (col.taskIds || []).filter(id => id !== taskId)
-                    }))
-                };
-            }
-            return b;
-        });
-        setBoards(updatedBoards);
+        if (!fromArchive) {
+            const updatedBoards = boards.map(b => {
+                if (b.id === taskToDelete.boardId) {
+                    return {
+                        ...b,
+                        columns: b.columns.map(col => ({
+                            ...col,
+                            taskIds: (col.taskIds || []).filter(id => id !== taskId)
+                        }))
+                    };
+                }
+                return b;
+            });
+            setBoards(updatedBoards);
+        }
         
         toast({
             title: t('tasks.toast.task_deleted_title'),
@@ -668,7 +681,9 @@ export default function TasksPage() {
             variant: "destructive"
         });
         setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
-        handleCloseDetailsSheet();
+        if (isDetailsSheetOpen && selectedTaskForDetails?.id === taskId) {
+            handleCloseDetailsSheet();
+        }
     };
     
     const handleMoveTask = () => {
@@ -789,6 +804,7 @@ export default function TasksPage() {
     const handleArchiveBoard = (boardId: string) => {
         setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: true } : b));
         setActiveBoardId(null);
+        setBoardViewMode('active'); // Switch back to active boards view
         toast({ title: t('tasks.toast.board_archived_title') });
     };
 
@@ -809,10 +825,10 @@ export default function TasksPage() {
         if (activeBoardId === boardId) {
             const nextBoard = archivedBoards.find(b => b.id !== boardId) || userBoards[0];
             setActiveBoardId(nextBoard?.id || null);
-            if (!nextBoard || nextBoard.isArchived) {
-              setBoardViewMode('archived')
-            } else {
+            if (!nextBoard || !nextBoard.isArchived) {
               setBoardViewMode('active')
+            } else {
+              setBoardViewMode('archived')
             }
         }
         
@@ -857,6 +873,30 @@ export default function TasksPage() {
         setEditingColumnId(null);
         toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: newTitle })});
     };
+
+    const handleMoveColumn = () => {
+        if (!activeBoard || !editingColumnId || !moveColumnTargetId) return;
+    
+        const columns = [...activeBoard.columns];
+        const sourceIndex = columns.findIndex(c => c.id === editingColumnId);
+        const targetIndex = columns.findIndex(c => c.id === moveColumnTargetId);
+        if (sourceIndex === -1 || targetIndex === -1) return;
+    
+        const [movedColumn] = columns.splice(sourceIndex, 1);
+        const newTargetIndex = columns.findIndex(c => c.id === moveColumnTargetId);
+    
+        if (moveColumnPosition === 'before') {
+            columns.splice(newTargetIndex, 0, movedColumn);
+        } else {
+            columns.splice(newTargetIndex + 1, 0, movedColumn);
+        }
+    
+        const updatedBoard = { ...activeBoard, columns };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        
+        toast({ title: t('tasks.toast.list_moved_title') });
+        setEditingColumnId(null);
+    };
     
     const handleArchiveColumn = (columnId: string) => {
         if (!activeBoard) return;
@@ -866,7 +906,9 @@ export default function TasksPage() {
         };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
 
-        const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: true } : t);
+        // Archive tasks within the column
+        const taskIdsToArchive = activeBoard.columns.find(c => c.id === columnId)?.taskIds || [];
+        const updatedTasks = tasks.map(t => taskIdsToArchive.includes(t.id) ? { ...t, isArchived: true } : t);
         setTasks(updatedTasks);
         
         toast({ title: t('tasks.toast.list_archived_title'), description: t('tasks.toast.list_archived_desc') });
@@ -880,7 +922,9 @@ export default function TasksPage() {
         };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
 
-        const updatedTasks = tasks.map(t => t.columnId === columnId ? { ...t, isArchived: false } : t);
+        // Restore tasks within the column
+        const taskIdsToRestore = activeBoard.columns.find(c => c.id === columnId)?.taskIds || [];
+        const updatedTasks = tasks.map(t => taskIdsToRestore.includes(t.id) ? { ...t, isArchived: false } : t);
         setTasks(updatedTasks);
         
         toast({ title: t('tasks.toast.list_restored_title'), description: t('tasks.toast.list_restored_desc') });
@@ -1157,13 +1201,13 @@ export default function TasksPage() {
                 let newReactions = [...(task.reactions || [])];
                 const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
 
-                if (userReactionIndex > -1) {
-                    if (newReactions[userReactionIndex].emoji === emoji) {
-                        newReactions.splice(userReactionIndex, 1);
-                    } else {
-                        newReactions[userReactionIndex] = { emoji, userId: currentUser.id, userName: currentUser.name };
+                if (userReactionIndex > -1) { // User has reacted before
+                    if (newReactions[userReactionIndex].emoji === emoji) { // Clicked the same emoji
+                        newReactions.splice(userReactionIndex, 1); // Remove reaction
+                    } else { // Clicked a different emoji
+                        newReactions[userReactionIndex].emoji = emoji; // Change reaction
                     }
-                } else {
+                } else { // First reaction by this user
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
 
@@ -1176,6 +1220,34 @@ export default function TasksPage() {
             return task;
         }));
     };
+    
+    const handleAddCommentReaction = (commentId: string, emoji: string) => {
+        if (!currentUser || !selectedTaskForDetails) return;
+
+        const updatedComments = (selectedTaskForDetails.comments || []).map(comment => {
+            if (comment.id === commentId) {
+                let newReactions = [...(comment.reactions || [])];
+                const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
+
+                 if (userReactionIndex > -1) {
+                    if (newReactions[userReactionIndex].emoji === emoji) {
+                        newReactions.splice(userReactionIndex, 1);
+                    } else {
+                        newReactions[userReactionIndex].emoji = emoji;
+                    }
+                } else {
+                    newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
+                }
+                return { ...comment, reactions: newReactions };
+            }
+            return comment;
+        });
+        
+        const updatedTask = { ...selectedTaskForDetails, comments: updatedComments };
+        setSelectedTaskForDetails(updatedTask);
+        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+    };
+
     
     const handleOpenDetailsSheet = (task: Task) => {
         setSelectedTaskForDetails(task);
@@ -1203,7 +1275,10 @@ export default function TasksPage() {
 
         return (
              <Card
-                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative", task.isCompleted && "border-l-4 border-l-green-500")}
+                className={cn(
+                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
+                    task.isCompleted && "border-l-4 border-green-500"
+                )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
                 <button
@@ -1213,14 +1288,24 @@ export default function TasksPage() {
                     }}
                     className={cn(
                         "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover/taskcard:opacity-100",
-                        task.isCompleted && "opacity-100 border-green-500 bg-green-500",
+                        task.isCompleted ? "opacity-100 border-green-500 bg-green-500" : "border-muted-foreground/50",
                     )}
                 >
                     <Check className={cn("h-4 w-4 text-white transform scale-0 transition-transform", task.isCompleted && "animate-check-pop")} />
                 </button>
 
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenTaskDialog(task, task.columnId);
+                    }}
+                    className="absolute top-1 right-1 h-7 w-7 rounded-md flex items-center justify-center transition-opacity opacity-0 group-hover/taskcard:opacity-100 hover:bg-muted"
+                >
+                    <Edit className="h-4 w-4 text-muted-foreground" />
+                </button>
+
                 <CardContent className="p-3">
-                    <div className={cn("pl-2 group-hover/taskcard:pl-8 transition-all duration-200")}>
+                    <div className={cn("pl-0 group-hover/taskcard:pl-6 transition-all duration-200")}>
                         {(task.labelIds && task.labelIds.length > 0) && (
                             <div className="flex flex-wrap gap-1 mb-2">
                                 {task.labelIds.map(labelId => {
@@ -1237,7 +1322,7 @@ export default function TasksPage() {
                         <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-3 pl-2 group-hover/taskcard:pl-8 transition-all duration-200">
+                    <div className="flex items-center justify-between mt-3 pl-0 group-hover/taskcard:pl-6 transition-all duration-200">
                         <div className="flex items-center -space-x-2">
                             {(task.assignees || []).map(id => {
                                 const user = usersOnBoard.find(u => u.id === id);
@@ -1262,14 +1347,14 @@ export default function TasksPage() {
                             {(task.checklist?.length || 0) > 0 && (
                                  <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
                             )}
-                            <span className={cn("flex items-center gap-1", dueDateColor)}>
+                             <span className={cn("flex items-center gap-1", dueDateColor)}>
                                 <CalendarIcon className="h-3 w-3" />
                                 {format(new Date(task.dueDate), 'MMM d')}
                             </span>
                         </div>
                     </div>
                      
-                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-2 group-hover/taskcard:pl-8 transition-all duration-200">
+                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-0 group-hover/taskcard:pl-6 transition-all duration-200">
                         {Object.entries(groupedReactions).map(([emoji, count]) => {
                              const userHasReacted = task.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji);
                              return (
@@ -1326,13 +1411,7 @@ export default function TasksPage() {
 
     const filteredTasks = useMemo(() => {
         if (!activeBoard) return [];
-        let baseTasks = tasks.filter(t => t.boardId === activeBoard.id);
-
-        if (viewMode === 'archived-tasks') {
-             baseTasks = baseTasks.filter(t => t.isArchived);
-        } else {
-            baseTasks = baseTasks.filter(t => !t.isArchived);
-        }
+        let baseTasks = tasks.filter(t => t.boardId === activeBoard.id && !t.isArchived);
         
         if (searchTerm) {
             baseTasks = baseTasks.filter(
@@ -1349,7 +1428,7 @@ export default function TasksPage() {
         }
 
         return baseTasks;
-  }, [tasks, searchTerm, filters, viewMode, activeBoard]);
+  }, [tasks, searchTerm, filters, activeBoard]);
 
 
     const calendarDays = useMemo(() => {
@@ -1522,9 +1601,9 @@ export default function TasksPage() {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
-                                     <DropdownMenuItem onClick={() => setViewMode('archived-tasks')}>
+                                     <DropdownMenuItem onClick={() => setIsArchiveManagerOpen(true)}>
                                         <Archive className="mr-2 h-4 w-4" />
-                                        <span>{t('tasks.archived.view_archived_tasks')}</span>
+                                        <span>{t('tasks.archived.view_archived_items')}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-amber-600 focus:bg-amber-100 focus:text-amber-700 dark:focus:bg-amber-900/40" onClick={() => handleArchiveBoard(activeBoard.id)} disabled={userPermissions !== 'owner'}>
@@ -1655,6 +1734,13 @@ export default function TasksPage() {
                                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
                                                                         <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
+                                                                        <DropdownMenuSub>
+                                                                            <DropdownMenuSubTrigger>{t('tasks.board.move_list')}</DropdownMenuSubTrigger>
+                                                                            <DropdownMenuPortal><DropdownMenuSubContent>
+                                                                                <DropdownMenuItem onClick={() => { setEditingColumnId(column.id); setMoveColumnPosition('before'); }} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_before')}</DropdownMenuItem>
+                                                                                <DropdownMenuItem onClick={() => { setEditingColumnId(column.id); setMoveColumnPosition('after'); }} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_after')}</DropdownMenuItem>
+                                                                            </DropdownMenuSubContent></DropdownMenuPortal>
+                                                                        </DropdownMenuSub>
                                                                         <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
                                                                     </DropdownMenuContent>
                                                                 </DropdownMenu>
@@ -1704,7 +1790,7 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </Droppable>
-                    ) : viewMode === 'calendar' ? (
+                    ) : (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-2">
@@ -1732,40 +1818,6 @@ export default function TasksPage() {
                                         </div>
                                     </div>
                                 )})}
-                            </div>
-                        </div>
-                    ) : ( // Archived Tasks View
-                        <div>
-                            <h2 className="text-xl font-semibold mb-4">{t('tasks.archived.archived_tasks_title')}</h2>
-                            <div className="space-y-2">
-                                {filteredTasks.length > 0 ? (
-                                    filteredTasks.map(task => (
-                                        <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/60">
-                                            <div>
-                                                <p className="font-medium line-through">{task.title}</p>
-                                                <p className="text-sm text-muted-foreground">{t('tasks.archived.archived_on', { date: 'a while ago' })}</p>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button variant="ghost" size="sm" onClick={() => {
-                                                    setTasks(tasks.map(t => t.id === task.id ? {...t, isArchived: false} : t));
-                                                    toast({ title: t('tasks.toast.task_restored') });
-                                                }}>
-                                                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                                                    {t('tasks.archived.restore_button')}
-                                                </Button>
-                                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTask(task.id)}>
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    {t('tasks.archived.delete_permanently_button')}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        <Archive className="mx-auto h-12 w-12" />
-                                        <p className="mt-4">{t('tasks.archived.no_archived_tasks_title')}</p>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}
@@ -1870,6 +1922,7 @@ export default function TasksPage() {
                  <DialogContent className="sm:max-w-xl">
                      <DialogHeader><DialogTitle>{editingTask ? t('tasks.dialog.task_edit_title') : t('tasks.dialog.task_add_title')}</DialogTitle><DialogDescription>{t('tasks.dialog.task_add_desc')}</DialogDescription></DialogHeader>
                      <Form {...form}><form onSubmit={form.handleSubmit(onTaskSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <FormField control={form.control} name="isCompleted" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 space-y-0"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>{t('tasks.dialog.mark_as_complete')}</FormLabel></FormItem>)}/>
                         <FormField name="title" control={form.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.title_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.title_placeholder')} /></FormControl><FormMessage/></FormItem>)}/>
                         <FormField name="description" control={form.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.description_label')}</FormLabel><FormControl><Textarea {...field} placeholder={t('tasks.dialog.description_placeholder')} /></FormControl><FormMessage/></FormItem>)}/>
                         <div className="grid grid-cols-2 gap-4">
@@ -2173,7 +2226,28 @@ export default function TasksPage() {
                                                                 {formatDistance(new Date(comment.createdAt), new Date())}
                                                             </p>
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1">{comment.text}</p>
+                                                        <div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1 space-y-2">
+                                                            <p>{comment.text}</p>
+                                                             <div className="flex items-center gap-1 border-t pt-2 -mx-3 px-3">
+                                                                {Object.entries((comment.reactions || []).reduce((acc, r) => {
+                                                                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                                                    return acc;
+                                                                }, {} as Record<string, number>)).map(([emoji, count]) => {
+                                                                    const userHasReacted = (comment.reactions || []).some(r => r.userId === currentUser?.id && r.emoji === emoji);
+                                                                    return (<TooltipProvider key={emoji}><Tooltip><TooltipTrigger asChild>
+                                                                        <button onClick={() => handleAddCommentReaction(comment.id, emoji)} className={cn("flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs", userHasReacted ? 'border-primary bg-primary/20' : 'border-border bg-transparent hover:bg-muted')}>
+                                                                            <span>{emoji}</span> <span>{count}</span>
+                                                                        </button>
+                                                                    </TooltipTrigger><TooltipContent><p>{(comment.reactions || []).filter(r => r.emoji === emoji).map(r => r.userName).join(', ')}</p></TooltipContent></Tooltip></TooltipProvider>)
+                                                                })}
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild><Button size="icon" variant="ghost" className="h-6 w-6 rounded-full"><SmilePlus className="h-3 w-3"/></Button></PopoverTrigger>
+                                                                    <PopoverContent className="w-auto p-1"><div className="flex gap-1">
+                                                                        {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleAddCommentReaction(comment.id, emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
+                                                                    </div></PopoverContent>
+                                                                </Popover>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )
@@ -2264,6 +2338,80 @@ export default function TasksPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+            
+            <Dialog open={isReportManagerOpen} onOpenChange={setIsReportManagerOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('tasks.dialog.my_reports_title')}</DialogTitle>
+                        <DialogDescription>{t('tasks.dialog.my_reports_desc', { name: activeBoard?.name })}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {scheduledReports.filter(r => r.boardId === activeBoardId && (currentUser?.role === 'super-admin' || r.createdBy === currentUser?.id)).map(report => (
+                            <div key={report.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                <div>
+                                    <p className="font-semibold">{report.name}</p>
+                                    <p className="text-sm text-muted-foreground">{t(`tasks.report_types.${report.type}`)} - {t('tasks.dialog.my_reports_next_run', { date: format(new Date(), "PP")})}</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => handleOpenReportDialog(report)}><Edit className="h-4 w-4"/></Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setReportToDelete(report)}><Trash2 className="h-4 w-4"/></Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+             <Dialog open={isArchiveManagerOpen} onOpenChange={setIsArchiveManagerOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('tasks.archived.view_archived_items')}</DialogTitle>
+                        <DialogDescription>{t('tasks.archived.manager_desc', { name: activeBoard?.name })}</DialogDescription>
+                    </DialogHeader>
+                    <Tabs defaultValue="tasks" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                             <TabsTrigger value="tasks">{t('tasks.title')}</TabsTrigger>
+                             <TabsTrigger value="lists">{t('tasks.board.lists')}</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="tasks">
+                             <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
+                                {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).map(task => (
+                                    <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                        <p className="font-medium line-through">{task.title}</p>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="sm" onClick={() => { setTasks(tasks.map(t => t.id === task.id ? {...t, isArchived: false} : t)); toast({ title: t('tasks.toast.task_restored') }); }}> <ArchiveRestore className="mr-2 h-4 w-4" /> {t('tasks.archived.restore_button')}</Button>
+                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTask(task.id, true)}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_tasks_title')}</p>}
+                            </div>
+                        </TabsContent>
+                         <TabsContent value="lists">
+                             <div className="space-y-2 max-h-96 overflow-y-auto mt-4">
+                                {activeBoard?.columns.filter(c => c.isArchived).map(column => (
+                                    <div key={column.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                                        <p className="font-medium line-through">{column.title}</p>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="sm" onClick={() => handleRestoreColumn(column.id)}><ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.archived.restore_button')}</Button>
+                                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />{t('tasks.archived.delete_permanently_button')}</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(activeBoard?.columns.filter(c => c.isArchived).length || 0) === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_lists_title')}</p>}
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
+
+            {reportToDelete && (
+                <AlertDialog open={!!reportToDelete} onOpenChange={() => setReportToDelete(null)}>
+                    <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{t('tasks.dialog.delete_report_title')}</AlertDialogTitle><AlertDialogDescription>{t('tasks.dialog.delete_report_desc', { name: reportToDelete.name })}</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={handleDeleteReport}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                </AlertDialog>
+            )}
 
             <Dialog open={isCopyColumnDialogOpen} onOpenChange={handleCloseCopyColumnDialog}>
                 <DialogContent className="sm:max-w-md">
@@ -2302,6 +2450,34 @@ export default function TasksPage() {
                     <AlertDialogFooter><AlertDialogCancel onClick={() => setColumnToDelete(null)}>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={handleDeleteColumnPermanently}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                 </AlertDialog>
             )}
+
+            {editingColumnId && (
+                <Dialog open={!!editingColumnId} onOpenChange={() => setEditingColumnId(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{t('tasks.board.move_list_title')}</DialogTitle>
+                            <DialogDescription>{t('tasks.board.move_list_desc', { name: activeBoard?.columns.find(c => c.id === editingColumnId)?.title })}</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-2">
+                            <Label>{t('tasks.board.move_list_target_label')}</Label>
+                            <Select onValueChange={setMoveColumnTargetId}>
+                                <SelectTrigger><SelectValue placeholder={t('tasks.board.move_list_select_placeholder')} /></SelectTrigger>
+                                <SelectContent>
+                                    {activeBoard?.columns.filter(c => !c.isArchived && c.id !== editingColumnId).map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setEditingColumnId(null)}>{t('common.cancel')}</Button>
+                            <Button onClick={handleMoveColumn}>{t('tasks.board.move_list')}</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
         </div>
     );
 }
+

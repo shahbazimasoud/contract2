@@ -627,7 +627,7 @@ export default function TasksPage() {
         );
         setTasks(updatedTasks);
         if (selectedTaskForDetails?.id === taskId) {
-            setSelectedTaskForDetails(prev => prev ? {...prev, isCompleted} : null);
+            setSelectedTaskForDetails(prev => prev ? {...prev, isCompleted, logs: [...(prev.logs || []), log]} : null);
         }
         toast({
             title: isCompleted ? t('tasks.toast.task_completed_title') : t('tasks.toast.task_incomplete_title'),
@@ -1175,11 +1175,11 @@ export default function TasksPage() {
 
         return (
             <Card
-                className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard"
+                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard", task.isCompleted && "bg-secondary/50 dark:bg-slate-800/50 opacity-70")}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
                 <CardContent className="p-3 relative">
-                     <div className="absolute top-1 right-1 opacity-0 group-hover/taskcard:opacity-100 transition-opacity">
+                     <div className="absolute top-1 right-1 opacity-0 group-hover/taskcard:opacity-100 transition-opacity z-10">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
@@ -1187,6 +1187,10 @@ export default function TasksPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                              <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                 <DropdownMenuItem onClick={() => handleToggleTaskCompletion(task.id, !task.isCompleted)}>
+                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                    <span>{task.isCompleted ? t('tasks.toast.task_incomplete_title') : t('tasks.toast.task_completed_title')}</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>{t('common.edit')}</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
@@ -1210,7 +1214,7 @@ export default function TasksPage() {
                         </div>
                     )}
 
-                    <p className="font-semibold text-sm text-card-foreground pr-8">{task.title}</p>
+                    <p className={cn("font-semibold text-sm text-card-foreground pr-8", task.isCompleted && "line-through")}>{task.title}</p>
                     
                     <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center -space-x-2">
@@ -1384,10 +1388,10 @@ export default function TasksPage() {
                             <div className="flex items-center gap-3 cursor-pointer">
                                 <span className="w-8 h-8 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
                                 <div>
-                                    <h1 className="text-2xl font-bold leading-tight tracking-tighter">{activeBoard?.name || t('tasks.select_board')}</h1>
+                                    <h1 className="text-xl font-bold leading-tight tracking-tighter">{activeBoard?.name || t('tasks.select_board')}</h1>
                                 </div>
                                 <div className="flex items-center -space-x-2">
-                                    {(activeBoard?.sharedWith || []).map(share => {
+                                    {(activeBoard?.sharedWith || []).slice(0,3).map(share => {
                                         const user = mockUsers.find(u => u.id === share.userId);
                                         return user ? (
                                             <TooltipProvider key={user.id}>
@@ -1405,6 +1409,16 @@ export default function TasksPage() {
                                             </TooltipProvider>
                                         ) : null
                                     })}
+                                    {(activeBoard?.sharedWith?.length || 0) > 3 && (
+                                         <TooltipProvider><Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Avatar className="h-6 w-6 border-2 border-background"><AvatarFallback>+{(activeBoard?.sharedWith?.length || 0) - 3}</AvatarFallback></Avatar>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{(activeBoard?.sharedWith || []).slice(3).map(s => mockUsers.find(u => u.id === s.userId)?.name).join(', ')}</p>
+                                            </TooltipContent>
+                                         </Tooltip></TooltipProvider>
+                                    )}
                                 </div>
                                 <ChevronsUpDown className="h-5 w-5 text-muted-foreground" />
                             </div>
@@ -1495,6 +1509,7 @@ export default function TasksPage() {
                 </div>
             </PageHeader>
 
+            <DragDropContext onDragEnd={onDragEnd}>
             {activeBoard ? (
                 <>
                     <div className="flex items-center justify-between mb-4">
@@ -1544,8 +1559,7 @@ export default function TasksPage() {
                                                 <>
                                                     <Separator />
                                                     <CommandGroup>
-                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive">
-                                                            <X className="mr-2 h-4 w-4" />
+                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive justify-center">
                                                             {t('contracts.filter.clear_button')}
                                                         </CommandItem>
                                                     </CommandGroup>
@@ -1628,7 +1642,6 @@ export default function TasksPage() {
                             </Table>
                         </div>
                     ) : viewMode === 'board' ? (
-                        <DragDropContext onDragEnd={onDragEnd}>
                             <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
@@ -1655,7 +1668,7 @@ export default function TasksPage() {
                                                                     }}>{column.title}</h3>
                                                                 )}
                                                                 <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
                                                                         <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
                                                                         <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
@@ -1710,7 +1723,6 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </Droppable>
-                        </DragDropContext>
                     ) : viewMode === 'calendar' ? (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
@@ -1780,6 +1792,7 @@ export default function TasksPage() {
                     </Button>
                 </div>
             )}
+            </DragDropContext>
             
             <Dialog open={isBoardDialogOpen} onOpenChange={handleCloseBoardDialog}>
                  <DialogContent>
@@ -2024,11 +2037,23 @@ export default function TasksPage() {
                      {selectedTaskForDetails && (
                         <>
                             <SheetHeader>
-                                <SheetTitle>{t('tasks.details.title', { name: selectedTaskForDetails.title })}</SheetTitle>
+                                <SheetTitle className={cn(selectedTaskForDetails.isCompleted && "line-through")}>
+                                  {t('tasks.details.title', { name: selectedTaskForDetails.title })}
+                                </SheetTitle>
                                 <SheetDescription>
                                     {t('tasks.details.task_in_list', { list: activeBoard?.columns.find(c => c.id === selectedTaskForDetails.columnId)?.title, board: activeBoard?.name })}
                                 </SheetDescription>
                             </SheetHeader>
+                             <div className="p-4 border-b">
+                                <Button 
+                                    onClick={() => handleToggleTaskCompletion(selectedTaskForDetails.id, !selectedTaskForDetails.isCompleted)}
+                                    className="w-full"
+                                    variant={selectedTaskForDetails.isCompleted ? "secondary" : "default"}
+                                >
+                                    <CheckCircle className="mr-2 h-4 w-4"/>
+                                    {selectedTaskForDetails.isCompleted ? t('tasks.toast.task_incomplete_title') : t('tasks.toast.task_completed_title')}
+                                </Button>
+                            </div>
                             <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
                                 <TabsList className="grid w-full grid-cols-3">
                                     <TabsTrigger value="details">{t('tasks.details.tabs.details')}</TabsTrigger>

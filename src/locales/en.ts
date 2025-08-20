@@ -479,9 +479,8 @@ export const en = {
     view_modes: {
         board: 'Board',
         calendar: 'Calendar',
-        archived: 'Archived',
-        active_boards: 'Active Boards',
         archived_boards: 'Archived Boards',
+        active_boards: 'Active Boards',
     },
     export_selected: 'Export Selected ({{count}})',
     search_placeholder: 'Search tasks by title...',
@@ -530,6 +529,10 @@ export const en = {
         no_archived_lists_desc: 'You can archive lists from the board view.',
         archived_board_view_title: 'Archived Board: {{name}}',
         archived_board_view_desc: 'This board is archived. To make changes, restore it first.',
+        view_archived_tasks: 'View Archived Tasks',
+        archived_tasks_title: 'Archived Tasks',
+        no_archived_tasks_title: 'No Archived Tasks',
+        archived_on: 'Archived on {{date}}',
     },
     priority: {
         low: 'Low',
@@ -759,6 +762,7 @@ export const en = {
         label_created: 'Label "{{name}}" created.',
         label_updated: 'Label "{{name}}" updated.',
         label_deleted: 'Label deleted.',
+        task_restored: 'Task restored.',
     },
     column_titles: {
         todo: 'To Do',

@@ -153,11 +153,14 @@
   }
 }
 
-@layer components {
-  .dragging-card {
-    @apply opacity-75 scale-105 rotate-2 shadow-2xl;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  }
+@layer utilities {
+    @keyframes check-pop {
+        0% { transform: scale(0); }
+        80% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+    .animate-check-pop {
+        animation: check-pop 0.3s ease-out;
+    }
 }
-
     

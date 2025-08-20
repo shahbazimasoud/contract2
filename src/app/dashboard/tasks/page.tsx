@@ -114,7 +114,7 @@ const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
-type ViewMode = 'board' | 'calendar';
+type ViewMode = 'board' | 'calendar' | 'archived-tasks';
 type BoardViewMode = 'active' | 'archived';
 
 
@@ -1158,16 +1158,12 @@ export default function TasksPage() {
                 const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
 
                 if (userReactionIndex > -1) {
-                    // User already has a reaction
                     if (newReactions[userReactionIndex].emoji === emoji) {
-                        // It's the same emoji, so remove it (toggle off)
                         newReactions.splice(userReactionIndex, 1);
                     } else {
-                        // It's a different emoji, replace the old one
                         newReactions[userReactionIndex] = { emoji, userId: currentUser.id, userName: currentUser.name };
                     }
                 } else {
-                    // User has no reaction, add the new one
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
 
@@ -1199,15 +1195,15 @@ export default function TasksPage() {
         }, {} as Record<string, number>);
         
         const daysToDue = differenceInDays(new Date(task.dueDate), new Date());
-        const dueDateColor = daysToDue < 0
-          ? "text-red-500"
-          : daysToDue < 7
-          ? "text-orange-500"
-          : "text-muted-foreground";
+        let dueDateColor = "text-muted-foreground";
+        if (!task.isCompleted) {
+            dueDateColor = daysToDue < 0 ? "text-red-500" : daysToDue < 7 ? "text-orange-500" : "text-muted-foreground";
+        }
+
 
         return (
              <Card
-                className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
+                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative", task.isCompleted && "border-l-4 border-l-green-500")}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
                 <button
@@ -1217,51 +1213,31 @@ export default function TasksPage() {
                     }}
                     className={cn(
                         "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover/taskcard:opacity-100",
-                        task.isCompleted && "opacity-100",
+                        task.isCompleted && "opacity-100 border-green-500 bg-green-500",
                     )}
                 >
-                    <Check className={cn("h-4 w-4 text-green-500 opacity-0 transition-opacity", task.isCompleted && "opacity-100 scale-125 animate-in zoom-in-50")} />
+                    <Check className={cn("h-4 w-4 text-white transform scale-0 transition-transform", task.isCompleted && "animate-check-pop")} />
                 </button>
 
                 <CardContent className="p-3">
-                     <div className="absolute top-1 right-1 opacity-0 group-hover/taskcard:opacity-100 transition-opacity z-10">
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                             <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                                 <DropdownMenuItem onClick={() => handleToggleTaskCompletion(task.id, !task.isCompleted)}>
-                                    <CheckCircle className="mr-2 h-4 w-4"/>
-                                    <span>{task.isCompleted ? t('tasks.toast.task_incomplete_title') : t('tasks.toast.task_completed_title')}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>{t('common.edit')}</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExportSelected()}>{t('tasks.actions.add_to_calendar')}</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTask(task.id)}>{t('common.delete')}</DropdownMenuItem>
-                            </DropdownMenuContent>
-                         </DropdownMenu>
+                    <div className={cn("pl-2 group-hover/taskcard:pl-8 transition-all duration-200")}>
+                        {(task.labelIds && task.labelIds.length > 0) && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                                {task.labelIds.map(labelId => {
+                                    const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                    if (!label) return null;
+                                    return (
+                                        <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
+                                            {label.text}
+                                        </Badge>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
                     </div>
-
-                    {(task.labelIds && task.labelIds.length > 0) && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                            {task.labelIds.map(labelId => {
-                                const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                if (!label) return null;
-                                return (
-                                    <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
-                                        {label.text}
-                                    </Badge>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    <p className="font-semibold text-sm text-card-foreground pr-8 pl-5">{task.title}</p>
                     
-                    <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center justify-between mt-3 pl-2 group-hover/taskcard:pl-8 transition-all duration-200">
                         <div className="flex items-center -space-x-2">
                             {(task.assignees || []).map(id => {
                                 const user = usersOnBoard.find(u => u.id === id);
@@ -1293,7 +1269,7 @@ export default function TasksPage() {
                         </div>
                     </div>
                      
-                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-2 group-hover/taskcard:pl-8 transition-all duration-200">
                         {Object.entries(groupedReactions).map(([emoji, count]) => {
                              const userHasReacted = task.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji);
                              return (
@@ -1352,10 +1328,10 @@ export default function TasksPage() {
         if (!activeBoard) return [];
         let baseTasks = tasks.filter(t => t.boardId === activeBoard.id);
 
-        if (viewMode !== 'archived') {
-            baseTasks = baseTasks.filter(t => !t.isArchived);
-        } else {
+        if (viewMode === 'archived-tasks') {
              baseTasks = baseTasks.filter(t => t.isArchived);
+        } else {
+            baseTasks = baseTasks.filter(t => !t.isArchived);
         }
         
         if (searchTerm) {
@@ -1546,6 +1522,11 @@ export default function TasksPage() {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
+                                     <DropdownMenuItem onClick={() => setViewMode('archived-tasks')}>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        <span>{t('tasks.archived.view_archived_tasks')}</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-amber-600 focus:bg-amber-100 focus:text-amber-700 dark:focus:bg-amber-900/40" onClick={() => handleArchiveBoard(activeBoard.id)} disabled={userPermissions !== 'owner'}>
                                         <Archive className="mr-2 h-4 w-4" />
                                         <span>{t('tasks.board.archive_board')}</span>
@@ -1723,7 +1704,7 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </Droppable>
-                    ) : (
+                    ) : viewMode === 'calendar' ? (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-2">
@@ -1751,6 +1732,40 @@ export default function TasksPage() {
                                         </div>
                                     </div>
                                 )})}
+                            </div>
+                        </div>
+                    ) : ( // Archived Tasks View
+                        <div>
+                            <h2 className="text-xl font-semibold mb-4">{t('tasks.archived.archived_tasks_title')}</h2>
+                            <div className="space-y-2">
+                                {filteredTasks.length > 0 ? (
+                                    filteredTasks.map(task => (
+                                        <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/60">
+                                            <div>
+                                                <p className="font-medium line-through">{task.title}</p>
+                                                <p className="text-sm text-muted-foreground">{t('tasks.archived.archived_on', { date: 'a while ago' })}</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => {
+                                                    setTasks(tasks.map(t => t.id === task.id ? {...t, isArchived: false} : t));
+                                                    toast({ title: t('tasks.toast.task_restored') });
+                                                }}>
+                                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                                    {t('tasks.archived.restore_button')}
+                                                </Button>
+                                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteTask(task.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    {t('tasks.archived.delete_permanently_button')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Archive className="mx-auto h-12 w-12" />
+                                        <p className="mt-4">{t('tasks.archived.no_archived_tasks_title')}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

@@ -529,6 +529,10 @@ export const fa = {
         no_archived_lists_desc: 'شما می‌توانید لیست‌ها را از نمای تخته بایگانی کنید.',
         archived_board_view_title: 'تخته بایگانی شده: {{name}}',
         archived_board_view_desc: 'این تخته بایگانی شده است. برای ایجاد تغییرات، ابتدا آن را بازیابی کنید.',
+        view_archived_tasks: 'مشاهده وظایف بایگانی شده',
+        archived_tasks_title: 'وظایف بایگانی شده',
+        no_archived_tasks_title: 'هیچ وظیفه بایگانی شده‌ای وجود ندارد',
+        archived_on: 'بایگانی شده در {{date}}',
     },
     priority: {
         low: 'کم',
@@ -758,6 +762,7 @@ export const fa = {
         label_created: 'برچسب "{{name}}" ایجاد شد.',
         label_updated: 'برچسب "{{name}}" به‌روز شد.',
         label_deleted: 'برچسب حذف شد.',
+        task_restored: 'وظیفه بازیابی شد.',
     },
     column_titles: {
         todo: 'برای انجام',

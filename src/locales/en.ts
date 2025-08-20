@@ -477,10 +477,11 @@ export const en = {
     email_reports: 'Email Reports',
     manage_labels: 'Manage Labels',
     view_modes: {
-        list: 'List',
         board: 'Board',
         calendar: 'Calendar',
         archived: 'Archived',
+        active_boards: 'Active Boards',
+        archived_boards: 'Archived Boards',
     },
     export_selected: 'Export Selected ({{count}})',
     search_placeholder: 'Search tasks by title...',
@@ -511,6 +512,8 @@ export const en = {
         sort_title: 'Title',
         copy_list: 'Copy list',
         archive_list: 'Archive list',
+        archive_board: 'Archive Board',
+        restore_board: 'Restore Board',
     },
     actions: {
         move_task: 'Move Task',
@@ -525,6 +528,8 @@ export const en = {
         delete_permanently_button: 'Delete Permanently',
         no_archived_lists_title: 'No archived lists.',
         no_archived_lists_desc: 'You can archive lists from the board view.',
+        archived_board_view_title: 'Archived Board: {{name}}',
+        archived_board_view_desc: 'This board is archived. To make changes, restore it first.',
     },
     priority: {
         low: 'Low',
@@ -563,7 +568,7 @@ export const en = {
         share_no_users_found: 'No users found.',
         share_with_label: 'Shared with',
         all_members: 'All Members',
-        delete_board_title: 'Are you absolutely sure?',
+        delete_board_title: 'Delete Board Permanently?',
         delete_board_desc: 'This action cannot be undone. This will permanently delete the board and all tasks associated with it.',
         delete_list_title: 'Delete List Permanently?',
         delete_list_desc: 'This will permanently delete the "{{name}}" list and all of its tasks. This action cannot be undone.',
@@ -723,9 +728,10 @@ export const en = {
         no_tasks_selected_desc: 'Please select tasks to export.',
         ics_error_desc: 'There was a problem generating the .ics file.',
         board_updated_title: 'Board Updated',
-        board_updated_desc: 'Board "{{name}}" has been updated.',
         board_created_title: 'Board Created',
         board_created_desc: 'Board "{{name}}" has been created.',
+        board_archived_title: 'Board Archived',
+        board_restored_title: 'Board Restored',
         board_deleted_title: 'Board Deleted',
         board_deleted_desc: 'Board "{{name}}" and all its tasks have been deleted.',
         list_added_title: 'List Added',
@@ -761,5 +767,3 @@ export const en = {
     }
   }
 };
-
-    

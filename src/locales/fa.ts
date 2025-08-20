@@ -477,10 +477,10 @@ export const fa = {
     email_reports: 'گزارش‌های ایمیلی',
     manage_labels: 'مدیریت برچسب‌ها',
     view_modes: {
-        list: 'لیست',
         board: 'تخته',
         calendar: 'تقویم',
-        archived: 'بایگانی شده',
+        archived_boards: 'تخته‌های بایگانی شده',
+        active_boards: 'تخته‌های فعال',
     },
     export_selected: 'خروجی گرفتن از موارد انتخاب شده ({{count}})',
     search_placeholder: 'جستجوی وظایف با عنوان...',
@@ -511,6 +511,8 @@ export const fa = {
         sort_title: 'عنوان',
         copy_list: 'کپی کردن لیست',
         archive_list: 'بایگانی لیست',
+        archive_board: 'بایگانی تخته',
+        restore_board: 'بازیابی تخته',
     },
     actions: {
         move_task: 'انتقال وظیفه',
@@ -525,6 +527,8 @@ export const fa = {
         delete_permanently_button: 'حذف دائمی',
         no_archived_lists_title: 'هیچ لیست بایگانی شده‌ای وجود ندارد.',
         no_archived_lists_desc: 'شما می‌توانید لیست‌ها را از نمای تخته بایگانی کنید.',
+        archived_board_view_title: 'تخته بایگانی شده: {{name}}',
+        archived_board_view_desc: 'این تخته بایگانی شده است. برای ایجاد تغییرات، ابتدا آن را بازیابی کنید.',
     },
     priority: {
         low: 'کم',
@@ -563,7 +567,7 @@ export const fa = {
         share_no_users_found: 'هیچ کاربری یافت نشد.',
         share_with_label: 'اشتراک‌گذاری شده با',
         all_members: 'همه اعضا',
-        delete_board_title: 'آیا کاملاً مطمئن هستید؟',
+        delete_board_title: 'حذف دائمی تخته؟',
         delete_board_desc: 'این عمل قابل بازگشت نیست. این کار به طور دائمی تخته و تمام وظایف مرتبط با آن را حذف خواهد کرد.',
         delete_list_title: 'حذف دائمی لیست؟',
         delete_list_desc: 'این کار به طور دائمی لیست "{{name}}" و تمام وظایف آن را حذف خواهد کرد. این عمل قابل بازگشت نیست.',
@@ -723,9 +727,10 @@ export const fa = {
         no_tasks_selected_desc: 'لطفاً برای خروجی گرفتن وظایف را انتخاب کنید.',
         ics_error_desc: 'در تولید فایل .ics مشکلی پیش آمد.',
         board_updated_title: 'تخته به‌روز شد',
-        board_updated_desc: 'تخته "{{name}}" به‌روز شد.',
         board_created_title: 'تخته ایجاد شد',
         board_created_desc: 'تخته "{{name}}" ایجاد شد.',
+        board_archived_title: 'تخته بایگانی شد',
+        board_restored_title: 'تخته بازیابی شد',
         board_deleted_title: 'تخته حذف شد',
         board_deleted_desc: 'تخته "{{name}}" و تمام وظایف آن حذف شدند.',
         list_added_title: 'لیست اضافه شد',
@@ -761,5 +766,3 @@ export const fa = {
     }
   }
 };
-
-    

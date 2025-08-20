@@ -143,6 +143,7 @@ export type TaskBoard = {
     sharedWith?: BoardShare[];
     columns: BoardColumn[]; // New field for columns
     labels?: Label[];
+    isArchived: boolean;
 }
 
 export type AppearanceSettings = {
@@ -162,7 +163,7 @@ export type AppearanceSettings = {
     allowedReactions: string[];
 }
 
-export type ScheduledReportType = 'weekly-board-summary' | 'weekly-my-tasks' | 'weekly-in-progress';
+export type ScheduledReportType = 'weekly-my-tasks' | 'weekly-all-tasks' | 'weekly-overdue' | 'weekly-due-soon';
 
 export type ScheduledReport = {
     id: string;

@@ -233,6 +233,7 @@ export const taskBoards: TaskBoard[] = [
         name: 'کارهای سازمانی',
         color: '#3b82f6',
         ownerId: 'U-002', // John Doe
+        isArchived: false,
         sharedWith: [
             { userId: 'U-001', role: 'editor' },
             { userId: 'U-003', role: 'viewer' },
@@ -255,6 +256,7 @@ export const taskBoards: TaskBoard[] = [
         name: 'پروژه آلفا',
         color: '#ef4444',
         ownerId: 'U-003', // Jane Smith
+        isArchived: false,
         sharedWith: [],
         columns: [
             { id: 'COL-5', title: 'Tasks', boardId: 'TB-002', isArchived: false, taskIds: ['T-002', 'T-005'] },
@@ -272,6 +274,7 @@ export const taskBoards: TaskBoard[] = [
         name: 'IT Tasks',
         color: '#10b981',
         ownerId: 'U-001', // Super Admin
+        isArchived: true,
         sharedWith: [
              { userId: 'U-002', role: 'editor' },
              { userId: 'U-006', role: 'editor' },
@@ -292,6 +295,7 @@ export const taskBoards: TaskBoard[] = [
         name: 'کارهای شخصی',
         color: '#eab308',
         ownerId: 'U-002', // John Doe (Admin for IT Department)
+        isArchived: false,
         sharedWith: [],
         columns: [
             { id: 'COL-9', title: 'My Tasks', boardId: 'TB-004', isArchived: false, taskIds: ['T-006'] },
@@ -308,7 +312,7 @@ export const scheduledReports: ScheduledReport[] = [
         id: 'SR-001',
         boardId: 'TB-001',
         name: 'Weekly Org Task Summary',
-        type: 'weekly-board-summary',
+        type: 'weekly-all-tasks',
         schedule: {
             dayOfWeek: 1, // Monday
             time: '09:00',
@@ -397,7 +401,7 @@ export const tasks: Task[] = [
         description: 'Coordinate and execute the quarterly office fire drill.',
         createdBy: 'Mike Ross',
         unit: 'Operations',
-        dueDate: '2024-09-15T11:00:00Z',
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(),
         recurrence: {
             type: 'none',
             time: '11:00',
@@ -429,7 +433,7 @@ export const tasks: Task[] = [
         description: 'Team stand-up to discuss progress and blockers.',
         createdBy: 'Super Admin',
         unit: 'IT Department',
-        dueDate: new Date().toISOString(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), // Overdue
         recurrence: {
             type: 'daily',
             time: '09:00',

@@ -114,7 +114,9 @@ const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
-type ViewMode = 'board' | 'archived' | 'calendar';
+type ViewMode = 'board' | 'calendar';
+type BoardViewMode = 'active' | 'archived';
+
 
 const checklistItemSchema = z.object({
     id: z.string(),
@@ -173,13 +175,14 @@ const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#
 
 export default function TasksPage() {
     const { t } = useLanguage();
-    const { calendar, locale, format, formatDistance, dateFnsLocale } = useCalendar();
+    const { calendar, locale, format, formatDistance, dateFnsLocale, differenceInDays } = useCalendar();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(mockTasks);
     const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
     const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>(mockScheduledReports);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('board');
+    const [boardViewMode, setBoardViewMode] = useState<BoardViewMode>('active');
     const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings | null>(null);
 
     const [isBoardSwitcherOpen, setIsBoardSwitcherOpen] = useState(false);
@@ -187,6 +190,7 @@ export default function TasksPage() {
     const [isBoardDialogOpen, setIsBoardDialogOpen] = useState(false);
     const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
     const [isDeleteBoardAlertOpen, setIsDeleteBoardAlertOpen] = useState(false);
+    const [boardToDelete, setBoardToDelete] = useState<TaskBoard | null>(null);
     const [isDeleteColumnAlertOpen, setIsDeleteColumnAlertOpen] = useState(false);
     const [columnToDelete, setColumnToDelete] = useState<BoardColumn | null>(null);
     const [isMoveTaskDialogOpen, setIsMoveTaskDialogOpen] = useState(false);
@@ -306,24 +310,28 @@ export default function TasksPage() {
         }
     }, []);
     
-    const visibleBoards = useMemo(() => {
+    const userBoards = useMemo(() => {
         if (!currentUser) return [];
         if (currentUser.role === 'super-admin') return boards;
         return boards.filter(board => 
-            board.ownerId === currentUser.id || 
-            board.sharedWith?.some(s => s.userId === currentUser.id)
+            !board.isArchived &&
+            (board.ownerId === currentUser.id || board.sharedWith?.some(s => s.userId === currentUser.id))
         );
+    }, [boards, currentUser]);
+
+    const archivedBoards = useMemo(() => {
+        if (!currentUser) return [];
+        return boards.filter(board => board.isArchived && board.ownerId === currentUser.id);
     }, [boards, currentUser]);
     
     useEffect(() => {
-        if (visibleBoards.length > 0 && !activeBoardId) {
-            setActiveBoardId(visibleBoards[0]?.id);
-        } else if (visibleBoards.length > 0 && activeBoardId && !visibleBoards.find(b => b.id === activeBoardId)) {
-           setActiveBoardId(visibleBoards[0]?.id);
-        } else if (visibleBoards.length === 0) {
-            setActiveBoardId(null);
+        if (boardViewMode === 'active' && userBoards.length > 0 && (!activeBoardId || !userBoards.find(b => b.id === activeBoardId))) {
+            setActiveBoardId(userBoards[0].id);
+        } else if (boardViewMode === 'archived' && archivedBoards.length > 0 && (!activeBoardId || !archivedBoards.find(b => b.id === activeBoardId))) {
+            setActiveBoardId(archivedBoards[0].id);
         }
-    }, [visibleBoards, activeBoardId]);
+    }, [userBoards, archivedBoards, activeBoardId, boardViewMode]);
+
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
     
@@ -590,7 +598,6 @@ export default function TasksPage() {
                 ...values,
                 dueDate: finalDueDate.toISOString(),
                 createdBy: currentUser.name,
-                // These fields don't exist in the new schema but are in mock data, add them for consistency
                 reminders: [], 
                 recurrence: { type: 'none', time: '09:00'}, 
                 attachments: attachedFiles.map(file => ({ name: file.name, url: URL.createObjectURL(file) })),
@@ -767,6 +774,7 @@ export default function TasksPage() {
                 { id: `COL-${Date.now()}-3`, title: t('tasks.column_titles.done'), boardId: newBoardId, isArchived: false, taskIds: [] },
             ],
             labels: [],
+            isArchived: false,
         };
         setBoards(prev => [...prev, newBoard]);
         setActiveBoardId(newBoard.id);
@@ -777,28 +785,45 @@ export default function TasksPage() {
       }
       handleCloseBoardDialog();
     };
+    
+    const handleArchiveBoard = (boardId: string) => {
+        setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: true } : b));
+        setActiveBoardId(null);
+        toast({ title: t('tasks.toast.board_archived_title') });
+    };
 
-    const handleDeleteBoard = (boardId: string) => {
+    const handleRestoreBoard = (boardId: string) => {
+        setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: false } : b));
+        setBoardViewMode('active');
+        setActiveBoardId(boardId);
+        toast({ title: t('tasks.toast.board_restored_title') });
+    };
+
+    const handleDeleteBoardPermanently = (boardId: string) => {
         const boardToDelete = boards.find(b => b.id === boardId);
-        if (!boardToDelete || userPermissions !== 'owner') return;
+        if (!boardToDelete) return;
 
-        const remainingBoards = boards.filter(b => b.id !== boardId);
-        const remainingTasks = tasks.filter(t => t.boardId !== boardId);
+        setBoards(boards.filter(b => b.id !== boardId));
+        setTasks(tasks.filter(t => t.boardId !== boardId));
 
-        setBoards(remainingBoards);
-        setTasks(remainingTasks);
-        
         if (activeBoardId === boardId) {
-            setActiveBoardId(remainingBoards[0]?.id || null);
+            const nextBoard = archivedBoards.find(b => b.id !== boardId) || userBoards[0];
+            setActiveBoardId(nextBoard?.id || null);
+            if (!nextBoard || nextBoard.isArchived) {
+              setBoardViewMode('archived')
+            } else {
+              setBoardViewMode('active')
+            }
         }
-
+        
         toast({
             title: t('tasks.toast.board_deleted_title'),
             description: t('tasks.toast.board_deleted_desc', { name: boardToDelete.name }),
-            variant: "destructive",
+            variant: "destructive"
         });
-        setIsBoardSwitcherOpen(false);
+        setBoardToDelete(null);
     };
+
     
     const handleAddColumn = (values: z.infer<typeof columnSchema>) => {
         if (!activeBoard) return;
@@ -1172,10 +1197,17 @@ export default function TasksPage() {
             acc[r.emoji] = (acc[r.emoji] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
+        
+        const daysToDue = differenceInDays(new Date(task.dueDate), new Date());
+        const dueDateColor = daysToDue < 0
+          ? "text-red-500"
+          : daysToDue < 7
+          ? "text-orange-500"
+          : "text-muted-foreground";
 
         return (
              <Card
-                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative", task.isCompleted && "bg-secondary/50 dark:bg-slate-800/50 opacity-70")}
+                className="mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
                 onClick={() => handleOpenDetailsSheet(task)}
             >
                 <button
@@ -1184,11 +1216,11 @@ export default function TasksPage() {
                         handleToggleTaskCompletion(task.id, !task.isCompleted);
                     }}
                     className={cn(
-                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 border-muted-foreground flex items-center justify-center transition-all scale-0 group-hover/taskcard:scale-100",
-                        task.isCompleted ? "scale-100 bg-primary border-primary" : "bg-transparent",
+                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover/taskcard:opacity-100",
+                        task.isCompleted && "opacity-100",
                     )}
                 >
-                    {task.isCompleted && <Check className="h-3 w-3 text-primary-foreground" />}
+                    <Check className={cn("h-4 w-4 text-green-500 opacity-0 transition-opacity", task.isCompleted && "opacity-100 scale-125 animate-in zoom-in-50")} />
                 </button>
 
                 <CardContent className="p-3">
@@ -1227,7 +1259,7 @@ export default function TasksPage() {
                         </div>
                     )}
 
-                    <p className="font-semibold text-sm text-card-foreground pr-8 pl-4">{task.title}</p>
+                    <p className="font-semibold text-sm text-card-foreground pr-8 pl-5">{task.title}</p>
                     
                     <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center -space-x-2">
@@ -1254,6 +1286,10 @@ export default function TasksPage() {
                             {(task.checklist?.length || 0) > 0 && (
                                  <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
                             )}
+                            <span className={cn("flex items-center gap-1", dueDateColor)}>
+                                <CalendarIcon className="h-3 w-3" />
+                                {format(new Date(task.dueDate), 'MMM d')}
+                            </span>
                         </div>
                     </div>
                      
@@ -1423,11 +1459,12 @@ export default function TasksPage() {
                                 <CommandInput placeholder={t('tasks.dialog.board_search_placeholder')} />
                                 <CommandList>
                                     <CommandEmpty>{t('tasks.no_board_found')}</CommandEmpty>
-                                    <CommandGroup>
-                                        {visibleBoards.map((board) => (
+                                    <CommandGroup heading={t('tasks.view_modes.active_boards')}>
+                                        {userBoards.map((board) => (
                                             <CommandItem
                                                 key={board.id}
                                                 onSelect={() => {
+                                                    setBoardViewMode('active');
                                                     setActiveBoardId(board.id);
                                                     setIsBoardSwitcherOpen(false);
                                                 }}
@@ -1437,10 +1474,30 @@ export default function TasksPage() {
                                                      <span className="w-4 h-4 rounded-full" style={{ backgroundColor: board.color }}></span>
                                                      <span>{board.name}</span>
                                                 </div>
-                                                {board.id === activeBoardId && <Check className="h-4 w-4" />}
+                                                {board.id === activeBoardId && boardViewMode === 'active' && <Check className="h-4 w-4" />}
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
+                                    <CommandGroup heading={t('tasks.view_modes.archived_boards')}>
+                                        {archivedBoards.map((board) => (
+                                            <CommandItem
+                                                key={board.id}
+                                                onSelect={() => {
+                                                    setBoardViewMode('archived');
+                                                    setActiveBoardId(board.id);
+                                                    setIsBoardSwitcherOpen(false);
+                                                }}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                    <span>{board.name}</span>
+                                                </div>
+                                                {board.id === activeBoardId && boardViewMode === 'archived' && <Check className="h-4 w-4" />}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+
                                     <Separator />
                                      <CommandGroup>
                                          <CommandItem onSelect={() => { handleOpenBoardDialog(null); setIsBoardSwitcherOpen(false); }}>
@@ -1453,7 +1510,7 @@ export default function TasksPage() {
                         </PopoverContent>
                     </Popover>
                     <div className="flex items-center gap-2">
-                         {activeBoard && (
+                         {activeBoard && boardViewMode === 'active' && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -1489,14 +1546,24 @@ export default function TasksPage() {
                                         </DropdownMenuPortal>
                                     </DropdownMenuSub>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive" onClick={() => setIsDeleteBoardAlertOpen(true)} disabled={userPermissions !== 'owner'}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>{t('common.delete')}</span>
+                                    <DropdownMenuItem className="text-amber-600 focus:bg-amber-100 focus:text-amber-700 dark:focus:bg-amber-900/40" onClick={() => handleArchiveBoard(activeBoard.id)} disabled={userPermissions !== 'owner'}>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        <span>{t('tasks.board.archive_board')}</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
-                        <Button onClick={() => handleOpenTaskDialog(null)} disabled={!activeBoard || userPermissions === 'viewer'}>
+                        {activeBoard && boardViewMode === 'archived' && userPermissions === 'owner' && (
+                             <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => handleRestoreBoard(activeBoard.id)}>
+                                    <ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.board.restore_board')}
+                                </Button>
+                                <Button variant="destructive" onClick={() => { setBoardToDelete(activeBoard); setIsDeleteBoardAlertOpen(true);}}>
+                                    <Trash2 className="mr-2 h-4 w-4"/> {t('tasks.archived.delete_permanently_button')}
+                                </Button>
+                             </div>
+                        )}
+                        <Button onClick={() => handleOpenTaskDialog(null)} disabled={!activeBoard || userPermissions === 'viewer' || boardViewMode === 'archived'}>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             {t('tasks.add_new_task')}
                         </Button>
@@ -1506,6 +1573,8 @@ export default function TasksPage() {
 
             <DragDropContext onDragEnd={onDragEnd}>
             {activeBoard ? (
+                <>
+                {boardViewMode === 'active' ? (
                 <>
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -1571,7 +1640,6 @@ export default function TasksPage() {
                         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}><Archive className="h-4 w-4"/></Button>
                         </div>
                     </div>
 
@@ -1613,18 +1681,15 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {(column.taskIds || []).map((taskId, index) => {
-                                                                            const task = tasks.find(t => t.id === taskId);
-                                                                            return task && !task.isArchived ? (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
-                                                                                    {(provided, snapshot) => (
-                                                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                            {renderTaskCard(task)}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </Draggable>
-                                                                            ) : null;
-                                                                        })}
+                                                                        {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                                {(provided, snapshot) => (
+                                                                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
+                                                                                        {renderTaskCard(task)}
+                                                                                    </div>
+                                                                                )}
+                                                                            </Draggable>
+                                                                        ))}
                                                                         {provided.placeholder}
                                                                     </div>
                                                                 )}
@@ -1658,7 +1723,7 @@ export default function TasksPage() {
                                     </div>
                                 )}
                             </Droppable>
-                    ) : viewMode === 'calendar' ? (
+                    ) : (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-2">
@@ -1688,33 +1753,18 @@ export default function TasksPage() {
                                 )})}
                             </div>
                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                        {(activeBoard.columns.filter(c => c.isArchived)).length > 0 ? (
-                            activeBoard.columns.filter(c => c.isArchived).map(column => (
-                                <Card key={column.id} className="bg-muted/50">
-                                    <CardHeader className="flex-row items-center justify-between">
-                                        <div>
-                                            <CardTitle>{column.title}</CardTitle>
-                                            <CardDescription>{t('tasks.archived.tasks_in_list', { count: (column.taskIds || []).length })}</CardDescription>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" onClick={() => handleRestoreColumn(column.id)}><ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.archived.restore_button')}</Button>
-                                            <Button variant="destructive" onClick={() => { setColumnToDelete(column); setIsDeleteColumnAlertOpen(true);}}><Trash2 className="mr-2 h-4 w-4"/> {t('tasks.archived.delete_permanently_button')}</Button>
-                                        </div>
-                                    </CardHeader>
-                                </Card>
-                            ))
-                        ) : (
-                             <div className="text-center py-16">
-                                <Archive className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-lg font-semibold">{t('tasks.archived.no_archived_lists_title')}</h3>
-                                <p className="mt-2 text-sm text-muted-foreground">{t('tasks.archived.no_archived_lists_desc')}</p>
-                            </div>
-                        )}
-                        </div>
                     )}
                     </div>
+                </>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="text-center py-8">
+                            <Archive className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">{t('tasks.archived.archived_board_view_title', { name: activeBoard.name })}</h3>
+                            <p className="mt-2 text-sm text-muted-foreground">{t('tasks.archived.archived_board_view_desc')}</p>
+                        </div>
+                    </div>
+                )}
                 </>
             ) : (
                  <div className="flex flex-col items-center justify-center h-[60vh] text-center">
@@ -1757,7 +1807,7 @@ export default function TasksPage() {
                       <AlertDialogTitle>{t('tasks.dialog.delete_board_title')}</AlertDialogTitle>
                       <AlertDialogDescription>{t('tasks.dialog.delete_board_desc')}</AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => activeBoard && handleDeleteBoard(activeBoard.id)}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter>
+                    <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => boardToDelete && handleDeleteBoardPermanently(boardToDelete.id)}>{t('common.delete')}</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
             
@@ -1972,7 +2022,7 @@ export default function TasksPage() {
                      {selectedTaskForDetails && (
                         <>
                             <SheetHeader>
-                                <SheetTitle className={cn(selectedTaskForDetails.isCompleted && "text-muted-foreground")}>
+                                <SheetTitle>
                                   {t('tasks.details.title', { name: selectedTaskForDetails.title })}
                                 </SheetTitle>
                                 <SheetDescription>
@@ -2240,5 +2290,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-    

@@ -1,5 +1,6 @@
 
 
+
 export type Reaction = {
     emoji: string;
     userId: string;
@@ -8,11 +9,18 @@ export type Reaction = {
 
 export type Comment = {
   id: string;
-  text: string;
+  text?: string;
   author: string;
   authorId: string;
   createdAt: string;
   reactions?: Reaction[];
+  attachment?: {
+    url: string;
+    type: 'audio';
+    meta?: {
+        duration: number;
+    }
+  }
 };
 
 export type ContractVersion = {
@@ -181,3 +189,5 @@ export type ScheduledReport = {
     createdBy: string; // User ID
     lastSentAt?: string; // ISO String
 }
+
+  

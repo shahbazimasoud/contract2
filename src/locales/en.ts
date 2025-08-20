@@ -1,4 +1,3 @@
-
 export const en = {
   common: {
       actions: 'Actions',
@@ -473,6 +472,11 @@ export const en = {
     add_new_board: 'Create New Board',
     select_board: 'Select a board...',
     no_board_found: 'No board found.',
+    empty_state: {
+        create_first_board: 'To get started, create your first task board.',
+        all_archived_title: 'All Boards are Archived',
+        all_archived_desc: 'To view tasks, please restore a board from the archive.',
+    },
     share_board: 'Share board',
     email_reports: 'Email Reports',
     manage_labels: 'Manage Labels',
@@ -742,6 +746,7 @@ export const en = {
         no_tasks_selected_desc: 'Please select tasks to export.',
         ics_error_desc: 'There was a problem generating the .ics file.',
         board_updated_title: 'Board Updated',
+        board_updated_desc: 'Board "{{name}}" has been updated.',
         board_created_title: 'Board Created',
         board_created_desc: 'Board "{{name}}" has been created.',
         board_archived_title: 'Board Archived',

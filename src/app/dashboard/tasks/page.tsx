@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic } from 'lucide-react';
 import type { DropResult } from "react-beautiful-dnd";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -200,6 +200,9 @@ export default function TasksPage() {
     const [reportToDelete, setReportToDelete] = useState<ScheduledReport | null>(null);
     const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
     
+    const [commentText, setCommentText] = useState("");
+    const commentInputRef = useRef<HTMLTextAreaElement>(null);
+    
 
     
     const [columnToMove, setColumnToMove] = useState<BoardColumn | null>(null);
@@ -330,7 +333,8 @@ export default function TasksPage() {
         if (userBoards.length > 0 && (!activeBoardId || !userBoards.find(b => b.id === activeBoardId))) {
             setActiveBoardId(userBoards[0].id);
         } else if (userBoards.length === 0 && archivedBoards.length > 0) {
-            setActiveBoardId(archivedBoards[0].id);
+            setActiveBoardId(null);
+            setViewMode('archive');
         } else if (userBoards.length === 0 && archivedBoards.length === 0) {
             setActiveBoardId(null);
         }
@@ -403,18 +407,20 @@ export default function TasksPage() {
     }, [editingTask, form, currentUser, activeBoard, calendar, locale]);
 
     useEffect(() => {
-        if (editingBoard) {
-            boardForm.reset({
-                name: editingBoard.name,
-                color: editingBoard.color,
-            });
-        } else {
-            boardForm.reset({
-                name: "",
-                color: "#3b82f6",
-            });
+        if (isBoardDialogOpen) {
+            if (editingBoard) {
+                boardForm.reset({
+                    name: editingBoard.name,
+                    color: editingBoard.color,
+                });
+            } else {
+                boardForm.reset({
+                    name: "",
+                    color: "#3b82f6",
+                });
+            }
         }
-    }, [editingBoard, boardForm]);
+    }, [isBoardDialogOpen, editingBoard, boardForm]);
     
     useEffect(() => {
         if (columnToCopy) {
@@ -450,16 +456,18 @@ export default function TasksPage() {
     }, [isWeeklyReportDialogOpen, editingReport, activeBoard, appearanceSettings, weeklyReportForm, currentUser]);
 
     useEffect(() => {
-        if (isLabelManagerOpen && editingLabel) {
-            labelForm.reset({
-                text: editingLabel.text,
-                color: editingLabel.color,
-            });
-        } else {
-            labelForm.reset({
-                text: "",
-                color: "#3b82f6",
-            });
+        if (isLabelManagerOpen) {
+            if(editingLabel) {
+                 labelForm.reset({
+                    text: editingLabel.text,
+                    color: editingLabel.color,
+                });
+            } else {
+                 labelForm.reset({
+                    text: "",
+                    color: "#3b82f6",
+                });
+            }
         }
     }, [isLabelManagerOpen, editingLabel, labelForm]);
 
@@ -831,6 +839,7 @@ export default function TasksPage() {
         if (sourceIndex === -1 || targetIndex === -1) return;
     
         const [movedColumn] = columns.splice(sourceIndex, 1);
+        // Recalculate targetIndex after splice, as the array has changed
         const newTargetIndexAfterSplice = columns.findIndex(c => c.id === moveColumnTargetId);
     
         if (moveColumnPosition === 'before') {
@@ -960,6 +969,23 @@ export default function TasksPage() {
         toast({ title: t('tasks.toast.sharing_updated_title'), description: t('tasks.toast.sharing_updated_desc') });
         handleCloseShareDialog();
     };
+
+     const handleInsertText = (text: string) => {
+        if (commentInputRef.current) {
+            const { selectionStart, selectionEnd } = commentInputRef.current;
+            const currentText = commentForm.getValues("text");
+            const newText =
+                currentText.substring(0, selectionStart) +
+                text +
+                currentText.substring(selectionEnd);
+            commentForm.setValue("text", newText);
+            commentForm.setFocus("text");
+            setTimeout(() => {
+                commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
+            }, 0);
+        }
+    };
+
 
     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
         if (!currentUser || !selectedTaskForDetails) return;
@@ -1222,6 +1248,8 @@ export default function TasksPage() {
             dueDateColor = daysToDue < 0 ? "text-red-500" : daysToDue < 7 ? "text-orange-500" : "text-muted-foreground";
         }
 
+        const assigneesToShow = task.assignees?.slice(0, 3) || [];
+        const hiddenAssigneesCount = (task.assignees?.length || 0) - assigneesToShow.length;
 
         return (
              <Card
@@ -1242,7 +1270,7 @@ export default function TasksPage() {
                         task.isCompleted ? "opacity-100 border-green-500 bg-green-500" : "border-muted-foreground/50",
                     )}
                 >
-                    <Check className={cn("h-4 w-4 text-white transform scale-0 transition-transform", task.isCompleted && "animate-check-pop")} />
+                    <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop" : "scale-0")} />
                 </button>
 
                 <button
@@ -1256,7 +1284,7 @@ export default function TasksPage() {
                 </button>
 
                 <CardContent className="p-3">
-                     <div className={cn("pl-0 group-hover/taskcard:pl-6 transition-all duration-200")}>
+                     <div className={cn("pl-0 group-hover/taskcard:pl-7 transition-all duration-200")}>
                         {(task.labelIds && task.labelIds.length > 0) && (
                             <div className="flex flex-wrap gap-1 mb-2">
                                 {task.labelIds.map(labelId => {
@@ -1273,20 +1301,33 @@ export default function TasksPage() {
                         <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-3 pl-0 group-hover/taskcard:pl-6 transition-all duration-200">
-                        <div className="flex items-center -space-x-2">
-                            {(task.assignees || []).map(id => {
-                                const user = usersOnBoard.find(u => u.id === id);
-                                if (!user) return null;
-                                return (
-                                    <TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                        <Avatar className="h-6 w-6 border-2 border-background">
-                                            <AvatarImage src={user.avatar} alt={user.name} />
-                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                    </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>
-                                );
-                            })}
+                    <div className="flex items-end justify-between mt-3 pl-0 group-hover/taskcard:pl-7 transition-all duration-200">
+                         <div className="flex items-center -space-x-2">
+                            <TooltipProvider>
+                                {assigneesToShow.map(id => {
+                                    const user = usersOnBoard.find(u => u.id === id);
+                                    return user ? (
+                                        <Tooltip key={id}><TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 border-2 border-background">
+                                                <AvatarImage src={user.avatar} alt={user.name} />
+                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip>
+                                    ) : null;
+                                })}
+                                {hiddenAssigneesCount > 0 && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <Avatar className="h-6 w-6 border-2 border-background">
+                                                <AvatarFallback>+{hiddenAssigneesCount}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{(task.assignees || []).slice(3).map(id => usersOnBoard.find(u => u.id === id)?.name).join(', ')}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+                            </TooltipProvider>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             {(task.comments?.length || 0) > 0 && (
@@ -1305,7 +1346,7 @@ export default function TasksPage() {
                         </div>
                     </div>
                      
-                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-0 group-hover/taskcard:pl-6 transition-all duration-200">
+                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-0 group-hover/taskcard:pl-7 transition-all duration-200">
                         {Object.entries(groupedReactions).map(([emoji, count]) => {
                              const userHasReacted = task.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji);
                              return (
@@ -1416,51 +1457,54 @@ export default function TasksPage() {
         );
     }
     
+    const noBoardsExist = boards.length === 0;
+    const allBoardsArchived = !noBoardsExist && userBoards.length === 0 && archivedBoards.length > 0;
+
+    const renderEmptyState = () => {
+        if (noBoardsExist) {
+            return (
+                <div className="text-center">
+                    <LayoutGrid className="mx-auto h-16 w-16 text-muted-foreground" />
+                    <h2 className="mt-4 text-2xl font-semibold">{t('tasks.no_board_found')}</h2>
+                    <p className="mt-2 text-muted-foreground">{t('tasks.empty_state.create_first_board')}</p>
+                    <Button onClick={() => handleOpenBoardDialog(null)} className="mt-6">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      {t('tasks.add_new_board')}
+                    </Button>
+                </div>
+            )
+        }
+        if (allBoardsArchived) {
+             return (
+                <div className="text-center">
+                    <Archive className="mx-auto h-16 w-16 text-muted-foreground" />
+                    <h2 className="mt-4 text-2xl font-semibold">{t('tasks.empty_state.all_archived_title')}</h2>
+                    <p className="mt-2 text-muted-foreground">{t('tasks.empty_state.all_archived_desc')}</p>
+                    <Button onClick={() => setViewMode('archive')} className="mt-6">
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      {t('tasks.archived.view_archived_items')}
+                    </Button>
+                </div>
+            )
+        }
+        return null;
+    }
+    
     return (
         <div className="container mx-auto px-4 py-8">
              <PageHeader className="pb-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                      <Popover open={isBoardSwitcherOpen} onOpenChange={setIsBoardSwitcherOpen}>
                         <PopoverTrigger asChild>
-                            <div className="flex items-center gap-3 cursor-pointer">
-                                <span className="w-8 h-8 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
-                                <div>
-                                    <h1 className="text-xl font-bold leading-tight tracking-tighter">{activeBoard?.name || t('tasks.select_board')}</h1>
+                            <Button variant="outline" className="gap-2 text-base font-semibold w-full md:w-auto justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
+                                  <span>{activeBoard?.name || t('tasks.select_board')}</span>
                                 </div>
-                                <div className="flex items-center -space-x-2">
-                                    {(activeBoard?.sharedWith || []).slice(0,3).map(share => {
-                                        const user = mockUsers.find(u => u.id === share.userId);
-                                        return user ? (
-                                            <TooltipProvider key={user.id}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Avatar className="h-6 w-6 border-2 border-background">
-                                                            <AvatarImage src={user.avatar} alt={user.name} />
-                                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{t('tasks.tooltips.shared_with', { name: user.name })}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        ) : null
-                                    })}
-                                    {(activeBoard?.sharedWith?.length || 0) > 3 && (
-                                         <TooltipProvider><Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Avatar className="h-6 w-6 border-2 border-background"><AvatarFallback>+{(activeBoard?.sharedWith?.length || 0) - 3}</AvatarFallback></Avatar>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{(activeBoard?.sharedWith || []).slice(3).map(s => mockUsers.find(u => u.id === s.userId)?.name).join(', ')}</p>
-                                            </TooltipContent>
-                                         </Tooltip></TooltipProvider>
-                                    )}
-                                </div>
-                                <ChevronsUpDown className="h-5 w-5 text-muted-foreground" />
-                            </div>
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 p-0">
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                              <Command>
                                 <CommandInput placeholder={t('tasks.dialog.board_search_placeholder')} />
                                 <CommandList>
@@ -1515,6 +1559,42 @@ export default function TasksPage() {
                         </PopoverContent>
                     </Popover>
                     <div className="flex items-center gap-2">
+                        {activeBoard && (
+                             <div className="flex items-center -space-x-2">
+                                {usersOnBoard.slice(0,3).map(user => (
+                                        <TooltipProvider key={user.id}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Avatar className="h-8 w-8 border-2 border-background">
+                                                        <AvatarImage src={user.avatar} alt={user.name} />
+                                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{t('tasks.tooltips.shared_with', { name: user.name })}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ))}
+                                {usersOnBoard.length > 3 && (
+                                     <TooltipProvider><Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Avatar className="h-8 w-8 border-2 border-background"><AvatarFallback>+{usersOnBoard.length - 3}</AvatarFallback></Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{usersOnBoard.slice(3).map(u => u.name).join(', ')}</p>
+                                        </TooltipContent>
+                                     </Tooltip></TooltipProvider>
+                                )}
+                            </div>
+                        )}
+
+                         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
+                            <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
+                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archive')}><Archive className="h-4 w-4" /></Button>
+                        </div>
+                        
                          {activeBoard && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -1564,9 +1644,9 @@ export default function TasksPage() {
             <DragDropContext onDragEnd={onDragEnd}>
             {activeBoard ? (
                 <>
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                             <div className="relative">
+                    <Card className="mb-4">
+                        <CardContent className="p-2 flex items-center gap-2">
+                             <div className="relative flex-grow">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder={t('tasks.search_placeholder')}
@@ -1624,13 +1704,8 @@ export default function TasksPage() {
                              {selectedTaskIds.length > 0 && (
                                 <Button variant="outline" onClick={handleExportSelected}>{t('tasks.export_selected', { count: selectedTaskIds.length })}</Button>
                             )}
-                        </div>
-                        <div className="flex items-center gap-1 rounded-md bg-muted p-1">
-                            <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archive')}><Archive className="h-4 w-4" /></Button>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
                     <div className="min-h-[60vh]">
                     {viewMode === 'board' ? (
@@ -1775,14 +1850,8 @@ export default function TasksPage() {
                     </div>
                 </>
             ) : (
-                 <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-                    <LayoutGrid className="h-16 w-16 text-muted-foreground" />
-                    <h2 className="mt-4 text-2xl font-semibold">{t('tasks.no_board_found')}</h2>
-                    <p className="mt-2 text-muted-foreground">{t('tasks.select_board')}</p>
-                    <Button onClick={() => handleOpenBoardDialog(null)} className="mt-6">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      {t('tasks.add_new_board')}
-                    </Button>
+                <div className="flex items-center justify-center h-[60vh]">
+                     {renderEmptyState()}
                 </div>
             )}
             </DragDropContext>
@@ -2209,20 +2278,26 @@ export default function TasksPage() {
                                     </div>
                                     <div className="mt-auto pt-4 border-t">
                                         <Form {...commentForm}>
-                                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)} className="flex items-start gap-2">
-                                            <FormField
-                                                control={commentForm.control}
-                                                name="text"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Textarea placeholder={t('contracts.details.comment_placeholder')} {...field} className="min-h-[60px]" />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                                />
-                                                <Button type="submit">{t('contracts.details.post_comment_button')}</Button>
+                                            <form onSubmit={commentForm.handleSubmit(onCommentSubmit)}>
+                                                <div className="relative">
+                                                     <Textarea
+                                                        {...commentForm.register("text")}
+                                                        ref={commentInputRef}
+                                                        placeholder={t('contracts.details.comment_placeholder')}
+                                                        className="min-h-[60px] pr-28"
+                                                    />
+                                                    <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                                         <Button type="button" variant="ghost" size="icon"><Mic className="h-4 w-4" /></Button>
+                                                         <Popover>
+                                                            <PopoverTrigger asChild><Button type="button" variant="ghost" size="icon"><SmilePlus className="h-4 w-4" /></Button></PopoverTrigger>
+                                                             <PopoverContent className="w-auto p-1"><div className="flex gap-1">
+                                                                {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
+                                                            </div></PopoverContent>
+                                                         </Popover>
+                                                        <Button type="submit" size="sm">{t('contracts.details.post_comment_button')}</Button>
+                                                    </div>
+                                                </div>
+                                                <FormMessage>{commentForm.formState.errors.text?.message}</FormMessage>
                                             </form>
                                         </Form>
                                     </div>
@@ -2399,3 +2474,4 @@ export default function TasksPage() {
         </div>
     );
 }
+

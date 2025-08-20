@@ -1,4 +1,3 @@
-
 export const fa = {
   common: {
       actions: 'اقدامات',
@@ -473,6 +472,11 @@ export const fa = {
     add_new_board: 'ایجاد تخته جدید',
     select_board: 'یک تخته انتخاب کنید...',
     no_board_found: 'هیچ تخته‌ای یافت نشد.',
+    empty_state: {
+        create_first_board: 'برای شروع، اولین تخته وظایف خود را ایجاد کنید.',
+        all_archived_title: 'تمام تخته‌ها بایگانی شده‌اند',
+        all_archived_desc: 'برای مشاهده وظایف، یک تخته را از بخش بایگانی بازیابی کنید.',
+    },
     share_board: 'اشتراک‌گذاری تخته',
     email_reports: 'گزارش‌های ایمیلی',
     manage_labels: 'مدیریت برچسب‌ها',
@@ -742,6 +746,7 @@ export const fa = {
         no_tasks_selected_desc: 'لطفاً برای خروجی گرفتن وظایف را انتخاب کنید.',
         ics_error_desc: 'در تولید فایل .ics مشکلی پیش آمد.',
         board_updated_title: 'تخته به‌روز شد',
+        board_updated_desc: 'تخته "{{name}}" به‌روز شد.',
         board_created_title: 'تخته ایجاد شد',
         board_created_desc: 'تخته "{{name}}" ایجاد شد.',
         board_archived_title: 'تخته بایگانی شد',

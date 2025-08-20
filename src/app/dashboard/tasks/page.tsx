@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, List, LayoutGrid, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic, Pause, Play, StopCircle } from 'lucide-react';
 import type { DropResult } from "react-beautiful-dnd";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -138,7 +138,14 @@ const taskSchema = z.object({
 });
 
 const commentSchema = z.object({
-    text: z.string().min(1, "Comment cannot be empty.").max(500, "Comment is too long."),
+    text: z.string().optional(),
+    attachment: z.object({
+      url: z.string(),
+      type: z.enum(['audio']),
+      meta: z.object({ duration: z.number() }).optional(),
+    }).optional(),
+}).refine(data => !!data.text || !!data.attachment, {
+    message: "Comment cannot be empty.",
 });
 
 const boardSchema = z.object({
@@ -200,16 +207,22 @@ export default function TasksPage() {
     const [reportToDelete, setReportToDelete] = useState<ScheduledReport | null>(null);
     const [isLabelManagerOpen, setIsLabelManagerOpen] = useState(false);
     
-    const [commentText, setCommentText] = useState("");
-    const commentInputRef = useRef<HTMLTextAreaElement>(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     
+    const [mentionQuery, setMentionQuery] = useState('');
+    const [isMentionPopoverOpen, setIsMentionPopoverOpen] = useState(false);
 
     
     const [columnToMove, setColumnToMove] = useState<BoardColumn | null>(null);
     const [showAddColumnForm, setShowAddColumnForm] = useState(false);
     const [moveColumnTargetId, setMoveColumnTargetId] = useState<string | null>(null);
     const [moveColumnPosition, setMoveColumnPosition] = useState<'before' | 'after'>('after');
-
+    const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const [editingColumnTitle, setEditingColumnTitle] = useState('');
 
 
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -235,10 +248,11 @@ export default function TasksPage() {
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ labelIds: [] as string[] });
+    const [filters, setFilters] = useState({ labelIds: [] as string[], includeCompleted: true });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
+    const commentInputRef = useRef<HTMLTextAreaElement>(null);
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -334,7 +348,6 @@ export default function TasksPage() {
             setActiveBoardId(userBoards[0].id);
         } else if (userBoards.length === 0 && archivedBoards.length > 0) {
             setActiveBoardId(null);
-            setViewMode('archive');
         } else if (userBoards.length === 0 && archivedBoards.length === 0) {
             setActiveBoardId(null);
         }
@@ -973,7 +986,7 @@ export default function TasksPage() {
      const handleInsertText = (text: string) => {
         if (commentInputRef.current) {
             const { selectionStart, selectionEnd } = commentInputRef.current;
-            const currentText = commentForm.getValues("text");
+            const currentText = commentForm.getValues("text") || "";
             const newText =
                 currentText.substring(0, selectionStart) +
                 text +
@@ -996,12 +1009,13 @@ export default function TasksPage() {
             author: currentUser.name,
             authorId: currentUser.id,
             createdAt: new Date().toISOString(),
+            attachment: values.attachment,
         };
 
         const updatedTask = {
             ...selectedTaskForDetails,
             comments: [...(selectedTaskForDetails.comments || []), newComment],
-            logs: [...(selectedTaskForDetails.logs || []), createLogEntry('commented', { text: values.text })],
+            logs: [...(selectedTaskForDetails.logs || []), createLogEntry('commented', { text: values.text || "Sent a voice message" })],
         };
 
         setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
@@ -1234,6 +1248,10 @@ export default function TasksPage() {
         setSelectedTaskForDetails(null);
         setIsDetailsSheetOpen(false);
         commentForm.reset();
+        // Stop any recording if sheet is closed
+        if (isRecording) {
+            handleStopRecording(true); // Cancel recording
+        }
     };
 
     const renderTaskCard = (task: Task) => {
@@ -1255,7 +1273,7 @@ export default function TasksPage() {
              <Card
                 className={cn(
                     "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                     task.isCompleted && "border-l-4 border-green-500",
+                     task.isCompleted && "border-l-4 border-green-500 opacity-70",
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
@@ -1267,10 +1285,10 @@ export default function TasksPage() {
                     className={cn(
                         "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
                         "opacity-0 group-hover/taskcard:opacity-100",
-                        task.isCompleted ? "opacity-100 border-green-500 bg-green-500" : "border-muted-foreground/50",
+                         task.isCompleted ? "opacity-100 border-green-500 bg-green-500" : "border-muted-foreground/50"
                     )}
                 >
-                    <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop" : "scale-0")} />
+                    <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop scale-100" : "scale-0")} />
                 </button>
 
                 <button
@@ -1301,7 +1319,7 @@ export default function TasksPage() {
                         <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
                     </div>
                     
-                    <div className="flex items-end justify-between mt-3 pl-0 group-hover/taskcard:pl-7 transition-all duration-200">
+                    <div className="flex items-end justify-between mt-3">
                          <div className="flex items-center -space-x-2">
                             <TooltipProvider>
                                 {assigneesToShow.map(id => {
@@ -1346,7 +1364,7 @@ export default function TasksPage() {
                         </div>
                     </div>
                      
-                    <div className="mt-2 flex flex-wrap items-center gap-1 pl-0 group-hover/taskcard:pl-7 transition-all duration-200">
+                    <div className="mt-2 flex flex-wrap items-center gap-1">
                         {Object.entries(groupedReactions).map(([emoji, count]) => {
                              const userHasReacted = task.reactions?.some(r => r.userId === currentUser?.id && r.emoji === emoji);
                              return (
@@ -1418,6 +1436,10 @@ export default function TasksPage() {
                 filters.labelIds.every(labelId => (task.labelIds || []).includes(labelId))
             );
         }
+        
+        if (!filters.includeCompleted) {
+            baseTasks = baseTasks.filter(task => !task.isCompleted);
+        }
 
         return baseTasks;
   }, [tasks, searchTerm, filters, activeBoard]);
@@ -1444,6 +1466,89 @@ export default function TasksPage() {
     const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
     const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
     const goToToday = () => setCurrentMonth(new Date());
+
+    const handleStartRecording = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.pause();
+            if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            setIsRecording(false);
+            return;
+        }
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+            mediaRecorderRef.current.resume();
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorderRef.current = new MediaRecorder(stream);
+                mediaRecorderRef.current.ondataavailable = (event) => {
+                    setAudioChunks((prev) => [...prev, event.data]);
+                };
+                mediaRecorderRef.current.start();
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                toast({ title: t('common.error'), description: t('tasks.toast.mic_error'), variant: 'destructive' });
+                return;
+            }
+        }
+
+        setIsRecording(true);
+        recordingIntervalRef.current = setInterval(() => {
+            setRecordingTime((prev) => prev + 1);
+        }, 1000);
+    };
+
+    const handleStopRecording = (cancel = false) => {
+        if (!mediaRecorderRef.current) return;
+        
+        mediaRecorderRef.current.stop();
+        if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+        setIsRecording(false);
+
+        if (!cancel && audioChunks.length > 0) {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            commentForm.setValue('attachment', {
+                url: audioUrl,
+                type: 'audio',
+                meta: { duration: recordingTime }
+            });
+            onCommentSubmit(commentForm.getValues());
+        }
+        
+        // Reset state
+        setAudioChunks([]);
+        setRecordingTime(0);
+        mediaRecorderRef.current = null;
+    };
+    
+    const formatTime = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+    
+    const handleEditColumnTitle = (columnId: string, currentTitle: string) => {
+        setEditingColumnId(columnId);
+        setEditingColumnTitle(currentTitle);
+    };
+
+    const handleSaveColumnTitle = (columnId: string) => {
+        if (!activeBoard || !editingColumnTitle) {
+            setEditingColumnId(null);
+            return;
+        }
+        
+        const updatedBoard = {
+            ...activeBoard,
+            columns: activeBoard.columns.map(c => 
+                c.id === columnId ? { ...c, title: editingColumnTitle } : c
+            )
+        };
+        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        setEditingColumnId(null);
+        toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: editingColumnTitle }) });
+    };
 
 
     if (!currentUser || !Droppable || !Draggable) {
@@ -1645,7 +1750,7 @@ export default function TasksPage() {
             {activeBoard ? (
                 <>
                     <Card className="mb-4">
-                        <CardContent className="p-2 flex items-center gap-2">
+                        <CardContent className="p-2 flex flex-wrap items-center gap-2">
                              <div className="relative flex-grow">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -1704,6 +1809,14 @@ export default function TasksPage() {
                              {selectedTaskIds.length > 0 && (
                                 <Button variant="outline" onClick={handleExportSelected}>{t('tasks.export_selected', { count: selectedTaskIds.length })}</Button>
                             )}
+                             <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="include-completed"
+                                    checked={filters.includeCompleted}
+                                    onCheckedChange={(checked) => setFilters(prev => ({ ...prev, includeCompleted: !!checked }))}
+                                />
+                                <Label htmlFor="include-completed" className="text-sm font-normal">{t('tasks.search.include_completed')}</Label>
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -1717,8 +1830,22 @@ export default function TasksPage() {
                                                 {(provided) => (
                                                     <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
                                                         <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
-                                                            <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab">
-                                                                <h3 className="font-semibold">{column.title}</h3>
+                                                            <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab" onDoubleClick={() => handleEditColumnTitle(column.id, column.title)}>
+                                                                {editingColumnId === column.id ? (
+                                                                    <Input 
+                                                                        value={editingColumnTitle}
+                                                                        onChange={(e) => setEditingColumnTitle(e.target.value)}
+                                                                        onBlur={() => handleSaveColumnTitle(column.id)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') handleSaveColumnTitle(column.id);
+                                                                            if (e.key === 'Escape') setEditingColumnId(null);
+                                                                        }}
+                                                                        autoFocus
+                                                                        className="h-8"
+                                                                    />
+                                                                ) : (
+                                                                    <h3 className="font-semibold">{column.title}</h3>
+                                                                )}
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
                                                                     <DropdownMenuContent>
@@ -1807,7 +1934,7 @@ export default function TasksPage() {
                          <Card>
                             <CardHeader>
                                 <CardTitle>{t('tasks.archived.view_archived_items')}</CardTitle>
-                                <CardDescription>{t('tasks.archived.manager_desc', { name: activeBoard.name })}</CardDescription>
+                                <CardDescription>{t('tasks.archived.manager_desc_global')}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <Tabs defaultValue="tasks" className="w-full">
@@ -1817,7 +1944,7 @@ export default function TasksPage() {
                                     </TabsList>
                                     <TabsContent value="tasks">
                                         <div className="space-y-2 max-h-96 overflow-y-auto mt-4 border rounded-lg p-2">
-                                            {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).map(task => (
+                                            {tasks.filter(t => t.isArchived && (currentUser?.role === 'super-admin' || usersOnBoard.some(u => u.id === currentUser?.id))).map(task => (
                                                 <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
                                                     <p className="font-medium line-through">{task.title}</p>
                                                     <div className="flex gap-2">
@@ -1826,12 +1953,12 @@ export default function TasksPage() {
                                                     </div>
                                                 </div>
                                             ))}
-                                            {tasks.filter(t => t.boardId === activeBoardId && t.isArchived).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_tasks_title')}</p>}
+                                            {tasks.filter(t => t.isArchived && (currentUser?.role === 'super-admin' || usersOnBoard.some(u => u.id === currentUser?.id))).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_tasks_title')}</p>}
                                         </div>
                                     </TabsContent>
                                     <TabsContent value="lists">
                                         <div className="space-y-2 max-h-96 overflow-y-auto mt-4 border rounded-lg p-2">
-                                            {activeBoard.columns.filter(c => c.isArchived).map(column => (
+                                            {boards.flatMap(b => b.columns.filter(c => c.isArchived)).map(column => (
                                                 <div key={column.id} className="flex items-center justify-between p-3 rounded-lg bg-muted">
                                                     <p className="font-medium line-through">{column.title}</p>
                                                     <div className="flex gap-2">
@@ -1840,7 +1967,7 @@ export default function TasksPage() {
                                                     </div>
                                                 </div>
                                             ))}
-                                            {(activeBoard.columns.filter(c => c.isArchived).length || 0) === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_lists_title')}</p>}
+                                            {boards.flatMap(b => b.columns.filter(c => c.isArchived)).length === 0 && <p className="text-center text-muted-foreground py-4">{t('tasks.archived.no_archived_lists_title')}</p>}
                                         </div>
                                     </TabsContent>
                                 </Tabs>
@@ -2243,7 +2370,10 @@ export default function TasksPage() {
                                                             </p>
                                                         </div>
                                                         <div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1 space-y-2">
-                                                            <p>{comment.text}</p>
+                                                             {comment.text && <p>{comment.text}</p>}
+                                                            {comment.attachment?.type === 'audio' && (
+                                                                <AudioPlayer src={comment.attachment.url} duration={comment.attachment.meta?.duration || 0} />
+                                                            )}
                                                              <div className="flex items-center gap-1 border-t pt-2 -mx-3 px-3">
                                                                 {Object.entries((comment.reactions || []).reduce((acc, r) => {
                                                                     acc[r.emoji] = (acc[r.emoji] || 0) + 1;
@@ -2277,6 +2407,18 @@ export default function TasksPage() {
                                         )}
                                     </div>
                                     <div className="mt-auto pt-4 border-t">
+                                        {isRecording || audioChunks.length > 0 ? (
+                                            <div className="flex items-center gap-2">
+                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleStopRecording(true)}><Trash2 className="h-4 w-4" /></Button>
+                                                 <div className="flex-1 bg-muted rounded-full h-8 flex items-center px-3 gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                                    <p className="text-sm font-mono">{formatTime(recordingTime)}</p>
+                                                </div>
+                                                <Button size="icon" onClick={() => handleStopRecording(false)}>
+                                                    <StopCircle className="h-5 w-5" />
+                                                </Button>
+                                            </div>
+                                        ) : (
                                         <Form {...commentForm}>
                                             <form onSubmit={commentForm.handleSubmit(onCommentSubmit)}>
                                                 <div className="relative">
@@ -2287,7 +2429,7 @@ export default function TasksPage() {
                                                         className="min-h-[60px] pr-28"
                                                     />
                                                     <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                         <Button type="button" variant="ghost" size="icon"><Mic className="h-4 w-4" /></Button>
+                                                         <Button type="button" variant="ghost" size="icon" onClick={handleStartRecording}><Mic className="h-4 w-4" /></Button>
                                                          <Popover>
                                                             <PopoverTrigger asChild><Button type="button" variant="ghost" size="icon"><SmilePlus className="h-4 w-4" /></Button></PopoverTrigger>
                                                              <PopoverContent className="w-auto p-1"><div className="flex gap-1">
@@ -2300,6 +2442,7 @@ export default function TasksPage() {
                                                 <FormMessage>{commentForm.formState.errors.text?.message}</FormMessage>
                                             </form>
                                         </Form>
+                                        )}
                                     </div>
                                 </TabsContent>
                                 <TabsContent value="activity" className="flex-1 overflow-y-auto">
@@ -2475,3 +2618,56 @@ export default function TasksPage() {
     );
 }
 
+const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const togglePlay = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+    
+    useEffect(() => {
+        const audio = audioRef.current;
+        const updateProgress = () => {
+            if (audio) {
+                setProgress((audio.currentTime / audio.duration) * 100);
+            }
+        };
+        const handleEnded = () => setIsPlaying(false);
+
+        audio?.addEventListener('timeupdate', updateProgress);
+        audio?.addEventListener('ended', handleEnded);
+        return () => {
+            audio?.removeEventListener('timeupdate', updateProgress);
+            audio?.removeEventListener('ended', handleEnded);
+        }
+    }, []);
+
+    const formatTime = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <div className="flex items-center gap-2 w-full bg-background/50 p-2 rounded-md">
+            <audio ref={audioRef} src={src} preload="metadata"></audio>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={togglePlay}>
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </Button>
+            <div className="w-full bg-muted rounded-full h-1.5">
+                <div className="bg-primary h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
+            </div>
+            <span className="text-xs font-mono w-12 text-right">{formatTime(duration)}</span>
+        </div>
+    );
+};

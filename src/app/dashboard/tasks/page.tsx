@@ -115,7 +115,6 @@ const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'board' | 'calendar' | 'archive';
-type BoardViewMode = 'active' | 'archived';
 
 
 const checklistItemSchema = z.object({
@@ -183,7 +182,6 @@ export default function TasksPage() {
     const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>(mockScheduledReports);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('board');
-    const [boardViewMode, setBoardViewMode] = useState<BoardViewMode>('active');
     const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings | null>(null);
 
     const [isBoardSwitcherOpen, setIsBoardSwitcherOpen] = useState(false);
@@ -268,7 +266,7 @@ export default function TasksPage() {
       resolver: zodResolver(boardSchema),
       defaultValues: {
         name: "",
-        color: defaultColors[0],
+        color: "#3b82f6",
       }
     });
     
@@ -298,7 +296,7 @@ export default function TasksPage() {
         resolver: zodResolver(labelSchema),
         defaultValues: {
             text: "",
-            color: defaultColors[0],
+            color: "#3b82f6",
         },
     });
 
@@ -329,14 +327,14 @@ export default function TasksPage() {
     }, [boards, currentUser]);
     
     useEffect(() => {
-        if (boardViewMode === 'active' && userBoards.length > 0 && (!activeBoardId || !userBoards.find(b => b.id === activeBoardId))) {
+        if (userBoards.length > 0 && (!activeBoardId || !userBoards.find(b => b.id === activeBoardId))) {
             setActiveBoardId(userBoards[0].id);
-        } else if (boardViewMode === 'archived' && archivedBoards.length > 0 && (!activeBoardId || !archivedBoards.find(b => b.id === activeBoardId))) {
+        } else if (userBoards.length === 0 && archivedBoards.length > 0) {
             setActiveBoardId(archivedBoards[0].id);
         } else if (userBoards.length === 0 && archivedBoards.length === 0) {
             setActiveBoardId(null);
         }
-    }, [userBoards, archivedBoards, activeBoardId, boardViewMode]);
+    }, [userBoards, archivedBoards, activeBoardId]);
 
 
     const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
@@ -413,7 +411,7 @@ export default function TasksPage() {
         } else {
             boardForm.reset({
                 name: "",
-                color: defaultColors[0],
+                color: "#3b82f6",
             });
         }
     }, [editingBoard, boardForm]);
@@ -460,7 +458,7 @@ export default function TasksPage() {
         } else {
             labelForm.reset({
                 text: "",
-                color: defaultColors[0],
+                color: "#3b82f6",
             });
         }
     }, [isLabelManagerOpen, editingLabel, labelForm]);
@@ -692,9 +690,9 @@ export default function TasksPage() {
     };
 
     const handleRestoreTask = (taskId: string) => {
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: false } : t));
+        setTasks(tasks.map(task => 
+            task.id === taskId ? { ...task, isArchived: false } : task
+        ));
         toast({ title: t('tasks.toast.task_restored') });
     };
 
@@ -773,13 +771,12 @@ export default function TasksPage() {
     const handleArchiveBoard = (boardId: string) => {
         setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: true } : b));
         setActiveBoardId(null);
-        setBoardViewMode('active'); // Switch back to active boards view
         toast({ title: t('tasks.toast.board_archived_title') });
     };
 
     const handleRestoreBoard = (boardId: string) => {
         setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: false } : b));
-        setBoardViewMode('active');
+        setViewMode('board');
         setActiveBoardId(boardId);
         toast({ title: t('tasks.toast.board_restored_title') });
     };
@@ -794,11 +791,6 @@ export default function TasksPage() {
         if (activeBoardId === boardId) {
             const nextBoard = archivedBoards.find(b => b.id !== boardId) || userBoards[0];
             setActiveBoardId(nextBoard?.id || null);
-            if (!nextBoard || !nextBoard.isArchived) {
-              setBoardViewMode('active')
-            } else {
-              setBoardViewMode('archived')
-            }
         }
         
         toast({
@@ -872,15 +864,17 @@ export default function TasksPage() {
 
     const handleRestoreColumn = (columnId: string) => {
         if (!activeBoard) return;
-         const updatedBoard = {
+        
+        const updatedBoard = {
             ...activeBoard,
             columns: activeBoard.columns.map(c => c.id === columnId ? { ...c, isArchived: false } : c)
         };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
 
-        // Restore tasks within the column
         const taskIdsToRestore = activeBoard.columns.find(c => c.id === columnId)?.taskIds || [];
-        const updatedTasks = tasks.map(t => taskIdsToRestore.includes(t.id) ? { ...t, isArchived: false } : t);
+        const updatedTasks = tasks.map(t => 
+            taskIdsToRestore.includes(t.id) ? { ...t, isArchived: false } : t
+        );
         setTasks(updatedTasks);
         
         toast({ title: t('tasks.toast.list_restored_title'), description: t('tasks.toast.list_restored_desc') });
@@ -1111,7 +1105,7 @@ export default function TasksPage() {
         const updatedBoard = { ...activeBoard, labels: updatedLabels };
         setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setEditingLabel(null);
-        labelForm.reset({ text: '', color: defaultColors[0] });
+        labelForm.reset({ text: '', color: '#3b82f6' });
     };
 
     const handleCreateNewLabel = (searchText: string, field: any) => {
@@ -1157,13 +1151,13 @@ export default function TasksPage() {
                 let newReactions = [...(task.reactions || [])];
                 const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
 
-                if (userReactionIndex > -1) { // User has reacted before
-                    if (newReactions[userReactionIndex].emoji === emoji) { // Clicked the same emoji
-                        newReactions.splice(userReactionIndex, 1); // Remove reaction
-                    } else { // Clicked a different emoji
-                        newReactions[userReactionIndex].emoji = emoji; // Change reaction
+                if (userReactionIndex > -1) {
+                    if (newReactions[userReactionIndex].emoji === emoji) {
+                        newReactions.splice(userReactionIndex, 1);
+                    } else {
+                        newReactions[userReactionIndex].emoji = emoji;
                     }
-                } else { // First reaction by this user
+                } else {
                     newReactions.push({ emoji, userId: currentUser.id, userName: currentUser.name });
                 }
 
@@ -1368,7 +1362,7 @@ export default function TasksPage() {
 
     const filteredTasks = useMemo(() => {
         if (!activeBoard) return [];
-        let baseTasks = tasks.filter(t => t.boardId === activeBoard.id && !t.isArchived);
+        let baseTasks = tasks.filter(t => t.boardId === activeBoard.id);
         
         if (searchTerm) {
             baseTasks = baseTasks.filter(
@@ -1476,7 +1470,6 @@ export default function TasksPage() {
                                             <CommandItem
                                                 key={board.id}
                                                 onSelect={() => {
-                                                    setBoardViewMode('active');
                                                     setActiveBoardId(board.id);
                                                     setIsBoardSwitcherOpen(false);
                                                 }}
@@ -1486,7 +1479,7 @@ export default function TasksPage() {
                                                      <span className="w-4 h-4 rounded-full" style={{ backgroundColor: board.color }}></span>
                                                      <span>{board.name}</span>
                                                 </div>
-                                                {board.id === activeBoardId && boardViewMode === 'active' && <Check className="h-4 w-4" />}
+                                                {board.id === activeBoardId && <Check className="h-4 w-4" />}
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -1495,9 +1488,9 @@ export default function TasksPage() {
                                             <CommandItem
                                                 key={board.id}
                                                 onSelect={() => {
-                                                    setBoardViewMode('archived');
                                                     setActiveBoardId(board.id);
                                                     setIsBoardSwitcherOpen(false);
+                                                    setViewMode('archive');
                                                 }}
                                                 className="flex items-center justify-between"
                                             >
@@ -1505,7 +1498,7 @@ export default function TasksPage() {
                                                     <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
                                                     <span>{board.name}</span>
                                                 </div>
-                                                {board.id === activeBoardId && boardViewMode === 'archived' && <Check className="h-4 w-4" />}
+                                                {board.id === activeBoardId && <Check className="h-4 w-4" />}
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
@@ -1522,7 +1515,7 @@ export default function TasksPage() {
                         </PopoverContent>
                     </Popover>
                     <div className="flex items-center gap-2">
-                         {activeBoard && boardViewMode === 'active' && (
+                         {activeBoard && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Settings className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -1565,27 +1558,11 @@ export default function TasksPage() {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
-                        {activeBoard && boardViewMode === 'archived' && userPermissions === 'owner' && (
-                             <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => handleRestoreBoard(activeBoard.id)}>
-                                    <ArchiveRestore className="mr-2 h-4 w-4"/> {t('tasks.board.restore_board')}
-                                </Button>
-                                <Button variant="destructive" onClick={() => { setBoardToDelete(activeBoard); setIsDeleteBoardAlertOpen(true);}}>
-                                    <Trash2 className="mr-2 h-4 w-4"/> {t('tasks.archived.delete_permanently_button')}
-                                </Button>
-                             </div>
-                        )}
-                        <Button onClick={() => handleOpenTaskDialog(null)} disabled={!activeBoard || userPermissions === 'viewer' || boardViewMode === 'archived'}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            {t('tasks.add_new_task')}
-                        </Button>
                     </div>
                 </div>
             </PageHeader>
             <DragDropContext onDragEnd={onDragEnd}>
             {activeBoard ? (
-                <>
-                {boardViewMode === 'active' ? (
                 <>
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -1679,7 +1656,7 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
+                                                                        {filteredTasks.filter(t => t.columnId === column.id && !t.isArchived).map((task, index) => (
                                                                             <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
@@ -1797,16 +1774,6 @@ export default function TasksPage() {
                     )}
                     </div>
                 </>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="text-center py-8">
-                            <Archive className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">{t('tasks.archived.archived_board_view_title', { name: activeBoard.name })}</h3>
-                            <p className="mt-2 text-sm text-muted-foreground">{t('tasks.archived.archived_board_view_desc')}</p>
-                        </div>
-                    </div>
-                )}
-                </>
             ) : (
                  <div className="flex flex-col items-center justify-center h-[60vh] text-center">
                     <LayoutGrid className="h-16 w-16 text-muted-foreground" />
@@ -1832,9 +1799,16 @@ export default function TasksPage() {
                                 <FormItem><FormLabel>{t('tasks.dialog.board_name')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.board_name_placeholder')} /></FormControl><FormMessage /></FormItem>
                             )}/>
                              <FormField control={boardForm.control} name="color" render={({ field }) => (
-                                <FormItem><FormLabel>{t('tasks.dialog.board_color')}</FormLabel><div className="flex gap-2">
-                                    {defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-8 w-8 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}
-                                </div><FormMessage /></FormItem>
+                                <FormItem>
+                                    <FormLabel>{t('tasks.dialog.board_color')}</FormLabel>
+                                    <FormControl>
+                                        <div className="flex items-center gap-2">
+                                            <Input type="color" {...field} className="w-16 h-10 p-1" />
+                                            <span className="text-sm text-muted-foreground">{field.value}</span>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
                             )}/>
                              <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">{t('common.cancel')}</Button></DialogClose><Button type="submit">{t('common.save_changes')}</Button></DialogFooter>
                         </form>
@@ -2294,7 +2268,14 @@ export default function TasksPage() {
                     <div className="space-y-4">
                         <Form {...labelForm}><form onSubmit={labelForm.handleSubmit(onLabelSubmit)} className="flex items-end gap-2">
                             <FormField name="text" control={labelForm.control} render={({field}) => (<FormItem className="flex-1"><FormLabel>{t('tasks.dialog.labels_label')}</FormLabel><FormControl><Input {...field} placeholder={t('tasks.dialog.label_name_placeholder')} /></FormControl></FormItem>)}/>
-                            <FormField name="color" control={labelForm.control} render={({field}) => (<FormItem><FormLabel>{t('tasks.dialog.label_color')}</FormLabel><Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="w-full justify-start"><div className="w-5 h-5 rounded-full mr-2 border" style={{ backgroundColor: field.value }}></div></Button></PopoverTrigger><PopoverContent className="w-auto p-0"><div className="grid grid-cols-6 gap-2 p-2">{defaultColors.map(color => (<button key={color} type="button" onClick={() => field.onChange(color)} className={cn("h-6 w-6 rounded-full border-2", field.value === color && "ring-2 ring-ring ring-offset-2")} style={{ backgroundColor: color }} />))}</div></PopoverContent></Popover></FormItem>)}/>
+                            <FormField control={labelForm.control} name="color" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('tasks.dialog.label_color')}</FormLabel>
+                                    <FormControl>
+                                        <Input type="color" {...field} className="w-16 h-10 p-1" />
+                                    </FormControl>
+                                </FormItem>
+                            )}/>
                             <Button type="submit">{editingLabel ? t('common.save_changes') : t('tasks.dialog.add_label_button')}</Button>
                         </form></Form>
                          <div className="space-y-2">
@@ -2418,5 +2399,3 @@ export default function TasksPage() {
         </div>
     );
 }
-
-

@@ -114,7 +114,7 @@ const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
-type ViewMode = 'list' | 'board' | 'archived' | 'calendar';
+type ViewMode = 'board' | 'archived' | 'calendar';
 
 const checklistItemSchema = z.object({
     id: z.string(),
@@ -1174,11 +1174,24 @@ export default function TasksPage() {
         }, {} as Record<string, number>);
 
         return (
-            <Card
-                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard", task.isCompleted && "bg-secondary/50 dark:bg-slate-800/50 opacity-70")}
+             <Card
+                className={cn("mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative", task.isCompleted && "bg-secondary/50 dark:bg-slate-800/50 opacity-70")}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
-                <CardContent className="p-3 relative">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleTaskCompletion(task.id, !task.isCompleted);
+                    }}
+                    className={cn(
+                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 border-muted-foreground flex items-center justify-center transition-all scale-0 group-hover/taskcard:scale-100",
+                        task.isCompleted ? "scale-100 bg-primary border-primary" : "bg-transparent",
+                    )}
+                >
+                    {task.isCompleted && <Check className="h-3 w-3 text-primary-foreground" />}
+                </button>
+
+                <CardContent className="p-3">
                      <div className="absolute top-1 right-1 opacity-0 group-hover/taskcard:opacity-100 transition-opacity z-10">
                          <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1214,7 +1227,7 @@ export default function TasksPage() {
                         </div>
                     )}
 
-                    <p className={cn("font-semibold text-sm text-card-foreground pr-8", task.isCompleted && "line-through")}>{task.title}</p>
+                    <p className="font-semibold text-sm text-card-foreground pr-8 pl-4">{task.title}</p>
                     
                     <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center -space-x-2">
@@ -1323,26 +1336,8 @@ export default function TasksPage() {
             );
         }
 
-        if (viewMode === 'list') {
-            baseTasks.sort((a, b) => {
-                const field = sorting.field;
-                const direction = sorting.direction === 'asc' ? 1 : -1;
-                const valA = a[field as keyof Task];
-                const valB = b[field as keyof Task];
-
-                if (field === 'dueDate') {
-                    return (new Date(valA as string).getTime() - new Date(valB as string).getTime()) * direction;
-                }
-
-                if (String(valA) < String(valB)) return -1 * direction;
-                if (String(valA) > String(valB)) return 1 * direction;
-                return 0;
-            });
-        }
-
-
         return baseTasks;
-  }, [tasks, searchTerm, filters, sorting, viewMode, activeBoard]);
+  }, [tasks, searchTerm, filters, viewMode, activeBoard]);
 
 
     const calendarDays = useMemo(() => {
@@ -1575,73 +1570,13 @@ export default function TasksPage() {
                         </div>
                         <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><LayoutGrid className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}><List className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'archived' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('archived')}><Archive className="h-4 w-4"/></Button>
                         </div>
                     </div>
 
                     <div className="min-h-[60vh]">
-                    {viewMode === 'list' ? (
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader><TableRow>
-                                    <TableHead className="w-[5%]"><Checkbox
-                                        checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
-                                        indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < filteredTasks.length}
-                                        onCheckedChange={(checked) => setSelectedTaskIds(checked ? filteredTasks.map(t => t.id) : [])}
-                                    /></TableHead>
-                                    <TableHead className="w-[35%]">{t('tasks.table.task')}</TableHead>
-                                    <TableHead className="w-[15%]">{t('tasks.table.status')}</TableHead>
-                                    <TableHead className="w-[10%]">{t('tasks.table.priority')}</TableHead>
-                                    <TableHead className="w-[15%]">{t('tasks.table.assigned_to')}</TableHead>
-                                    <TableHead className="w-[15%]">{t('tasks.table.next_due')}</TableHead>
-                                    <TableHead className="w-[5%] text-right">{t('common.actions')}</TableHead>
-                                </TableRow></TableHeader>
-                                <TableBody>
-                                    {filteredTasks.length > 0 ? filteredTasks.map(task => {
-                                        const column = activeBoard.columns.find(c => c.id === task.columnId);
-                                        return (
-                                            <TableRow key={task.id}>
-                                                <TableCell><Checkbox
-                                                    checked={selectedTaskIds.includes(task.id)}
-                                                    onCheckedChange={(checked) => setSelectedTaskIds(checked ? [...selectedTaskIds, task.id] : selectedTaskIds.filter(id => id !== task.id))}
-                                                /></TableCell>
-                                                <TableCell><div className="font-medium">{task.title}</div></TableCell>
-                                                <TableCell><Badge variant="outline">{column?.title}</Badge></TableCell>
-                                                <TableCell className="capitalize">{t(`tasks.priority.${task.priority}`)}</TableCell>
-                                                <TableCell><div className="flex items-center -space-x-2">
-                                                    {(task.assignees || []).map(id => {
-                                                        const user = usersOnBoard.find(u => u.id === id);
-                                                        return user ? (<TooltipProvider key={id}><Tooltip><TooltipTrigger>
-                                                            <Avatar className="h-8 w-8 border-2 border-background">
-                                                                <AvatarImage src={user.avatar} alt={user.name} />
-                                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                                            </Avatar>
-                                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip></TooltipProvider>) : null;
-                                                    })}
-                                                </div></TableCell>
-                                                <TableCell>{format(new Date(task.dueDate), 'yyyy/MM/dd')}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem onClick={() => handleOpenDetailsSheet(task)}>{t('tasks.details.view_details')}</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleOpenTaskDialog(task)}>{t('common.edit')}</DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleOpenMoveDialog(task)}>{t('tasks.actions.move_task')}</DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteTask(task.id)}>{t('common.delete')}</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        )
-                                    }) : (
-                                        <TableRow><TableCell colSpan={7} className="h-24 text-center">{t('tasks.no_tasks_found')}</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    ) : viewMode === 'board' ? (
+                    {viewMode === 'board' ? (
                             <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
                                 {(provided) => (
                                     <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
@@ -2037,7 +1972,7 @@ export default function TasksPage() {
                      {selectedTaskForDetails && (
                         <>
                             <SheetHeader>
-                                <SheetTitle className={cn(selectedTaskForDetails.isCompleted && "line-through")}>
+                                <SheetTitle className={cn(selectedTaskForDetails.isCompleted && "text-muted-foreground")}>
                                   {t('tasks.details.title', { name: selectedTaskForDetails.title })}
                                 </SheetTitle>
                                 <SheetDescription>
@@ -2305,3 +2240,5 @@ export default function TasksPage() {
         </div>
     );
 }
+
+    

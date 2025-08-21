@@ -1026,14 +1026,14 @@ export default function TasksPage() {
 
     const handleInsertText = (text: string) => {
         if (commentInputRef.current) {
-            const { selectionStart, selectionEnd } = commentInputRef.current;
-            const currentText = commentForm.getValues("text") || "";
+            const { selectionStart, selectionEnd, value } = commentInputRef.current;
             const newText =
-                currentText.substring(0, selectionStart) +
+                value.substring(0, selectionStart) +
                 text +
-                currentText.substring(selectionEnd);
+                value.substring(selectionEnd);
             commentForm.setValue("text", newText, { shouldDirty: true });
             commentInputRef.current.focus();
+            // Move cursor to after the inserted text
             setTimeout(() => {
                 commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
             }, 0);
@@ -1043,7 +1043,10 @@ export default function TasksPage() {
 
     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
         if (!currentUser || !selectedTaskForDetails) return;
-        if (!values.text && !values.attachment) return;
+        if (!values.text?.trim() && !values.attachment) {
+            commentForm.setError("root", { message: "Comment cannot be empty." });
+            return;
+        };
 
         const newComment: Comment = {
             id: `CMT-${Date.now()}`,
@@ -1370,7 +1373,7 @@ export default function TasksPage() {
     const calendarTasks = useMemo(() => {
         if (!activeBoard) return [];
         return tasks.filter(t => t.boardId === activeBoard.id);
-    }, [tasks, activeBoard, activeBoardId]);
+    }, [tasks, activeBoard]);
 
 
     const calendarDays = useMemo(() => {
@@ -1435,15 +1438,14 @@ export default function TasksPage() {
             };
             mediaRecorderRef.current.onstart = draw;
             mediaRecorderRef.current.start(100); // Collect data every 100ms
+            setIsRecording(true);
+            if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
         } catch (err) {
             console.error("Error accessing microphone:", err);
             toast({ title: t('common.error'), description: t('tasks.toast.mic_error'), variant: 'destructive' });
             return;
         }
-
-        setIsRecording(true);
-        if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
     };
 
     const handleSendRecording = () => {
@@ -1595,7 +1597,7 @@ export default function TasksPage() {
              <Card
                 className={cn(
                     "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                     task.isCompleted && "border-l-4 border-green-500"
+                     task.isCompleted && "border-l-4 border-green-500 opacity-70"
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >

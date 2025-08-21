@@ -42,6 +42,11 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       // Fallback to English if translation is missing
       translation = get(translations.en, key);
     }
+    
+    // If translation is still not found, return the key itself.
+    if (!translation) {
+        return key;
+    }
 
     if (options) {
         Object.keys(options).forEach((k) => {
@@ -52,7 +57,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
         });
     }
 
-    return translation || key;
+    return translation;
   }, [language]);
 
 

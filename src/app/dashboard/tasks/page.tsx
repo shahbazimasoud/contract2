@@ -252,7 +252,7 @@ export default function TasksPage() {
     const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
     
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ labelIds: [] as string[], includeCompleted: false, assignedToMe: false });
+    const [filters, setFilters] = useState({ includeCompleted: false, assignedToMe: false });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
@@ -335,10 +335,9 @@ export default function TasksPage() {
     
     const userBoards = useMemo(() => {
         if (!currentUser) return [];
-        if (currentUser.role === 'super-admin') return boards.filter(b => !b.isArchived);
         return boards.filter(board => 
             !board.isArchived &&
-            (board.ownerId === currentUser.id || board.sharedWith?.some(s => s.userId === currentUser.id))
+            (currentUser.role === 'super-admin' || board.ownerId === currentUser.id || board.sharedWith?.some(s => s.userId === currentUser.id))
         );
     }, [boards, currentUser]);
 
@@ -1317,7 +1316,7 @@ export default function TasksPage() {
         setIsDetailsSheetOpen(false);
         commentForm.reset();
         if (isRecording) {
-            handleStopRecording(true);
+            handleCancelRecording();
         }
     };
 
@@ -1452,12 +1451,6 @@ export default function TasksPage() {
             baseTasks = baseTasks.filter(task => !task.isCompleted);
         }
     
-        if (filters.labelIds.length > 0) {
-            baseTasks = baseTasks.filter(task => 
-                filters.labelIds.every(labelId => (task.labelIds || []).includes(labelId))
-            );
-        }
-
         if (filters.assignedToMe && currentUser) {
             baseTasks = baseTasks.filter(task => (task.assignees || []).includes(currentUser.id));
         }
@@ -1584,7 +1577,7 @@ export default function TasksPage() {
         setRecordingTime(0);
         setAudioWave([]);
         
-        if (mediaRecorderRef.current.stream) {
+        if (mediaRecorderRef.current?.stream) {
             mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
         }
         mediaRecorderRef.current = null;
@@ -1656,7 +1649,7 @@ export default function TasksPage() {
                     <Archive className="mx-auto h-16 w-16 text-muted-foreground" />
                     <h2 className="mt-4 text-2xl font-semibold">{t('tasks.empty_state.all_archived_title')}</h2>
                     <p className="mt-2 text-muted-foreground">{t('tasks.empty_state.all_archived_desc')}</p>
-                    <Button onClick={() => setViewMode('archive')} className="mt-6">
+                    <Button onClick={() => {setViewMode('archive'); setActiveBoardId(null);}} className="mt-6">
                       <ArchiveRestore className="mr-2 h-4 w-4" />
                       {t('tasks.archived.view_archived_items')}
                     </Button>
@@ -1767,7 +1760,7 @@ export default function TasksPage() {
                          <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><ClipboardCheck className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => { setViewMode('archive'); }}><Archive className="h-4 w-4" /></Button>
+                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => { setViewMode('archive'); setActiveBoardId(null); }}><Archive className="h-4 w-4" /></Button>
                         </div>
                         
                          {activeBoard && (
@@ -1862,52 +1855,6 @@ export default function TasksPage() {
                                                 />
                                                 <Label htmlFor="assigned-to-me" className="text-sm font-normal">{t('tasks.search.assigned_to_me')}</Label>
                                             </div>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="mt-2">
-                                                        <Tag className="mr-2 h-4 w-4"/>
-                                                        <span>{t('tasks.filter_by_tags')}</span>
-                                                        {filters.labelIds.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.labelIds.length}</span>}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent>
-                                                     <Command>
-                                                        <CommandInput placeholder={t('tasks.filter_tags_placeholder')} />
-                                                        <CommandList>
-                                                            <CommandEmpty>{t('tasks.no_tags_found')}</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {(activeBoard.labels || []).map((label) => (
-                                                                    <CommandItem
-                                                                        key={label.id}
-                                                                        onSelect={() => {
-                                                                            const newSelection = filters.labelIds.includes(label.id)
-                                                                                ? filters.labelIds.filter(id => id !== label.id)
-                                                                                : [...filters.labelIds, label.id];
-                                                                            setFilters(prev => ({...prev, labelIds: newSelection }));
-                                                                        }}
-                                                                    >
-                                                                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", filters.labelIds.includes(label.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
-                                                                            <Check className="h-4 w-4" />
-                                                                        </div>
-                                                                        <span className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>
-                                                                        <span>{label.text}</span>
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                            {filters.labelIds.length > 0 && (
-                                                                <>
-                                                                    <Separator />
-                                                                    <CommandGroup>
-                                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive justify-center">
-                                                                            {t('contracts.filter.clear_button')}
-                                                                        </CommandItem>
-                                                                    </CommandGroup>
-                                                                </>
-                                                            )}
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
                                         </div>
                                     </div>
                                 </PopoverContent>
@@ -1953,7 +1900,8 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {column.taskIds.map(taskId => filteredTasks.find(t => t.id === taskId)).filter(Boolean).map((task, index) => (
+                                                                        {column.taskIds.map(taskId => tasks.find(t => t.id === taskId)).filter(Boolean).map((task, index) => (
+                                                                             (filters.includeCompleted || !task!.isCompleted) && 
                                                                             <Draggable key={task!.id} draggableId={task!.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
@@ -2557,7 +2505,7 @@ export default function TasksPage() {
                                             <div className="flex items-center gap-2">
                                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={handleCancelRecording}><Trash2 className="h-4 w-4" /></Button>
                                                  <div className="flex-1 bg-muted rounded-full h-8 flex items-center px-3 gap-2">
-                                                    {isRecording ?
+                                                    {isRecording && mediaRecorderRef.current?.state !== 'paused' ?
                                                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div> :
                                                         <Play className="h-4 w-4 text-muted-foreground" />
                                                     }
@@ -2596,7 +2544,7 @@ export default function TasksPage() {
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                        <Button type="submit" size="icon" variant="ghost" disabled={!commentTextValue && !commentForm.getValues().attachment}>
+                                                        <Button type="submit" size="icon" variant="ghost">
                                                             { (!commentTextValue && !commentForm.getValues().attachment) ? 
                                                                 <Mic className="h-4 w-4" onClick={handleToggleVoiceRecording} /> :
                                                                 <Send className="h-4 w-4" />

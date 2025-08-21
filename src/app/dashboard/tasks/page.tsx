@@ -249,7 +249,7 @@ export default function TasksPage() {
     const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
     
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ includeCompleted: false, assignedToMe: false });
+    const [filters, setFilters] = useState({ includeCompleted: true, assignedToMe: false });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
@@ -1778,7 +1778,7 @@ export default function TasksPage() {
                          <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><ClipboardCheck className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => { setViewMode('archive'); setActiveBoardId(null); }}><Archive className="h-4 w-4" /></Button>
+                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => {setViewMode('archive'); setActiveBoardId(null);}}><Archive className="h-4 w-4" /></Button>
                         </div>
                         
                          {activeBoard && (
@@ -1916,7 +1916,7 @@ export default function TasksPage() {
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
-                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                         {renderTaskCard(task)}

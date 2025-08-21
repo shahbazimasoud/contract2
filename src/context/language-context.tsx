@@ -27,7 +27,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
   useEffect(() => {
     const user = localStorage.getItem(AUTH_USER_KEY);
     const userId = user ? JSON.parse(user).id : null;
-    const storedLanguage = localStorage.getItem(`language_${userId}`) as Language;
+    const storedLanguage = userId ? localStorage.getItem(`language_${userId}`) as Language : null;
 
     if (storedLanguage && ['en', 'fa'].includes(storedLanguage)) {
       setLanguageState(storedLanguage);

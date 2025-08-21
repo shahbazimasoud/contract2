@@ -178,9 +178,6 @@ const labelSchema = z.object({
 });
 
 
-const defaultColors = ["#3b82f6", "#ef4444", "#10b981", "#eab308", "#8b5cf6", "#f97316"];
-
-
 export default function TasksPage() {
     const { t } = useLanguage();
     const { calendar, locale, format, formatDistance, dateFnsLocale, differenceInDays } = useCalendar();
@@ -727,12 +724,20 @@ export default function TasksPage() {
         if (!taskToRestore) return;
         
         const targetBoard = boards.find(b => b.id === (activeBoardId || taskToRestore.boardId));
-        if(!targetBoard || targetBoard.columns.filter(c => !c.isArchived).length === 0){
-             toast({
-                title: t('common.error'),
-                description: t('tasks.toast.no_active_columns_for_restore'),
-                variant: 'destructive',
-            });
+         if(!targetBoard || targetBoard.columns.filter(c => !c.isArchived).length === 0){
+             if (userBoards.length === 0) {
+                 toast({
+                    title: t('common.error'),
+                    description: t('tasks.toast.no_active_board_for_restore'),
+                    variant: 'destructive',
+                });
+             } else {
+                 toast({
+                    title: t('common.error'),
+                    description: t('tasks.toast.no_active_columns_for_restore'),
+                    variant: 'destructive',
+                });
+             }
             return;
         }
 
@@ -764,8 +769,7 @@ export default function TasksPage() {
     };
 
     const onArchiveTaskClick = (task: Task) => {
-         const boardsWithActiveColumns = boards.filter(b => !b.isArchived && b.columns.filter(c => !c.isArchived).length > 0);
-        if (boardsWithActiveColumns.length === 0) {
+        if (userBoards.length === 0) {
             toast({
                 title: t('common.error'),
                 description: t('tasks.toast.no_active_board_for_restore'),
@@ -901,6 +905,15 @@ export default function TasksPage() {
     };
 
     const onRestoreColumnClick = (column: BoardColumn) => {
+         if (userBoards.length === 0) {
+            toast({
+                title: t('common.error'),
+                description: t('tasks.toast.no_active_board_for_restore'),
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setColumnToRestore(column);
         setTasksToRestoreWithColumn(
             tasks
@@ -1011,7 +1024,7 @@ export default function TasksPage() {
         handleCloseShareDialog();
     };
 
-     const handleInsertText = (text: string) => {
+    const handleInsertText = (text: string) => {
         if (commentInputRef.current) {
             const { selectionStart, selectionEnd } = commentInputRef.current;
             const currentText = commentForm.getValues("text") || "";
@@ -1019,7 +1032,7 @@ export default function TasksPage() {
                 currentText.substring(0, selectionStart) +
                 text +
                 currentText.substring(selectionEnd);
-            commentForm.setValue("text", newText);
+            commentForm.setValue("text", newText, { shouldDirty: true });
             commentForm.setFocus("text");
             setTimeout(() => {
                 commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
@@ -1207,7 +1220,7 @@ export default function TasksPage() {
         const newLabel: LabelType = {
             id: `LBL-${Date.now()}`,
             text: searchText,
-            color: defaultColors[Math.floor(Math.random() * defaultColors.length)],
+            color: "#3b82f6",
         };
         const updatedBoard = {
             ...activeBoard,
@@ -1319,125 +1332,21 @@ export default function TasksPage() {
             handleCancelRecording();
         }
     };
-
-    const renderTaskCard = (task: Task) => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const dueDate = new Date(task.dueDate);
-        const daysToDue = differenceInDays(dueDate, today);
-
-        let dueDateColor = "text-muted-foreground";
-        if (!task.isCompleted) {
-            if (daysToDue < 0) dueDateColor = "text-red-500";
-            else if (daysToDue < 7) dueDateColor = "text-orange-500";
+    
+    const [activeBoardTasks, setActiveBoardTasks] = useState<Task[]>([]);
+    
+    useEffect(() => {
+        if (activeBoard) {
+            setActiveBoardTasks(tasks.filter(t => t.boardId === activeBoard.id));
+        } else {
+            setActiveBoardTasks([]);
         }
-        
-
-        const assigneesToShow = task.assignees?.slice(0, 3) || [];
-        const hiddenAssigneesCount = (task.assignees?.length || 0) - assigneesToShow.length;
-
-        return (
-             <Card
-                className={cn(
-                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                )}
-                onClick={() => handleOpenDetailsSheet(task)}
-            >
-                 <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleTaskCompletion(task.id, !task.isCompleted);
-                    }}
-                    className={cn(
-                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200",
-                        "opacity-0 group-hover/taskcard:opacity-100",
-                        task.isCompleted ? "opacity-100 bg-green-500 border-green-700" : "border-muted-foreground/50 hover:border-primary"
-                    )}
-                >
-                    <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop scale-100" : "scale-0")} />
-                </button>
-
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenTaskDialog(task, task.columnId);
-                    }}
-                    className="absolute top-1 right-1 h-7 w-7 rounded-md flex items-center justify-center transition-opacity opacity-0 group-hover/taskcard:opacity-100 hover:bg-muted"
-                >
-                    <Edit className="h-4 w-4 text-muted-foreground" />
-                </button>
-
-                <CardContent className={cn("p-3 transition-all duration-200", task.isCompleted && "border-l-4 border-green-500")}>
-                     <div className={cn("pl-0 group-hover/taskcard:pl-7 transition-all duration-200")}>
-                        {(task.labelIds && task.labelIds.length > 0) && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {task.labelIds.map(labelId => {
-                                    const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                    if (!label) return null;
-                                    return (
-                                        <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
-                                            {label.text}
-                                        </Badge>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        <p className="font-semibold text-sm text-card-foreground">{task.title}</p>
-                    </div>
-                    
-                    <div className="flex items-end justify-between mt-3">
-                         <div className="flex items-center -space-x-2">
-                            <TooltipProvider>
-                                {assigneesToShow.map(id => {
-                                    const user = usersOnBoard.find(u => u.id === id);
-                                    return user ? (
-                                        <Tooltip key={id}><TooltipTrigger asChild>
-                                            <Avatar className="h-6 w-6 border-2 border-background">
-                                                <AvatarImage src={user.avatar} alt={user.name} />
-                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip>
-                                    ) : null;
-                                })}
-                                {hiddenAssigneesCount > 0 && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                             <Avatar className="h-6 w-6 border-2 border-background">
-                                                <AvatarFallback>+{hiddenAssigneesCount}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{(task.assignees || []).slice(3).map(id => usersOnBoard.find(u => u.id === id)?.name).join(', ')}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )}
-                            </TooltipProvider>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            {(task.comments?.length || 0) > 0 && (
-                                 <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
-                            )}
-                            {(task.attachments?.length || 0) > 0 && (
-                                <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
-                            )}
-                            {(task.checklist?.length || 0) > 0 && (
-                                 <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
-                            )}
-                             <span className={cn("flex items-center gap-1", dueDateColor)}>
-                                <CalendarIcon className="h-3 w-3" />
-                                {format(new Date(task.dueDate), 'MMM d')}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
+    }, [activeBoard, tasks]);
 
 
     const filteredTasks = useMemo(() => {
         if (!activeBoard) return [];
-        let baseTasks = tasks.filter(t => t.boardId === activeBoard.id);
+        let baseTasks = activeBoardTasks;
         
         if (searchTerm) {
              baseTasks = baseTasks.filter(task => {
@@ -1456,7 +1365,12 @@ export default function TasksPage() {
         }
 
         return baseTasks;
-  }, [tasks, searchTerm, filters, activeBoard, currentUser]);
+  }, [activeBoardTasks, searchTerm, filters, activeBoard, currentUser]);
+
+    const calendarTasks = useMemo(() => {
+        if (!activeBoard) return [];
+        return tasks.filter(t => t.boardId === activeBoard.id);
+    }, [tasks, activeBoard]);
 
 
     const calendarDays = useMemo(() => {
@@ -1469,13 +1383,13 @@ export default function TasksPage() {
     }, [currentMonth, format]);
 
     const tasksByDate = useMemo(() => {
-        return filteredTasks.reduce((acc, task) => {
+        return calendarTasks.reduce((acc, task) => {
             const dueDate = format(new Date(task.dueDate), 'yyyy-MM-dd');
             if (!acc[dueDate]) { acc[dueDate] = []; }
             acc[dueDate].push(task);
             return acc;
         }, {} as Record<string, Task[]>);
-    }, [filteredTasks, format]);
+    }, [calendarTasks, format]);
 
     const nextMonth = () => setCurrentMonth(prev => addMonths(prev, 1));
     const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
@@ -1535,10 +1449,6 @@ export default function TasksPage() {
     const handleSendRecording = () => {
         if (!mediaRecorderRef.current) return;
         
-        mediaRecorderRef.current.stop();
-        if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-        setIsRecording(false);
-
         const onStop = () => {
             if (audioChunks.length > 0) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -1564,7 +1474,10 @@ export default function TasksPage() {
             onStop();
         } else {
              mediaRecorderRef.current.onstop = onStop;
+             mediaRecorderRef.current.stop();
         }
+        if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+        setIsRecording(false);
     }
 
     const handleCancelRecording = () => {
@@ -1573,15 +1486,18 @@ export default function TasksPage() {
         mediaRecorderRef.current.stop();
         if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
         setIsRecording(false);
-        setAudioChunks([]);
-        setRecordingTime(0);
-        setAudioWave([]);
         
-        if (mediaRecorderRef.current?.stream) {
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-        }
-        mediaRecorderRef.current = null;
-        commentForm.reset({ text: commentForm.getValues().text, attachment: undefined });
+        // Cleanup
+        setTimeout(() => {
+             setAudioChunks([]);
+             setRecordingTime(0);
+             setAudioWave([]);
+              if (mediaRecorderRef.current?.stream) {
+                mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+              }
+              mediaRecorderRef.current = null;
+              commentForm.reset({ text: commentForm.getValues().text, attachment: undefined });
+        }, 100);
     }
     
     const formatTime = (seconds: number) => {
@@ -1659,6 +1575,120 @@ export default function TasksPage() {
         return null;
     }
     
+    const renderTaskCard = (task: Task) => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const dueDate = new Date(task.dueDate);
+        const daysToDue = differenceInDays(dueDate, today);
+
+        let dueDateColor = "text-muted-foreground";
+        if (!task.isCompleted) {
+            if (daysToDue < 0) dueDateColor = "text-red-500";
+            else if (daysToDue < 7) dueDateColor = "text-orange-500";
+        }
+        
+        const assigneesToShow = task.assignees?.slice(0, 3) || [];
+        const hiddenAssigneesCount = (task.assignees?.length || 0) - assigneesToShow.length;
+
+        return (
+             <Card
+                className={cn(
+                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
+                )}
+                onClick={() => handleOpenDetailsSheet(task)}
+            >
+                <CardContent className={cn("p-3 transition-all duration-200", task.isCompleted && "border-l-4 border-green-500")}>
+                    <div className="flex items-start gap-3">
+                         <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleTaskCompletion(task.id, !task.isCompleted);
+                            }}
+                            className={cn(
+                                "mt-1 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0",
+                                task.isCompleted ? "bg-green-500 border-green-700" : "border-muted-foreground/50 hover:border-primary"
+                            )}
+                        >
+                            <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop scale-100" : "scale-0")} />
+                        </button>
+
+                        <div className="flex-1 min-w-0">
+                             {(task.labelIds && task.labelIds.length > 0) && (
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                    {task.labelIds.map(labelId => {
+                                        const label = activeBoard?.labels?.find(l => l.id === labelId);
+                                        if (!label) return null;
+                                        return (
+                                            <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
+                                                {label.text}
+                                            </Badge>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <p className="font-semibold text-sm text-card-foreground break-words">{task.title}</p>
+                        </div>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTaskDialog(task, task.columnId);
+                            }}
+                            className="absolute top-1 right-1 h-7 w-7 rounded-md flex items-center justify-center transition-opacity opacity-0 group-hover/taskcard:opacity-100 hover:bg-muted"
+                        >
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                    </div>
+
+                    
+                    <div className="flex items-end justify-between mt-3 pl-8">
+                         <div className="flex items-center -space-x-2">
+                            <TooltipProvider>
+                                {assigneesToShow.map(id => {
+                                    const user = usersOnBoard.find(u => u.id === id);
+                                    return user ? (
+                                        <Tooltip key={id}><TooltipTrigger asChild>
+                                            <Avatar className="h-6 w-6 border-2 border-background">
+                                                <AvatarImage src={user.avatar} alt={user.name} />
+                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip>
+                                    ) : null;
+                                })}
+                                {hiddenAssigneesCount > 0 && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <Avatar className="h-6 w-6 border-2 border-background">
+                                                <AvatarFallback>+{hiddenAssigneesCount}</AvatarFallback>
+                                            </Avatar>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{(task.assignees || []).slice(3).map(id => usersOnBoard.find(u => u.id === id)?.name).join(', ')}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+                            </TooltipProvider>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {(task.comments?.length || 0) > 0 && (
+                                 <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
+                            )}
+                            {(task.attachments?.length || 0) > 0 && (
+                                <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
+                            )}
+                            {(task.checklist?.length || 0) > 0 && (
+                                 <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
+                            )}
+                             <span className={cn("flex items-center gap-1", dueDateColor)}>
+                                <CalendarIcon className="h-3 w-3" />
+                                {format(new Date(task.dueDate), 'MMM d')}
+                            </span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+    
     return (
         <div className="container mx-auto px-4 py-8">
              <PageHeader className="pb-4">
@@ -1696,6 +1726,7 @@ export default function TasksPage() {
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
+                                    {archivedBoards.length > 0 && <Separator />}
                                     <CommandGroup heading={t('tasks.view_modes.archived_boards')}>
                                         {archivedBoards.map((board) => (
                                             <CommandItem
@@ -1729,6 +1760,7 @@ export default function TasksPage() {
                     </Popover>
                     <div className="flex items-center gap-2 ml-auto">
                         {activeBoard && (
+                            <>
                              <div className="flex items-center -space-x-2">
                                 {usersOnBoard.slice(0,3).map(user => (
                                         <TooltipProvider key={user.id}>
@@ -1756,6 +1788,11 @@ export default function TasksPage() {
                                      </Tooltip></TooltipProvider>
                                 )}
                             </div>
+                            <Button variant="outline" onClick={() => handleOpenShareDialog(activeBoard)} disabled={userPermissions !== 'owner'}>
+                               <Share2 className="mr-2 h-4 w-4"/>
+                               <span>{t('tasks.share_board')}</span>
+                            </Button>
+                            </>
                         )}
                          <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><ClipboardCheck className="h-4 w-4"/></Button>
@@ -1772,10 +1809,7 @@ export default function TasksPage() {
                                         <Edit className="mr-2 h-4 w-4"/>
                                         <span>{t('common.edit')}</span>
                                     </DropdownMenuItem>
-                                     <DropdownMenuItem onClick={() => handleOpenShareDialog(activeBoard)} disabled={userPermissions !== 'owner'}>
-                                        <Share2 className="mr-2 h-4 w-4"/>
-                                        <span>{t('tasks.share_board')}</span>
-                                    </DropdownMenuItem>
+                                     
                                     <DropdownMenuItem onClick={() => setIsLabelManagerOpen(true)} disabled={userPermissions === 'viewer'}>
                                         <Tag className="mr-2 h-4 w-4" />
                                         <span>{t('tasks.manage_labels')}</span>
@@ -1900,12 +1934,11 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {column.taskIds.map(taskId => tasks.find(t => t.id === taskId)).filter(Boolean).map((task, index) => (
-                                                                             (filters.includeCompleted || !task!.isCompleted) && 
-                                                                            <Draggable key={task!.id} draggableId={task!.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                        {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                        {renderTaskCard(task!)}
+                                                                                        {renderTaskCard(task)}
                                                                                     </div>
                                                                                 )}
                                                                             </Draggable>
@@ -2514,11 +2547,11 @@ export default function TasksPage() {
                                                         {audioWave.map((h, i) => <div key={i} className="w-0.5 bg-primary rounded-full" style={{ height: `${Math.max(h, 5)}%`}}></div>)}
                                                     </div>
                                                 </div>
-                                                <Button size="icon" onClick={handleSendRecording}>
-                                                    <Send className="h-5 w-5" />
-                                                </Button>
                                                  <Button size="icon" variant={isRecording ? "secondary" : "default"} onClick={handleToggleVoiceRecording}>
                                                     {isRecording ? <Pause className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                                </Button>
+                                                <Button size="icon" onClick={handleSendRecording}>
+                                                    <Send className="h-5 w-5" />
                                                 </Button>
                                             </div>
                                         ) : (
@@ -2544,11 +2577,8 @@ export default function TasksPage() {
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                        <Button type="submit" size="icon" variant="ghost">
-                                                            { (!commentTextValue && !commentForm.getValues().attachment) ? 
-                                                                <Mic className="h-4 w-4" onClick={handleToggleVoiceRecording} /> :
-                                                                <Send className="h-4 w-4" />
-                                                            }
+                                                        <Button type="button" size="icon" variant="ghost" onClick={!commentTextValue ? handleToggleVoiceRecording : commentForm.handleSubmit(onCommentSubmit)}>
+                                                           {commentTextValue ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
                                                 </div>

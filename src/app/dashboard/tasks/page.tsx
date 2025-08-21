@@ -113,6 +113,9 @@ const Draggable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Dr
 
 const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
+const TASKS_KEY = 'tasks_data';
+const BOARDS_KEY = 'boards_data';
+
 type SortableTaskField = 'title' | 'dueDate' | 'priority' | 'columnId';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'board' | 'calendar' | 'archive';
@@ -181,9 +184,10 @@ const labelSchema = z.object({
 export default function TasksPage() {
     const { t } = useLanguage();
     const { calendar, locale, format, formatDistance, dateFnsLocale, differenceInDays } = useCalendar();
+    const [isClient, setIsClient] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [tasks, setTasks] = useState<Task[]>(mockTasks);
-    const [boards, setBoards] = useState<TaskBoard[]>(mockTaskBoards);
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [boards, setBoards] = useState<TaskBoard[]>([]);
     const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>(mockScheduledReports);
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('board');
@@ -319,16 +323,35 @@ export default function TasksPage() {
     });
 
     useEffect(() => {
+        setIsClient(true);
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
         if (storedUser) {
             const user = JSON.parse(storedUser);
             setCurrentUser(user);
         }
+        
         const savedSettings = localStorage.getItem(APPEARANCE_SETTINGS_KEY);
         if (savedSettings) {
             setAppearanceSettings(JSON.parse(savedSettings));
         }
+
+        const storedTasks = localStorage.getItem(TASKS_KEY);
+        setTasks(storedTasks ? JSON.parse(storedTasks) : mockTasks);
+
+        const storedBoards = localStorage.getItem(BOARDS_KEY);
+        setBoards(storedBoards ? JSON.parse(storedBoards) : mockTaskBoards);
+
     }, []);
+
+    const updateTasks = (newTasks: Task[]) => {
+        setTasks(newTasks);
+        if(isClient) localStorage.setItem(TASKS_KEY, JSON.stringify(newTasks));
+    };
+
+    const updateBoards = (newBoards: TaskBoard[]) => {
+        setBoards(newBoards);
+        if(isClient) localStorage.setItem(BOARDS_KEY, JSON.stringify(newBoards));
+    };
     
     const userBoards = useMemo(() => {
         if (!currentUser) return [];
@@ -598,7 +621,7 @@ export default function TasksPage() {
                 labelIds: values.labelIds || [],
                 logs: [...(editingTask.logs || []), createLogEntry('updated', { title: values.title })],
             };
-            setTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
+            updateTasks(tasks.map(t => t.id === editingTask.id ? updatedTask : t));
 
             if (editingTask.columnId !== values.columnId) {
                 const updatedBoards = boards.map(b => {
@@ -616,7 +639,7 @@ export default function TasksPage() {
                     }
                     return b;
                 });
-                setBoards(updatedBoards);
+                updateBoards(updatedBoards);
             }
 
             toast({ title: t('tasks.toast.task_updated_title'), description: t('tasks.toast.task_updated_desc', { name: updatedTask.title }) });
@@ -638,7 +661,7 @@ export default function TasksPage() {
                 reactions: [],
                 labelIds: values.labelIds || [],
             };
-            setTasks([newTask, ...tasks]);
+            updateTasks([newTask, ...tasks]);
             
             const updatedBoard = {
                 ...activeBoard,
@@ -646,7 +669,7 @@ export default function TasksPage() {
                     col.id === values.columnId ? { ...col, taskIds: [newTaskId, ...(col.taskIds || [])] } : col
                 )
             };
-            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
 
             toast({ title: t('tasks.toast.task_created_title'), description: t('tasks.toast.task_created_desc', { name: newTask.title }) });
         }
@@ -661,7 +684,8 @@ export default function TasksPage() {
         const updatedTasks = tasks.map(t =>
             t.id === taskId ? { ...t, isCompleted, logs: [...(t.logs || []), log] } : t
         );
-        setTasks(updatedTasks);
+        updateTasks(updatedTasks);
+
         if (selectedTaskForDetails?.id === taskId) {
             setSelectedTaskForDetails(prev => prev ? {...prev, isCompleted, logs: [...(prev.logs || []), log]} : null);
         }
@@ -671,7 +695,7 @@ export default function TasksPage() {
         const taskToDelete = tasks.find(t => t.id === taskId);
         if (!taskToDelete) return;
         
-        setTasks(tasks.filter(t => t.id !== taskId));
+        updateTasks(tasks.filter(t => t.id !== taskId));
         
         if (!fromArchive) {
             const updatedBoards = boards.map(b => {
@@ -686,7 +710,7 @@ export default function TasksPage() {
                 }
                 return b;
             });
-            setBoards(updatedBoards);
+            updateBoards(updatedBoards);
         }
         
         toast({
@@ -703,7 +727,7 @@ export default function TasksPage() {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
         
-        setTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: true } : t));
+        updateTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: true } : t));
         
         const updatedBoards = boards.map(b => {
             if (b.id === task.boardId) {
@@ -717,7 +741,7 @@ export default function TasksPage() {
             }
             return b;
         });
-        setBoards(updatedBoards);
+        updateBoards(updatedBoards);
     };
 
     const handleRestoreTask = (targetColumnId?: string) => {
@@ -756,10 +780,10 @@ export default function TasksPage() {
             }
             return board;
         });
-        setBoards(updatedBoards);
+        updateBoards(updatedBoards);
 
         // Update task state
-        setTasks(tasks.map(task => 
+        updateTasks(tasks.map(task => 
             task.id === taskToRestore.id ? { ...task, isArchived: false, columnId: finalColumnId } : task
         ));
         
@@ -787,7 +811,7 @@ export default function TasksPage() {
 
       if (editingBoard) {
         const updatedBoard = { ...editingBoard, ...values };
-        setBoards(boards.map(b => b.id === editingBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === editingBoard.id ? updatedBoard : b));
         toast({ title: t('tasks.toast.board_updated_title'), description: t('tasks.toast.board_updated_desc', { name: updatedBoard.name }) });
       } else {
          const newBoardId = `TB-${Date.now()}`;
@@ -805,7 +829,7 @@ export default function TasksPage() {
             labels: [],
             isArchived: false,
         };
-        setBoards(prev => [...prev, newBoard]);
+        updateBoards([...boards, newBoard]);
         setActiveBoardId(newBoard.id);
         toast({
             title: t('tasks.toast.board_created_title'),
@@ -816,13 +840,13 @@ export default function TasksPage() {
     };
     
     const handleArchiveBoard = (boardId: string) => {
-        setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: true } : b));
+        updateBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: true } : b));
         setActiveBoardId(null);
         toast({ title: t('tasks.toast.board_archived_title') });
     };
 
     const handleRestoreBoard = (boardId: string) => {
-        setBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: false } : b));
+        updateBoards(boards.map(b => b.id === boardId ? { ...b, isArchived: false } : b));
         setViewMode('board');
         setActiveBoardId(boardId);
         toast({ title: t('tasks.toast.board_restored_title') });
@@ -832,8 +856,8 @@ export default function TasksPage() {
         const boardToDelete = boards.find(b => b.id === boardId);
         if (!boardToDelete) return;
 
-        setBoards(boards.filter(b => b.id !== boardId));
-        setTasks(tasks.filter(t => t.boardId !== boardId));
+        updateBoards(boards.filter(b => b.id !== boardId));
+        updateTasks(tasks.filter(t => t.boardId !== boardId));
 
         if (activeBoardId === boardId) {
             const nextBoard = archivedBoards.find(b => b.id !== boardId) || userBoards[0];
@@ -861,7 +885,7 @@ export default function TasksPage() {
         };
         
         const updatedBoard = { ...activeBoard, columns: [...activeBoard.columns, newColumn] };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         
         toast({ title: t('tasks.toast.list_added_title'), description: t('tasks.toast.list_added_desc', { name: values.title })});
         columnForm.reset();
@@ -887,7 +911,7 @@ export default function TasksPage() {
         }
     
         const updatedBoard = { ...activeBoard, columns };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         
         toast({ title: t('tasks.toast.list_moved_title') });
         handleCloseMoveColumnDialog();
@@ -899,7 +923,7 @@ export default function TasksPage() {
             ...activeBoard,
             columns: activeBoard.columns.map(c => c.id === columnId ? { ...c, isArchived: true } : c)
         };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         
         toast({ title: t('tasks.toast.list_archived_title'), description: t('tasks.toast.list_archived_desc') });
     };
@@ -930,12 +954,12 @@ export default function TasksPage() {
             ...boards.find(b => b.id === columnToRestore.boardId)!,
             columns: boards.find(b => b.id === columnToRestore.boardId)!.columns.map(c => c.id === columnToRestore.id ? { ...c, isArchived: false } : c)
         };
-        setBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
 
         const updatedTasks = tasks.map(t => 
             tasksToRestoreWithColumn.includes(t.id) ? { ...t, isArchived: false } : t
         );
-        setTasks(updatedTasks);
+        updateTasks(updatedTasks);
         
         toast({ title: t('tasks.toast.list_restored_title'), description: t('tasks.toast.list_restored_desc') });
         setIsRestoreColumnDialogOpen(false);
@@ -951,8 +975,8 @@ export default function TasksPage() {
         
         const remainingTasks = tasks.filter(t => t.columnId !== columnToDelete.id);
         
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-        setTasks(remainingTasks);
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateTasks(remainingTasks);
         
         toast({ title: t('tasks.toast.list_deleted_title'), description: t('tasks.toast.list_deleted_desc', { name: columnToDelete.title }), variant: "destructive" });
         setIsDeleteColumnAlertOpen(false);
@@ -985,8 +1009,8 @@ export default function TasksPage() {
         columns: [...activeBoard.columns, newColumn],
       };
 
-      setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-      setTasks(prevTasks => [...prevTasks, ...newTasks]);
+      updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+      updateTasks([...tasks, ...newTasks]);
 
       toast({
         title: t('tasks.toast.list_copied_title'),
@@ -1019,7 +1043,7 @@ export default function TasksPage() {
     
     const onSaveShare = () => {
         if (!sharingBoard) return;
-        setBoards(boards.map(b => b.id === sharingBoard.id ? sharingBoard : b));
+        updateBoards(boards.map(b => b.id === sharingBoard.id ? sharingBoard : b));
         toast({ title: t('tasks.toast.sharing_updated_title'), description: t('tasks.toast.sharing_updated_desc') });
         handleCloseShareDialog();
     };
@@ -1033,7 +1057,6 @@ export default function TasksPage() {
                 value.substring(selectionEnd);
             commentForm.setValue("text", newText, { shouldDirty: true });
             commentInputRef.current.focus();
-            // Move cursor to after the inserted text
             setTimeout(() => {
                 commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
             }, 0);
@@ -1063,7 +1086,7 @@ export default function TasksPage() {
             logs: [...(selectedTaskForDetails.logs || []), createLogEntry('commented', { text: values.text || "Sent a voice message" })],
         };
 
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
         setSelectedTaskForDetails(updatedTask);
         commentForm.reset({text: "", attachment: undefined});
     };
@@ -1082,74 +1105,80 @@ export default function TasksPage() {
             comments: (selectedTaskForDetails.comments || []).filter(c => c.id !== commentId)
         };
         setSelectedTaskForDetails(updatedTask);
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
         toast({ title: t('tasks.toast.comment_deleted_title') });
     }
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-    
+
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-    
+
         if (type === 'COLUMN') {
             const newColumnOrder = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumnOrder.splice(source.index, 1);
             newColumnOrder.splice(destination.index, 0, reorderedItem);
-    
-            const updatedBoard = { ...activeBoard, columns: [...newColumnOrder, ...activeBoard.columns.filter(c => c.isArchived)] };
-            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-            return;
-        }
-    
-        const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
-        const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-    
-        if (!startColumn || !finishColumn) {
-            return;
-        }
-    
-        if (startColumn.id === finishColumn.id) {
-            // Reordering in the same column
-            const newTaskIds = Array.from(startColumn.taskIds);
-            const [reorderedItem] = newTaskIds.splice(source.index, 1);
-            newTaskIds.splice(destination.index, 0, reorderedItem);
-    
-            const updatedColumn = { ...startColumn, taskIds: newTaskIds };
-    
-            const updatedBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(col =>
-                    col.id === startColumn.id ? updatedColumn : col
-                )
-            };
-            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-        } else {
-            // Moving between columns
-            const startTaskIds = Array.from(startColumn.taskIds);
-            startTaskIds.splice(source.index, 1);
-            const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-    
-            const finishTaskIds = Array.from(finishColumn.taskIds);
-            finishTaskIds.splice(destination.index, 0, draggableId);
-            const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-    
-            const updatedBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(col => {
-                    if (col.id === newStartColumn.id) return newStartColumn;
-                    if (col.id === newFinishColumn.id) return newFinishColumn;
-                    return col;
-                })
-            };
-            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             
-            const task = tasks.find(t => t.id === draggableId);
-            if (task) {
-                const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-                const updatedTask = { ...task, columnId: finishColumn.id, logs: [...(task.logs || []), log] };
-                setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+            const updatedBoard = { ...activeBoard, columns: [...newColumnOrder, ...activeBoard.columns.filter(c => c.isArchived)] };
+            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+            return;
+        }
+
+        if (type === 'TASK') {
+            const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
+            const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
+
+            if (!startColumn || !finishColumn) {
+                return;
+            }
+
+            if (startColumn === finishColumn) {
+                // Reordering in the same column
+                const newTaskIds = Array.from(startColumn.taskIds);
+                const [reorderedItem] = newTaskIds.splice(source.index, 1);
+                newTaskIds.splice(destination.index, 0, reorderedItem);
+
+                const newColumn = {
+                    ...startColumn,
+                    taskIds: newTaskIds,
+                };
+
+                const newBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col =>
+                        col.id === newColumn.id ? newColumn : col
+                    ),
+                };
+                updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
+            } else {
+                // Moving between columns
+                const startTaskIds = Array.from(startColumn.taskIds);
+                startTaskIds.splice(source.index, 1);
+                const newStartColumn = { ...startColumn, taskIds: startTaskIds };
+
+                const finishTaskIds = Array.from(finishColumn.taskIds);
+                finishTaskIds.splice(destination.index, 0, draggableId);
+                const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
+
+                const newBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col => {
+                        if (col.id === newStartColumn.id) return newStartColumn;
+                        if (col.id === newFinishColumn.id) return newFinishColumn;
+                        return col;
+                    }),
+                };
+                updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
+
+                // Update task's columnId
+                const task = tasks.find(t => t.id === draggableId);
+                if (task) {
+                    const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
+                    const updatedTask = { ...task, columnId: finishColumn.id, logs: [...(task.logs || []), log] };
+                    updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+                }
             }
         }
     };
@@ -1208,7 +1237,7 @@ export default function TasksPage() {
         }
         
         const updatedBoard = { ...activeBoard, labels: updatedLabels };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setEditingLabel(null);
         labelForm.reset({ text: '', color: '#3b82f6' });
     };
@@ -1224,7 +1253,7 @@ export default function TasksPage() {
             ...activeBoard,
             labels: [...(activeBoard.labels || []), newLabel]
         };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         const newSelection = [...(field.value || []), newLabel.id];
         field.onChange(newSelection);
         setNewLabelSearch("");
@@ -1237,13 +1266,13 @@ export default function TasksPage() {
             ...activeBoard,
             labels: (activeBoard.labels || []).filter(l => l.id !== labelToDelete.id),
         };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
 
         const updatedTasks = tasks.map(task => ({
             ...task,
             labelIds: (task.labelIds || []).filter(id => id !== labelToDelete.id)
         }));
-        setTasks(updatedTasks);
+        updateTasks(updatedTasks);
         
         toast({ title: t('tasks.toast.label_deleted') });
         setLabelToDelete(null);
@@ -1251,7 +1280,7 @@ export default function TasksPage() {
     
     const handleAddReaction = (taskId: string, emoji: string) => {
         if (!currentUser) return;
-        setTasks(prevTasks => prevTasks.map(task => {
+        const newTasks = tasks.map(task => {
             if (task.id === taskId) {
                 let newReactions = [...(task.reactions || [])];
                 const userReactionIndex = newReactions.findIndex(r => r.userId === currentUser.id);
@@ -1273,7 +1302,8 @@ export default function TasksPage() {
                 return updatedTask;
             }
             return task;
-        }));
+        });
+        updateTasks(newTasks);
     };
     
     const handleAddCommentReaction = (commentId: string, emoji: string) => {
@@ -1300,7 +1330,7 @@ export default function TasksPage() {
         
         const updatedTask = { ...selectedTaskForDetails, comments: updatedComments };
         setSelectedTaskForDetails(updatedTask);
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
     };
 
     const handleDeleteCommentReaction = (commentId: string, reaction: Reaction) => {
@@ -1314,7 +1344,7 @@ export default function TasksPage() {
         });
         const updatedTask = { ...selectedTaskForDetails, comments: updatedComments };
         setSelectedTaskForDetails(updatedTask);
-        setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+        updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
     }
     
     const handleOpenDetailsSheet = (task: Task) => {
@@ -1331,19 +1361,16 @@ export default function TasksPage() {
         }
     };
     
-    const [activeBoardTasks, setActiveBoardTasks] = useState<Task[]>([]);
-    
-    useEffect(() => {
+    const activeBoardTasks = useMemo(() => {
         if (activeBoard) {
-            setActiveBoardTasks(tasks.filter(t => t.boardId === activeBoard.id));
+            return tasks.filter(t => t.boardId === activeBoard.id);
         } else {
-            setActiveBoardTasks([]);
+            return [];
         }
-    }, [activeBoard, tasks, activeBoardId]);
+    }, [activeBoard, tasks]);
 
 
     const filteredTasks = useMemo(() => {
-        if (!activeBoard) return [];
         let baseTasks = activeBoardTasks;
         
         if (searchTerm) {
@@ -1363,7 +1390,7 @@ export default function TasksPage() {
         }
 
         return baseTasks;
-  }, [activeBoardTasks, searchTerm, filters, activeBoard, currentUser]);
+  }, [activeBoardTasks, searchTerm, filters, currentUser]);
 
     const calendarTasks = useMemo(() => {
         if (!activeBoardId) return [];
@@ -1435,6 +1462,7 @@ export default function TasksPage() {
             mediaRecorderRef.current.start(100); // Collect data every 100ms
             setIsRecording(true);
             if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+            setRecordingTime(0);
             recordingIntervalRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
         } catch (err) {
             console.error("Error accessing microphone:", err);
@@ -1485,7 +1513,6 @@ export default function TasksPage() {
         if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
         setIsRecording(false);
         
-        // Cleanup
         setTimeout(() => {
              setAudioChunks([]);
              setRecordingTime(0);
@@ -1521,7 +1548,7 @@ export default function TasksPage() {
                 c.id === columnId ? { ...c, title: editingColumnTitle } : c
             )
         };
-        setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
         setEditingColumnId(null);
         toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: editingColumnTitle }) });
     };
@@ -1529,7 +1556,7 @@ export default function TasksPage() {
     const commentTextValue = commentForm.watch('text');
 
 
-    if (!currentUser || !Droppable || !Draggable) {
+    if (!isClient || !currentUser || !Droppable || !Draggable) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -1913,7 +1940,7 @@ export default function TasksPage() {
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
-                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} >
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                         {renderTaskCard(task)}
@@ -2859,3 +2886,6 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
     );
 };
 
+
+
+      

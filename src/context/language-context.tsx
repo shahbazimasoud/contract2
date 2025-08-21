@@ -9,6 +9,7 @@ import get from 'lodash.get';
 type Language = 'en' | 'fa';
 
 const translations = { en, fa };
+const AUTH_USER_KEY = 'current_user';
 
 interface LanguageContextType {
   language: Language;
@@ -24,15 +25,30 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
   const [language, setLanguageState] = useState<Language>('en');
 
   useEffect(() => {
-    const storedLanguage = localStorage.getItem('language') as Language;
+    const user = localStorage.getItem(AUTH_USER_KEY);
+    const userId = user ? JSON.parse(user).id : null;
+    const storedLanguage = localStorage.getItem(`language_${userId}`) as Language;
+
     if (storedLanguage && ['en', 'fa'].includes(storedLanguage)) {
       setLanguageState(storedLanguage);
+    } else {
+        // Fallback to general language setting if user-specific one is not found
+        const generalLanguage = localStorage.getItem('language') as Language;
+        if (generalLanguage && ['en', 'fa'].includes(generalLanguage)) {
+            setLanguageState(generalLanguage);
+        }
     }
   }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem('language', lang);
+    const user = localStorage.getItem(AUTH_USER_KEY);
+    const userId = user ? JSON.parse(user).id : null;
+    if (userId) {
+        localStorage.setItem(`language_${userId}`, lang);
+    } else {
+        localStorage.setItem('language', lang); // Fallback for login page
+    }
   };
 
   const t = useMemo(() => (key: string, options?: { [key: string]: string | number }) => {
@@ -44,7 +60,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     }
     
     // If translation is still not found, return the key itself.
-    if (!translation) {
+    if (typeof translation !== 'string') {
         return key;
     }
 

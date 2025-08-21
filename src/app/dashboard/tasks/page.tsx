@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic, Pause, Play, StopCircle, Send, LayoutGrid } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic, Pause, Play, StopCircle, Send, LayoutGrid, Filter } from 'lucide-react';
 import type { DropResult } from "react-beautiful-dnd";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -105,6 +104,7 @@ import { useCalendar } from '@/context/calendar-context';
 import { Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import Image from 'next/image';
 
 const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div> });
 const Droppable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Droppable), { ssr: false });
@@ -213,6 +213,7 @@ export default function TasksPage() {
     const [recordingTime, setRecordingTime] = useState(0);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [audioWave, setAudioWave] = useState<number[]>([]);
     
     const [mentionQuery, setMentionQuery] = useState('');
     const [isMentionPopoverOpen, setIsMentionPopoverOpen] = useState(false);
@@ -251,7 +252,7 @@ export default function TasksPage() {
     const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
     
     const [searchTerm, setSearchTerm] = useState('');
-    const [filters, setFilters] = useState({ labelIds: [] as string[], includeCompleted: false });
+    const [filters, setFilters] = useState({ labelIds: [] as string[], includeCompleted: false, assignedToMe: false });
     const [sorting, setSorting] = useState<{ field: SortableTaskField, direction: SortDirection }>({ field: 'dueDate', direction: 'asc' });
 
     const newColumnFormRef = useRef<HTMLFormElement>(null);
@@ -726,11 +727,21 @@ export default function TasksPage() {
     const handleRestoreTask = (targetColumnId?: string) => {
         if (!taskToRestore) return;
         
+        const targetBoard = boards.find(b => b.id === (activeBoardId || taskToRestore.boardId));
+        if(!targetBoard || targetBoard.columns.filter(c => !c.isArchived).length === 0){
+             toast({
+                title: t('common.error'),
+                description: t('tasks.toast.no_active_columns_for_restore'),
+                variant: 'destructive',
+            });
+            return;
+        }
+
         const finalColumnId = targetColumnId || taskToRestore.columnId;
 
         // Add task back to the column's task list
         const updatedBoards = boards.map(board => {
-            if (board.id === taskToRestore.boardId) {
+            if (board.id === (activeBoardId || taskToRestore.boardId)) {
                 const newColumns = board.columns.map(col => {
                     if (col.id === finalColumnId) {
                         return { ...col, taskIds: [...(col.taskIds || []), taskToRestore.id] };
@@ -754,14 +765,18 @@ export default function TasksPage() {
     };
 
     const onArchiveTaskClick = (task: Task) => {
-        if (!activeBoard) return;
-        const originalColumnExists = activeBoard.columns.some(c => c.id === task.columnId && !c.isArchived);
-        if (originalColumnExists) {
-            handleRestoreTask(task.columnId);
-        } else {
-            setTaskToRestore(task);
-            setIsRestoreTaskDialogOpen(true);
+         const boardsWithActiveColumns = boards.filter(b => !b.isArchived && b.columns.filter(c => !c.isArchived).length > 0);
+        if (boardsWithActiveColumns.length === 0) {
+            toast({
+                title: t('common.error'),
+                description: t('tasks.toast.no_active_board_for_restore'),
+                variant: 'destructive',
+            });
+            return;
         }
+        
+        setTaskToRestore(task);
+        setIsRestoreTaskDialogOpen(true);
     }
     
     const onBoardSubmit = (values: z.infer<typeof boardSchema>) => {
@@ -1041,7 +1056,6 @@ export default function TasksPage() {
     const handleDeleteComment = (commentId: string) => {
         if (!selectedTaskForDetails) return;
         
-        // This check ensures only the author or a super-admin can delete
         const commentToDelete = (selectedTaskForDetails.comments || []).find(c => c.id === commentId);
         if (!commentToDelete || (currentUser?.id !== commentToDelete.authorId && currentUser?.role !== 'super-admin')) {
              toast({ title: t('common.error'), description: "You don't have permission to delete this comment.", variant: 'destructive'});
@@ -1097,19 +1111,25 @@ export default function TasksPage() {
         } else {
             // Moving between columns
             const startTaskIds = Array.from(startColumn.taskIds);
-            const [movedItem] = startTaskIds.splice(source.index, 1);
+            startTaskIds.splice(source.index, 1);
+
             const finishTaskIds = Array.from(finishColumn.taskIds);
-            finishTaskIds.splice(destination.index, 0, movedItem);
-    
+            finishTaskIds.splice(destination.index, 0, draggableId);
+
+            const newStartColumn = {
+                ...startColumn,
+                taskIds: startTaskIds
+            };
+            const newFinishColumn = {
+                ...finishColumn,
+                taskIds: finishTaskIds
+            };
+
             const updatedBoard = {
                 ...activeBoard,
                 columns: activeBoard.columns.map(col => {
-                    if (col.id === startColumn.id) {
-                        return { ...col, taskIds: startTaskIds };
-                    }
-                    if (col.id === finishColumn.id) {
-                        return { ...col, taskIds: finishTaskIds };
-                    }
+                    if (col.id === newStartColumn.id) return newStartColumn;
+                    if (col.id === newFinishColumn.id) return newFinishColumn;
                     return col;
                 })
             };
@@ -1320,7 +1340,7 @@ export default function TasksPage() {
         return (
              <Card
                 className={cn(
-                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
+                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
@@ -1423,14 +1443,13 @@ export default function TasksPage() {
         if (searchTerm) {
              baseTasks = baseTasks.filter(task => {
                 const searchLower = searchTerm.toLowerCase();
-                const matchesSearch = task.title.toLowerCase().includes(searchLower) ||
+                return task.title.toLowerCase().includes(searchLower) ||
                     task.description?.toLowerCase().includes(searchLower);
-
-                if (filters.includeCompleted) {
-                    return matchesSearch;
-                }
-                return matchesSearch && !task.isCompleted;
             });
+        }
+
+        if (!filters.includeCompleted) {
+            baseTasks = baseTasks.filter(task => !task.isCompleted);
         }
     
         if (filters.labelIds.length > 0) {
@@ -1438,13 +1457,13 @@ export default function TasksPage() {
                 filters.labelIds.every(labelId => (task.labelIds || []).includes(labelId))
             );
         }
-        
-        if (!filters.includeCompleted && !searchTerm) {
-            baseTasks = baseTasks.filter(task => !task.isCompleted);
+
+        if (filters.assignedToMe && currentUser) {
+            baseTasks = baseTasks.filter(task => (task.assignees || []).includes(currentUser.id));
         }
 
         return baseTasks;
-  }, [tasks, searchTerm, filters, activeBoard]);
+  }, [tasks, searchTerm, filters, activeBoard, currentUser]);
 
 
     const calendarDays = useMemo(() => {
@@ -1469,7 +1488,7 @@ export default function TasksPage() {
     const prevMonth = () => setCurrentMonth(prev => subMonths(prev, 1));
     const goToToday = () => setCurrentMonth(new Date());
 
-    const handleStartRecording = async () => {
+    const handleToggleVoiceRecording = async () => {
         if (isRecording) {
             mediaRecorderRef.current?.pause();
             if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
@@ -1480,19 +1499,35 @@ export default function TasksPage() {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
             mediaRecorderRef.current.resume();
             setIsRecording(true);
-            recordingIntervalRef.current = setInterval(() => {
-                setRecordingTime((prev) => prev + 1);
-            }, 1000);
+            recordingIntervalRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
             return;
         } 
             
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
+            mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const draw = () => {
+                if (mediaRecorderRef.current?.state !== 'recording') return;
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+                const waveSlice = Array.from(dataArray).slice(0, 32).map(d => d / 255 * 100);
+                setAudioWave(waveSlice);
+            };
+
             mediaRecorderRef.current.ondataavailable = (event) => {
                 setAudioChunks((prev) => [...prev, event.data]);
             };
-            mediaRecorderRef.current.start();
+            mediaRecorderRef.current.onstart = draw;
+            mediaRecorderRef.current.start(100); // Collect data every 100ms
         } catch (err) {
             console.error("Error accessing microphone:", err);
             toast({ title: t('common.error'), description: t('tasks.toast.mic_error'), variant: 'destructive' });
@@ -1500,36 +1535,61 @@ export default function TasksPage() {
         }
 
         setIsRecording(true);
-        recordingIntervalRef.current = setInterval(() => {
-            setRecordingTime((prev) => prev + 1);
-        }, 1000);
+        if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
     };
 
-    const handleStopRecording = (cancel = false) => {
+    const handleSendRecording = () => {
         if (!mediaRecorderRef.current) return;
         
         mediaRecorderRef.current.stop();
         if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
         setIsRecording(false);
 
-        if (!cancel && audioChunks.length > 0) {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            commentForm.setValue('attachment', {
-                url: audioUrl,
-                type: 'audio',
-                meta: { duration: recordingTime }
-            });
-            onCommentSubmit(commentForm.getValues());
+        const onStop = () => {
+            if (audioChunks.length > 0) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                commentForm.setValue('attachment', {
+                    url: audioUrl,
+                    type: 'audio',
+                    meta: { duration: recordingTime }
+                });
+                onCommentSubmit(commentForm.getValues());
+            }
+            // Cleanup
+            setAudioChunks([]);
+            setRecordingTime(0);
+            setAudioWave([]);
+            if (mediaRecorderRef.current?.stream) {
+                mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            }
+            mediaRecorderRef.current = null;
         }
+
+        if (mediaRecorderRef.current.state === 'inactive') {
+            onStop();
+        } else {
+             mediaRecorderRef.current.onstop = onStop;
+        }
+    }
+
+    const handleCancelRecording = () => {
+        if (!mediaRecorderRef.current) return;
         
+        mediaRecorderRef.current.stop();
+        if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+        setIsRecording(false);
         setAudioChunks([]);
         setRecordingTime(0);
-        if(mediaRecorderRef.current.stream){
+        setAudioWave([]);
+        
+        if (mediaRecorderRef.current.stream) {
             mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
         }
         mediaRecorderRef.current = null;
-    };
+        commentForm.reset({ text: commentForm.getValues().text, attachment: undefined });
+    }
     
     const formatTime = (seconds: number) => {
         const minutes = Math.floor(seconds / 60);
@@ -1558,6 +1618,8 @@ export default function TasksPage() {
         setEditingColumnId(null);
         toast({ title: t('tasks.toast.list_renamed_title'), description: t('tasks.toast.list_renamed_desc', { name: editingColumnTitle }) });
     };
+
+    const commentTextValue = commentForm.watch('text');
 
 
     if (!currentUser || !Droppable || !Draggable) {
@@ -1672,7 +1734,7 @@ export default function TasksPage() {
                             </Command>
                         </PopoverContent>
                     </Popover>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-auto">
                         {activeBoard && (
                              <div className="flex items-center -space-x-2">
                                 {usersOnBoard.slice(0,3).map(user => (
@@ -1702,11 +1764,10 @@ export default function TasksPage() {
                                 )}
                             </div>
                         )}
-
                          <div className="flex items-center gap-1 rounded-md bg-muted p-1">
                             <Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('board')}><ClipboardCheck className="h-4 w-4"/></Button>
                             <Button variant={viewMode === 'calendar' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('calendar')}><CalendarViewIcon className="h-4 w-4"/></Button>
-                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => { setViewMode('archive'); setActiveBoardId(null); }}><Archive className="h-4 w-4" /></Button>
+                            <Button variant={viewMode === 'archive' ? 'secondary' : 'ghost'} size="icon" onClick={() => { setViewMode('archive'); }}><Archive className="h-4 w-4" /></Button>
                         </div>
                         
                          {activeBoard && (
@@ -1769,60 +1830,88 @@ export default function TasksPage() {
                                     className="pl-9"
                                 />
                             </div>
-                            <Popover>
+                           <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline">
-                                        <Tag className="mr-2 h-4 w-4"/>
-                                        <span>{t('tasks.filter_by_tags')}</span>
-                                        {filters.labelIds.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.labelIds.length}</span>}
+                                    <Button variant="outline" className="w-full sm:w-auto">
+                                        <Filter className="mr-2 h-4 w-4" />
+                                        {t('contracts.filter_button')}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent>
-                                     <Command>
-                                        <CommandInput placeholder={t('tasks.filter_tags_placeholder')} />
-                                        <CommandList>
-                                            <CommandEmpty>{t('tasks.no_tags_found')}</CommandEmpty>
-                                            <CommandGroup>
-                                                {(activeBoard.labels || []).map((label) => (
-                                                    <CommandItem
-                                                        key={label.id}
-                                                        onSelect={() => {
-                                                            const newSelection = filters.labelIds.includes(label.id)
-                                                                ? filters.labelIds.filter(id => id !== label.id)
-                                                                : [...filters.labelIds, label.id];
-                                                            setFilters(prev => ({...prev, labelIds: newSelection }));
-                                                        }}
-                                                    >
-                                                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", filters.labelIds.includes(label.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
-                                                            <Check className="h-4 w-4" />
-                                                        </div>
-                                                        <span className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>
-                                                        <span>{label.text}</span>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                            {filters.labelIds.length > 0 && (
-                                                <>
-                                                    <Separator />
-                                                    <CommandGroup>
-                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive justify-center">
-                                                            {t('contracts.filter.clear_button')}
-                                                        </CommandItem>
-                                                    </CommandGroup>
-                                                </>
-                                            )}
-                                        </CommandList>
-                                    </Command>
+                                    <div className="grid gap-4">
+                                        <div className="space-y-2">
+                                            <h4 className="font-medium leading-none">{t('contracts.filter.title')}</h4>
+                                            <p className="text-sm text-muted-foreground">
+                                                {t('contracts.filter.desc')}
+                                            </p>
+                                        </div>
+                                         <div className="grid gap-2">
+                                            <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id="include-completed"
+                                                    checked={filters.includeCompleted}
+                                                    onCheckedChange={(checked) => setFilters(prev => ({ ...prev, includeCompleted: !!checked }))}
+                                                />
+                                                <Label htmlFor="include-completed" className="text-sm font-normal">{t('tasks.search.include_completed')}</Label>
+                                            </div>
+                                             <div className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id="assigned-to-me"
+                                                    checked={filters.assignedToMe}
+                                                    onCheckedChange={(checked) => setFilters(prev => ({ ...prev, assignedToMe: !!checked }))}
+                                                />
+                                                <Label htmlFor="assigned-to-me" className="text-sm font-normal">{t('tasks.search.assigned_to_me')}</Label>
+                                            </div>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" size="sm" className="mt-2">
+                                                        <Tag className="mr-2 h-4 w-4"/>
+                                                        <span>{t('tasks.filter_by_tags')}</span>
+                                                        {filters.labelIds.length > 0 && <span className="ml-2 rounded-full bg-primary px-2 text-xs text-primary-foreground">{filters.labelIds.length}</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent>
+                                                     <Command>
+                                                        <CommandInput placeholder={t('tasks.filter_tags_placeholder')} />
+                                                        <CommandList>
+                                                            <CommandEmpty>{t('tasks.no_tags_found')}</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {(activeBoard.labels || []).map((label) => (
+                                                                    <CommandItem
+                                                                        key={label.id}
+                                                                        onSelect={() => {
+                                                                            const newSelection = filters.labelIds.includes(label.id)
+                                                                                ? filters.labelIds.filter(id => id !== label.id)
+                                                                                : [...filters.labelIds, label.id];
+                                                                            setFilters(prev => ({...prev, labelIds: newSelection }));
+                                                                        }}
+                                                                    >
+                                                                        <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", filters.labelIds.includes(label.id) ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible")}>
+                                                                            <Check className="h-4 w-4" />
+                                                                        </div>
+                                                                        <span className="h-4 w-4 rounded-full mr-2" style={{ backgroundColor: label.color }}></span>
+                                                                        <span>{label.text}</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                            {filters.labelIds.length > 0 && (
+                                                                <>
+                                                                    <Separator />
+                                                                    <CommandGroup>
+                                                                        <CommandItem onSelect={() => setFilters(prev => ({ ...prev, labelIds: [] }))} className="text-destructive justify-center">
+                                                                            {t('contracts.filter.clear_button')}
+                                                                        </CommandItem>
+                                                                    </CommandGroup>
+                                                                </>
+                                                            )}
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    </div>
                                 </PopoverContent>
                             </Popover>
-                             <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="include-completed"
-                                    checked={filters.includeCompleted}
-                                    onCheckedChange={(checked) => setFilters(prev => ({ ...prev, includeCompleted: !!checked }))}
-                                />
-                                <Label htmlFor="include-completed" className="text-sm font-normal">{t('tasks.search.include_completed')}</Label>
-                            </div>
                         </CardContent>
                     </Card>
 
@@ -1864,11 +1953,11 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {filteredTasks.filter(t => t.columnId === column.id && !t.isArchived).map((task, index) => (
-                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                                        {column.taskIds.map(taskId => filteredTasks.find(t => t.id === taskId)).filter(Boolean).map((task, index) => (
+                                                                            <Draggable key={task!.id} draggableId={task!.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                        {renderTaskCard(task)}
+                                                                                        {renderTaskCard(task!)}
                                                                                     </div>
                                                                                 )}
                                                                             </Draggable>
@@ -2224,20 +2313,40 @@ export default function TasksPage() {
 
                        <div className="bg-muted p-4 rounded-lg space-y-4">
                             <h4 className="font-semibold text-center">{t('tasks.dialog.report_preview_title')}</h4>
-                            <div className="bg-background rounded-md shadow-sm p-4 text-sm">
-                                <div className="border-b pb-2 mb-2">
-                                    <p><span className="font-semibold">{t('tasks.dialog.report_preview_subject')}:</span> {weeklyReportForm.watch('subject')}</p>
-                                    <p><span className="font-semibold">{t('tasks.dialog.report_preview_to')}:</span> {weeklyReportForm.watch('recipients')}</p>
-                                </div>
-                                <p className="italic mb-4">{weeklyReportForm.watch('body') || t('tasks.dialog.report_no_intro_text')}</p>
-                                
-                                <h5 className="font-semibold mb-2">{t(`tasks.report_types.${weeklyReportForm.watch('reportType') as ScheduledReportType}`)}</h5>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between p-2 rounded bg-secondary/50"><span>Sample Task 1</span> <Badge variant="outline">In Progress</Badge></div>
-                                    <div className="flex items-center justify-between p-2 rounded bg-secondary/50"><span>Sample Task 2</span> <Badge variant="outline">To Do</Badge></div>
-                                </div>
-
-                                <p className="text-xs text-muted-foreground mt-4 text-center">{t('tasks.dialog.report_automated_note', {day: new Date(2024, 0, parseInt(weeklyReportForm.watch('dayOfWeek'),10)+1).toLocaleString(locale.locale, { weekday: 'long' }), time: weeklyReportForm.watch('time')})}</p>
+                            <div className="bg-background rounded-md shadow-sm text-sm" style={{border: '1px solid #e5e7eb'}}>
+                                <table cellPadding="0" cellSpacing="0" border={0} width="100%">
+                                <tbody>
+                                    <tr>
+                                        <td style={{padding: '20px', textAlign: 'center', backgroundColor: '#f9fafb'}}>
+                                            {appearanceSettings?.logo && <Image src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto' }} />}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{padding: '20px'}}>
+                                            <p style={{marginBottom: '16px'}}>
+                                               <span style={{fontWeight: 600}}>{t('tasks.dialog.report_preview_subject')}:</span> {weeklyReportForm.watch('subject')}
+                                            </p>
+                                            <p><span style={{fontWeight: 600}}>{t('tasks.dialog.report_preview_to')}:</span> {weeklyReportForm.watch('recipients')}</p>
+                                        </td>
+                                    </tr>
+                                     <tr><td style={{padding: '0 20px'}}><div style={{height: '1px', backgroundColor: '#e5e7eb'}}></div></td></tr>
+                                    <tr>
+                                        <td style={{padding: '20px'}}>
+                                            <p style={{fontStyle: 'italic', color: '#6b7280', marginBottom: '16px'}}>{weeklyReportForm.watch('body') || t('tasks.dialog.report_no_intro_text')}</p>
+                                            <h5 style={{fontWeight: 600, marginBottom: '8px'}}>{t(`tasks.report_types.${weeklyReportForm.watch('reportType') as ScheduledReportType}`)}</h5>
+                                             <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px', borderRadius: '4px', backgroundColor: '#f3f4f6'}}><span>Sample Task 1</span> <Badge variant="outline">In Progress</Badge></div>
+                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px', borderRadius: '4px', backgroundColor: '#f3f4f6'}}><span>Sample Task 2</span> <Badge variant="outline">To Do</Badge></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                     <tr>
+                                        <td style={{padding: '20px', textAlign: 'center', fontSize: '12px', color: '#6b7280'}}>
+                                           <p>{t('tasks.dialog.report_automated_note', {day: new Date(2024, 0, parseInt(weeklyReportForm.watch('dayOfWeek'),10)+1).toLocaleString(locale.locale, { weekday: 'long' }), time: weeklyReportForm.watch('time')})}</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                </table>
                             </div>
                        </div>
                        <DialogFooter className="col-span-1 md:col-span-2">
@@ -2444,18 +2553,24 @@ export default function TasksPage() {
                                         )}
                                     </div>
                                     <div className="mt-auto pt-4 border-t">
-                                        {isRecording || audioChunks.length > 0 ? (
+                                        {(isRecording || audioChunks.length > 0) ? (
                                             <div className="flex items-center gap-2">
-                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleStopRecording(true)}><Trash2 className="h-4 w-4" /></Button>
+                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={handleCancelRecording}><Trash2 className="h-4 w-4" /></Button>
                                                  <div className="flex-1 bg-muted rounded-full h-8 flex items-center px-3 gap-2">
-                                                    <div className={cn("w-2 h-2 rounded-full", isRecording ? "bg-red-500 animate-pulse" : "bg-gray-400")}></div>
-                                                    <p className="text-sm font-mono">{formatTime(recordingTime)}</p>
+                                                    {isRecording ?
+                                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div> :
+                                                        <Play className="h-4 w-4 text-muted-foreground" />
+                                                    }
+                                                    <p className="text-sm font-mono flex-1">{formatTime(recordingTime)}</p>
+                                                    <div className="flex items-end h-4 gap-px">
+                                                        {audioWave.map((h, i) => <div key={i} className="w-0.5 bg-primary rounded-full" style={{ height: `${Math.max(h, 5)}%`}}></div>)}
+                                                    </div>
                                                 </div>
-                                                <Button size="icon" onClick={() => handleStopRecording(false)}>
+                                                <Button size="icon" onClick={handleSendRecording}>
                                                     <Send className="h-5 w-5" />
                                                 </Button>
-                                                 <Button size="icon" variant={isRecording ? "destructive" : "default"} onClick={handleStartRecording}>
-                                                    {isRecording ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                                                 <Button size="icon" variant={isRecording ? "secondary" : "default"} onClick={handleToggleVoiceRecording}>
+                                                    {isRecording ? <Pause className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                                                 </Button>
                                             </div>
                                         ) : (
@@ -2466,7 +2581,7 @@ export default function TasksPage() {
                                                         {...commentForm.register("text")}
                                                         ref={commentInputRef}
                                                         placeholder={t('contracts.details.comment_placeholder')}
-                                                        className="min-h-[60px] pr-28"
+                                                        className="min-h-[60px] pr-20"
                                                         onKeyDown={(e) => {
                                                             if (e.key === "Enter" && !e.shiftKey) {
                                                                 e.preventDefault();
@@ -2475,14 +2590,18 @@ export default function TasksPage() {
                                                         }}
                                                     />
                                                     <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                                         <Button type="button" variant="ghost" size="icon" onClick={handleStartRecording}><Mic className="h-4 w-4" /></Button>
                                                          <Popover>
                                                             <PopoverTrigger asChild><Button type="button" variant="ghost" size="icon"><SmilePlus className="h-4 w-4" /></Button></PopoverTrigger>
                                                              <PopoverContent className="w-auto p-1"><div className="flex gap-1">
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                        <Button type="submit" size="icon"><Send className="h-4 w-4"/></Button>
+                                                        <Button type="submit" size="icon" variant="ghost" disabled={!commentTextValue && !commentForm.getValues().attachment}>
+                                                            { (!commentTextValue && !commentForm.getValues().attachment) ? 
+                                                                <Mic className="h-4 w-4" onClick={handleToggleVoiceRecording} /> :
+                                                                <Send className="h-4 w-4" />
+                                                            }
+                                                        </Button>
                                                     </div>
                                                 </div>
                                                 <FormMessage>{commentForm.formState.errors.root?.message}</FormMessage>
@@ -2673,7 +2792,7 @@ export default function TasksPage() {
                                 <SelectValue placeholder={t('tasks.dialog.list_status_placeholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                                {activeBoard?.columns.filter(c => !c.isArchived).map(c => (
+                                {boards.find(b => b.id === taskToRestore?.boardId)?.columns.filter(c => !c.isArchived).map(c => (
                                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                                 ))}
                             </SelectContent>

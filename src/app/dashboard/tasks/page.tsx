@@ -145,7 +145,7 @@ const commentSchema = z.object({
       type: z.enum(['audio']),
       meta: z.object({ duration: z.number() }).optional(),
     }).optional(),
-}).refine(data => !!data.text || !!data.attachment, {
+}).refine(data => !!data.text?.trim() || !!data.attachment, {
     message: "Comment cannot be empty.",
 });
 
@@ -1044,7 +1044,7 @@ export default function TasksPage() {
     const onCommentSubmit = (values: z.infer<typeof commentSchema>) => {
         if (!currentUser || !selectedTaskForDetails) return;
         if (!values.text?.trim() && !values.attachment) {
-            commentForm.setError("root", { message: "Comment cannot be empty." });
+            commentForm.setError("text", { message: "Comment cannot be empty." });
             return;
         };
 
@@ -1116,10 +1116,12 @@ export default function TasksPage() {
             const [reorderedItem] = newTaskIds.splice(source.index, 1);
             newTaskIds.splice(destination.index, 0, reorderedItem);
     
+            const updatedColumn = { ...startColumn, taskIds: newTaskIds };
+    
             const updatedBoard = {
                 ...activeBoard,
                 columns: activeBoard.columns.map(col =>
-                    col.id === startColumn.id ? { ...col, taskIds: newTaskIds } : col
+                    col.id === startColumn.id ? updatedColumn : col
                 )
             };
             setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
@@ -1127,19 +1129,12 @@ export default function TasksPage() {
             // Moving between columns
             const startTaskIds = Array.from(startColumn.taskIds);
             startTaskIds.splice(source.index, 1);
-
+            const newStartColumn = { ...startColumn, taskIds: startTaskIds };
+    
             const finishTaskIds = Array.from(finishColumn.taskIds);
             finishTaskIds.splice(destination.index, 0, draggableId);
-
-            const newStartColumn = {
-                ...startColumn,
-                taskIds: startTaskIds
-            };
-            const newFinishColumn = {
-                ...finishColumn,
-                taskIds: finishTaskIds
-            };
-
+            const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
+    
             const updatedBoard = {
                 ...activeBoard,
                 columns: activeBoard.columns.map(col => {
@@ -1371,9 +1366,9 @@ export default function TasksPage() {
   }, [activeBoardTasks, searchTerm, filters, activeBoard, currentUser]);
 
     const calendarTasks = useMemo(() => {
-        if (!activeBoard) return [];
-        return tasks.filter(t => t.boardId === activeBoard.id);
-    }, [tasks, activeBoard]);
+        if (!activeBoardId) return [];
+        return tasks.filter(t => t.boardId === activeBoardId);
+    }, [tasks, activeBoardId]);
 
 
     const calendarDays = useMemo(() => {
@@ -2282,7 +2277,7 @@ export default function TasksPage() {
                                 <tbody>
                                     <tr>
                                         <td style={{padding: '20px', textAlign: 'center', backgroundColor: '#f9fafb'}}>
-                                            {appearanceSettings?.logo && <Image src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto' }} />}
+                                            {appearanceSettings?.logo && <Image src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto', objectFit: 'contain' }} />}
                                         </td>
                                     </tr>
                                     <tr>
@@ -2560,12 +2555,12 @@ export default function TasksPage() {
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                         <Button type="button" size="icon" variant="ghost" onClick={(commentTextValue || commentForm.getValues().attachment) ? commentForm.handleSubmit(onCommentSubmit) : handleToggleVoiceRecording}>
-                                                            {commentTextValue ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                                         <Button type="button" size="icon" variant="ghost" onClick={commentForm.handleSubmit(onCommentSubmit)}>
+                                                            {commentTextValue || commentForm.getValues().attachment ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" onClick={(e) => { e.preventDefault(); handleToggleVoiceRecording(); }} />}
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                <FormMessage className="text-xs">{commentForm.formState.errors.root?.message}</FormMessage>
+                                                <FormMessage className="text-xs">{commentForm.formState.errors.root?.message || commentForm.formState.errors.text?.message}</FormMessage>
                                             </form>
                                         </Form>
                                         )}
@@ -2863,3 +2858,4 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
+

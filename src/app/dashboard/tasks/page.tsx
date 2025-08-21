@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -704,7 +705,22 @@ export default function TasksPage() {
     const handleArchiveTask = (taskId: string) => {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
+        
         setTasks(tasks.map(t => t.id === taskId ? { ...t, isArchived: true } : t));
+        
+        const updatedBoards = boards.map(b => {
+            if (b.id === task.boardId) {
+                return {
+                    ...b,
+                    columns: b.columns.map(col => ({
+                        ...col,
+                        taskIds: col.taskIds.filter(id => id !== taskId)
+                    }))
+                };
+            }
+            return b;
+        });
+        setBoards(updatedBoards);
     };
 
     const handleRestoreTask = (targetColumnId?: string) => {
@@ -738,7 +754,8 @@ export default function TasksPage() {
     };
 
     const onArchiveTaskClick = (task: Task) => {
-        const originalColumnExists = activeBoard?.columns.some(c => c.id === task.columnId && !c.isArchived);
+        if (!activeBoard) return;
+        const originalColumnExists = activeBoard.columns.some(c => c.id === task.columnId && !c.isArchived);
         if (originalColumnExists) {
             handleRestoreTask(task.columnId);
         } else {
@@ -1023,6 +1040,14 @@ export default function TasksPage() {
 
     const handleDeleteComment = (commentId: string) => {
         if (!selectedTaskForDetails) return;
+        
+        // This check ensures only the author or a super-admin can delete
+        const commentToDelete = (selectedTaskForDetails.comments || []).find(c => c.id === commentId);
+        if (!commentToDelete || (currentUser?.id !== commentToDelete.authorId && currentUser?.role !== 'super-admin')) {
+             toast({ title: t('common.error'), description: "You don't have permission to delete this comment.", variant: 'destructive'});
+             return;
+        }
+
         const updatedTask = {
             ...selectedTaskForDetails,
             comments: (selectedTaskForDetails.comments || []).filter(c => c.id !== commentId)
@@ -1034,63 +1059,68 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-
-        if (!destination || !activeBoard || (userPermissions === 'viewer')) {
+    
+        if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-
+    
         if (type === 'COLUMN') {
             const newColumnOrder = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumnOrder.splice(source.index, 1);
             newColumnOrder.splice(destination.index, 0, reorderedItem);
-
+    
             const updatedBoard = { ...activeBoard, columns: [...newColumnOrder, ...activeBoard.columns.filter(c => c.isArchived)] };
             setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
-
-        const startColumn = activeBoard.columns.find(c => c.id === source.droppableId);
-        const finishColumn = activeBoard.columns.find(c => c.id === destination.droppableId);
-
-        if (!startColumn || !finishColumn) return;
-
-        if (startColumn === finishColumn) {
-            const newTaskIds = Array.from(startColumn.taskIds || []);
-            const [reorderedItem] = newTaskIds.splice(source.index, 1);
-            newTaskIds.splice(destination.index, 0, reorderedItem);
-
-            const newColumn = { ...startColumn, taskIds: newTaskIds };
-            const newBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(c => c.id === newColumn.id ? newColumn : c)
-            };
-            setBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
+    
+        const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
+        const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
+    
+        if (!startColumn || !finishColumn) {
             return;
         }
-
-        const startTaskIds = Array.from(startColumn.taskIds || []);
-        startTaskIds.splice(source.index, 1);
-        const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-
-        const finishTaskIds = Array.from(finishColumn.taskIds || []);
-        finishTaskIds.splice(destination.index, 0, draggableId);
-        const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-
-        const newBoard = {
-            ...activeBoard,
-            columns: activeBoard.columns.map(c => {
-                if (c.id === newStartColumn.id) return newStartColumn;
-                if (c.id === newFinishColumn.id) return newFinishColumn;
-                return c;
-            })
-        };
-        setBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
-
-        const task = tasks.find(t => t.id === draggableId);
-        if (task) {
-            const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-            const updatedTask = { ...task, columnId: finishColumn.id, logs: [...(task.logs || []), log] };
-            setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+    
+        if (startColumn.id === finishColumn.id) {
+            // Reordering in the same column
+            const newTaskIds = Array.from(startColumn.taskIds);
+            const [reorderedItem] = newTaskIds.splice(source.index, 1);
+            newTaskIds.splice(destination.index, 0, reorderedItem);
+    
+            const updatedBoard = {
+                ...activeBoard,
+                columns: activeBoard.columns.map(col =>
+                    col.id === startColumn.id ? { ...col, taskIds: newTaskIds } : col
+                )
+            };
+            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        } else {
+            // Moving between columns
+            const startTaskIds = Array.from(startColumn.taskIds);
+            const [movedItem] = startTaskIds.splice(source.index, 1);
+            const finishTaskIds = Array.from(finishColumn.taskIds);
+            finishTaskIds.splice(destination.index, 0, movedItem);
+    
+            const updatedBoard = {
+                ...activeBoard,
+                columns: activeBoard.columns.map(col => {
+                    if (col.id === startColumn.id) {
+                        return { ...col, taskIds: startTaskIds };
+                    }
+                    if (col.id === finishColumn.id) {
+                        return { ...col, taskIds: finishTaskIds };
+                    }
+                    return col;
+                })
+            };
+            setBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+            
+            const task = tasks.find(t => t.id === draggableId);
+            if (task) {
+                const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
+                const updatedTask = { ...task, columnId: finishColumn.id, logs: [...(task.logs || []), log] };
+                setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+            }
         }
     };
     
@@ -1272,11 +1302,17 @@ export default function TasksPage() {
     };
 
     const renderTaskCard = (task: Task) => {
-        const daysToDue = differenceInDays(new Date(task.dueDate), new Date());
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const dueDate = new Date(task.dueDate);
+        const daysToDue = differenceInDays(dueDate, today);
+
         let dueDateColor = "text-muted-foreground";
         if (!task.isCompleted) {
-            dueDateColor = daysToDue < 0 ? "text-red-500" : daysToDue < 7 ? "text-orange-500" : "text-muted-foreground";
+            if (daysToDue < 0) dueDateColor = "text-red-500";
+            else if (daysToDue < 7) dueDateColor = "text-orange-500";
         }
+        
 
         const assigneesToShow = task.assignees?.slice(0, 3) || [];
         const hiddenAssigneesCount = (task.assignees?.length || 0) - assigneesToShow.length;
@@ -1284,20 +1320,19 @@ export default function TasksPage() {
         return (
              <Card
                 className={cn(
-                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                     task.isCompleted && "border-l-4 border-green-500",
+                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative"
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
-                <button
+                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         handleToggleTaskCompletion(task.id, !task.isCompleted);
                     }}
                     className={cn(
-                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
+                        "absolute top-2 left-2 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200",
                         "opacity-0 group-hover/taskcard:opacity-100",
-                         task.isCompleted ? "opacity-100 bg-green-500 border-green-700" : "border-muted-foreground/50"
+                        task.isCompleted ? "opacity-100 bg-green-500 border-green-700" : "border-muted-foreground/50 hover:border-primary"
                     )}
                 >
                     <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop scale-100" : "scale-0")} />
@@ -1313,7 +1348,7 @@ export default function TasksPage() {
                     <Edit className="h-4 w-4 text-muted-foreground" />
                 </button>
 
-                <CardContent className="p-3">
+                <CardContent className={cn("p-3 transition-all duration-200", task.isCompleted && "border-l-4 border-green-500")}>
                      <div className={cn("pl-0 group-hover/taskcard:pl-7 transition-all duration-200")}>
                         {(task.labelIds && task.labelIds.length > 0) && (
                             <div className="flex flex-wrap gap-1 mb-2">
@@ -1575,9 +1610,9 @@ export default function TasksPage() {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                      <Popover open={isBoardSwitcherOpen} onOpenChange={setIsBoardSwitcherOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="gap-2 text-base font-semibold w-full md:w-auto justify-between">
+                             <Button variant="outline" className="gap-2 text-base font-semibold w-full md:w-auto justify-between border-2 border-border p-2 pr-3 h-auto">
                                 <div className="flex items-center gap-2">
-                                  <span className="w-5 h-5 rounded-full" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
+                                  <span className="w-5 h-5 rounded-md" style={{ backgroundColor: activeBoard?.color || '#ccc' }}></span>
                                   <span>{activeBoard?.name || t('tasks.select_board')}</span>
                                 </div>
                                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -1599,7 +1634,7 @@ export default function TasksPage() {
                                                 className="flex items-center justify-between"
                                             >
                                                 <div className="flex items-center gap-2">
-                                                     <span className="w-4 h-4 rounded-full" style={{ backgroundColor: board.color }}></span>
+                                                     <span className="w-4 h-4 rounded-md" style={{ backgroundColor: board.color }}></span>
                                                      <span>{board.name}</span>
                                                 </div>
                                                 {board.id === activeBoardId && <Check className="h-4 w-4" />}

@@ -1033,7 +1033,7 @@ export default function TasksPage() {
                 text +
                 currentText.substring(selectionEnd);
             commentForm.setValue("text", newText, { shouldDirty: true });
-            commentForm.setFocus("text");
+            commentInputRef.current.focus();
             setTimeout(() => {
                 commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
             }, 0);
@@ -1341,7 +1341,7 @@ export default function TasksPage() {
         } else {
             setActiveBoardTasks([]);
         }
-    }, [activeBoard, tasks]);
+    }, [activeBoard, tasks, activeBoardId]);
 
 
     const filteredTasks = useMemo(() => {
@@ -1370,7 +1370,7 @@ export default function TasksPage() {
     const calendarTasks = useMemo(() => {
         if (!activeBoard) return [];
         return tasks.filter(t => t.boardId === activeBoard.id);
-    }, [tasks, activeBoard]);
+    }, [tasks, activeBoard, activeBoardId]);
 
 
     const calendarDays = useMemo(() => {
@@ -1450,16 +1450,14 @@ export default function TasksPage() {
         if (!mediaRecorderRef.current) return;
         
         const onStop = () => {
-            if (audioChunks.length > 0) {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                commentForm.setValue('attachment', {
-                    url: audioUrl,
-                    type: 'audio',
-                    meta: { duration: recordingTime }
-                });
-                onCommentSubmit(commentForm.getValues());
-            }
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            commentForm.setValue('attachment', {
+                url: audioUrl,
+                type: 'audio',
+                meta: { duration: recordingTime }
+            });
+            onCommentSubmit(commentForm.getValues());
             // Cleanup
             setAudioChunks([]);
             setRecordingTime(0);
@@ -1483,7 +1481,10 @@ export default function TasksPage() {
     const handleCancelRecording = () => {
         if (!mediaRecorderRef.current) return;
         
-        mediaRecorderRef.current.stop();
+        if (mediaRecorderRef.current.state !== 'inactive') {
+             mediaRecorderRef.current.stop();
+        }
+       
         if(recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
         setIsRecording(false);
         
@@ -1594,10 +1595,11 @@ export default function TasksPage() {
              <Card
                 className={cn(
                     "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
+                     task.isCompleted && "border-l-4 border-green-500"
                 )}
                 onClick={() => handleOpenDetailsSheet(task)}
             >
-                <CardContent className={cn("p-3 transition-all duration-200", task.isCompleted && "border-l-4 border-green-500")}>
+                <CardContent className="p-3">
                     <div className="flex items-start gap-3">
                          <button
                             onClick={(e) => {
@@ -1726,27 +1728,6 @@ export default function TasksPage() {
                                             </CommandItem>
                                         ))}
                                     </CommandGroup>
-                                    {archivedBoards.length > 0 && <Separator />}
-                                    <CommandGroup heading={t('tasks.view_modes.archived_boards')}>
-                                        {archivedBoards.map((board) => (
-                                            <CommandItem
-                                                key={board.id}
-                                                onSelect={() => {
-                                                    setActiveBoardId(board.id);
-                                                    setIsBoardSwitcherOpen(false);
-                                                    setViewMode('archive');
-                                                }}
-                                                className="flex items-center justify-between"
-                                            >
-                                                <div className="flex items-center gap-2">
-                                                    <Archive className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                    <span>{board.name}</span>
-                                                </div>
-                                                {board.id === activeBoardId && <Check className="h-4 w-4" />}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-
                                     <Separator />
                                      <CommandGroup>
                                          <CommandItem onSelect={() => { handleOpenBoardDialog(null); setIsBoardSwitcherOpen(false); }}>
@@ -2563,7 +2544,7 @@ export default function TasksPage() {
                                                         ref={commentInputRef}
                                                         placeholder={t('contracts.details.comment_placeholder')}
                                                         className="min-h-[60px] pr-20"
-                                                        onKeyDown={(e) => {
+                                                         onKeyDown={(e) => {
                                                             if (e.key === "Enter" && !e.shiftKey) {
                                                                 e.preventDefault();
                                                                 commentForm.handleSubmit(onCommentSubmit)();
@@ -2577,12 +2558,12 @@ export default function TasksPage() {
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                        <Button type="button" size="icon" variant="ghost" onClick={!commentTextValue ? handleToggleVoiceRecording : commentForm.handleSubmit(onCommentSubmit)}>
-                                                           {commentTextValue ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                                         <Button type="button" size="icon" variant="ghost" onClick={(commentTextValue || commentForm.getValues().attachment) ? commentForm.handleSubmit(onCommentSubmit) : handleToggleVoiceRecording}>
+                                                            {commentTextValue ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                                         </Button>
                                                     </div>
                                                 </div>
-                                                <FormMessage>{commentForm.formState.errors.root?.message}</FormMessage>
+                                                <FormMessage className="text-xs">{commentForm.formState.errors.root?.message}</FormMessage>
                                             </form>
                                         </Form>
                                         )}
@@ -2825,6 +2806,7 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
 
     const togglePlay = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -2843,11 +2825,13 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         const updateProgress = () => {
             if (audio) {
                 setProgress((audio.currentTime / audio.duration) * 100);
+                setCurrentTime(audio.currentTime);
             }
         };
         const handleEnded = () => {
             setIsPlaying(false);
             setProgress(0);
+            setCurrentTime(0);
         };
 
         audio?.addEventListener('timeupdate', updateProgress);
@@ -2870,10 +2854,10 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={togglePlay}>
                 {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </Button>
-            <div className="w-full bg-muted rounded-full h-1.5">
+            <div className="w-full bg-muted rounded-full h-1.5 relative">
                 <div className="bg-primary h-1.5 rounded-full" style={{ width: `${progress}%` }}></div>
             </div>
-            <span className="text-xs font-mono w-12 text-right">{formatTime(duration)}</span>
+            <span className="text-xs font-mono w-24 text-right">{formatTime(currentTime)} / {formatTime(duration)}</span>
         </div>
     );
 };

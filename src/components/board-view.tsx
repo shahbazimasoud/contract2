@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
-import type { DropResult } from "react-beautiful-dnd";
 import { PlusCircle, MoreHorizontal, Check, Edit, Calendar as CalendarIcon, MessageSquare, Paperclip, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -185,7 +184,7 @@ const BoardView: React.FC<BoardViewProps> = ({
   }
 
   return (
-    <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
+    <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN" isDropDisabled={userPermissions === 'viewer'}>
         {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
                 {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
@@ -225,7 +224,7 @@ const BoardView: React.FC<BoardViewProps> = ({
                                                     const task = filteredTasks.find(t => t.id === taskId);
                                                     if (!task) return null;
                                                     return (
-                                                        <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                                        <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
                                                             {(provided, snapshot) => (
                                                                 <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                     {renderTaskCard(task)}
@@ -271,3 +270,5 @@ const BoardView: React.FC<BoardViewProps> = ({
 };
 
 export default BoardView;
+
+    

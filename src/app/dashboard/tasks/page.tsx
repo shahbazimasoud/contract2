@@ -1104,16 +1104,17 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-    
+
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-    
+
+        // Reordering columns
         if (type === 'COLUMN') {
             const newColumns = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumns.splice(source.index, 1);
             newColumns.splice(destination.index, 0, reorderedItem);
-    
+
             const updatedBoard = {
                 ...activeBoard,
                 columns: [...newColumns, ...activeBoard.columns.filter(c => c.isArchived)]
@@ -1121,11 +1122,12 @@ export default function TasksPage() {
             updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
-    
+
+        // Reordering tasks
         if (type === 'TASK') {
             const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
             const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-    
+
             if (!startColumn || !finishColumn) return;
 
             // Moving within the same column
@@ -1149,7 +1151,7 @@ export default function TasksPage() {
             const finishTaskIds = Array.from(finishColumn.taskIds);
             finishTaskIds.splice(destination.index, 0, draggableId);
             const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-            
+
             const newColumns = activeBoard.columns.map(col => {
                 if (col.id === newStartColumn.id) return newStartColumn;
                 if (col.id === newFinishColumn.id) return newFinishColumn;
@@ -1159,12 +1161,12 @@ export default function TasksPage() {
             updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
 
             // Update task's columnId
-             const taskToUpdate = tasks.find(t => t.id === draggableId);
-                if (taskToUpdate && currentUser) {
-                    const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-                    const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
-                    updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
-                }
+            const taskToUpdate = tasks.find(t => t.id === draggableId);
+            if (taskToUpdate && currentUser) {
+                const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
+                const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
+                updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
+            }
         }
     };
     
@@ -1348,7 +1350,7 @@ export default function TasksPage() {
     
     const activeBoardTasks = useMemo(() => {
         if (!activeBoardId) return [];
-        return tasks.filter(t => t.boardId === activeBoardId);
+        return tasks.filter(t => t.boardId === activeBoardId && !t.isArchived);
     }, [tasks, activeBoardId]);
 
 
@@ -1376,7 +1378,7 @@ export default function TasksPage() {
 
     const calendarTasks = useMemo(() => {
         if (!activeBoardId) return [];
-        return tasks.filter(t => t.boardId === activeBoardId);
+        return tasks.filter(t => t.boardId === activeBoardId && !t.isArchived);
     }, [tasks, activeBoardId]);
 
 
@@ -1716,7 +1718,7 @@ export default function TasksPage() {
                 </div>
             </PageHeader>
              {viewMode !== 'archive' && activeBoard ? (
-                <DragDropContext onDragEnd={onDragEnd}>
+                 <DragDropContext onDragEnd={onDragEnd}>
                     <Card className="mb-4">
                         <CardContent className="p-2 flex flex-wrap items-center gap-2">
                              <div className="relative flex-grow">
@@ -2697,3 +2699,6 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
 };
 
 
+
+
+    

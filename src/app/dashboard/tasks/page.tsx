@@ -1041,11 +1041,10 @@ export default function TasksPage() {
     const handleInsertText = (text: string) => {
         if (commentInputRef.current) {
             const { selectionStart, selectionEnd, value } = commentInputRef.current;
-            const newText =
-                value.substring(0, selectionStart) +
-                text +
-                value.substring(selectionEnd);
-            commentForm.setValue("text", newText, { shouldDirty: true });
+            const newText = value.substring(0, selectionStart) + text + value.substring(selectionEnd);
+            commentForm.setValue("text", newText, { shouldDirty: true, shouldValidate: true });
+            
+            // Focus and set cursor position after the inserted text
             commentInputRef.current.focus();
             setTimeout(() => {
                 commentInputRef.current?.setSelectionRange(selectionStart + text.length, selectionStart + text.length);
@@ -2559,17 +2558,28 @@ export default function TasksPage() {
                                         <Form {...commentForm}>
                                             <form onSubmit={commentForm.handleSubmit(onCommentSubmit)}>
                                                 <div className="relative">
-                                                    <Textarea
-                                                        {...commentForm.register("text")}
-                                                        ref={commentInputRef}
-                                                        placeholder={t('contracts.details.comment_placeholder')}
-                                                        className="min-h-[60px] pr-20"
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter" && !e.shiftKey) {
-                                                                e.preventDefault();
-                                                                commentForm.handleSubmit(onCommentSubmit)();
-                                                            }
-                                                        }}
+                                                    <FormField
+                                                        control={commentForm.control}
+                                                        name="text"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Textarea
+                                                                        {...field}
+                                                                        ref={commentInputRef}
+                                                                        placeholder={t('contracts.details.comment_placeholder')}
+                                                                        className="min-h-[60px] pr-20"
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                                                e.preventDefault();
+                                                                                commentForm.handleSubmit(onCommentSubmit)();
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormMessage className="text-xs">{commentForm.formState.errors.root?.message || commentForm.formState.errors.text?.message}</FormMessage>
+                                                            </FormItem>
+                                                        )}
                                                     />
                                                     <div className="absolute bottom-2 right-2 flex items-center gap-1">
                                                          <Popover>
@@ -2584,7 +2594,6 @@ export default function TasksPage() {
                                                     </div>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-1 px-1">{t('tasks.comment_shortcut_hint')}</p>
-                                                <FormMessage className="text-xs">{commentForm.formState.errors.root?.message || commentForm.formState.errors.text?.message}</FormMessage>
                                             </form>
                                         </Form>
                                         )}

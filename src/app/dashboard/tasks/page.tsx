@@ -1111,11 +1111,11 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-
+    
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-
+    
         if (type === 'COLUMN') {
             const newColumnOrder = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumnOrder.splice(source.index, 1);
@@ -1125,26 +1125,24 @@ export default function TasksPage() {
             updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
-
+    
         if (type === 'TASK') {
             const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
             const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-
-            if (!startColumn || !finishColumn) {
-                return;
-            }
-
+    
+            if (!startColumn || !finishColumn) return;
+    
+            // Moving in the same column
             if (startColumn === finishColumn) {
-                // Reordering in the same column
                 const newTaskIds = Array.from(startColumn.taskIds);
                 const [reorderedItem] = newTaskIds.splice(source.index, 1);
                 newTaskIds.splice(destination.index, 0, reorderedItem);
-
+    
                 const newColumn = {
                     ...startColumn,
                     taskIds: newTaskIds,
                 };
-
+    
                 const newBoard = {
                     ...activeBoard,
                     columns: activeBoard.columns.map(col =>
@@ -1153,15 +1151,15 @@ export default function TasksPage() {
                 };
                 updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
             } else {
-                // Moving between columns
+                // Moving to a different column
                 const startTaskIds = Array.from(startColumn.taskIds);
                 startTaskIds.splice(source.index, 1);
                 const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-
+    
                 const finishTaskIds = Array.from(finishColumn.taskIds);
                 finishTaskIds.splice(destination.index, 0, draggableId);
                 const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-
+    
                 const newBoard = {
                     ...activeBoard,
                     columns: activeBoard.columns.map(col => {
@@ -1171,13 +1169,13 @@ export default function TasksPage() {
                     }),
                 };
                 updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
-
-                // Update task's columnId
-                const task = tasks.find(t => t.id === draggableId);
-                if (task) {
+    
+                // Update the task's columnId itself
+                const taskToUpdate = tasks.find(t => t.id === draggableId);
+                if (taskToUpdate) {
                     const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-                    const updatedTask = { ...task, columnId: finishColumn.id, logs: [...(task.logs || []), log] };
-                    updateTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+                    const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
+                    updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
                 }
             }
         }
@@ -1371,7 +1369,7 @@ export default function TasksPage() {
 
 
     const filteredTasks = useMemo(() => {
-        let baseTasks = activeBoardTasks;
+        let baseTasks = activeBoardTasks.filter(t => !t.isArchived);
         
         if (searchTerm) {
              baseTasks = baseTasks.filter(task => {
@@ -1940,7 +1938,7 @@ export default function TasksPage() {
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                                         {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
-                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} >
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
                                                                                 {(provided, snapshot) => (
                                                                                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
                                                                                         {renderTaskCard(task)}
@@ -2582,8 +2580,8 @@ export default function TasksPage() {
                                                                 {(appearanceSettings?.allowedReactions || []).map(emoji => ( <Button key={emoji} variant="ghost" size="icon" onClick={() => handleInsertText(emoji)} className="h-8 w-8 text-lg">{emoji}</Button>))}
                                                             </div></PopoverContent>
                                                          </Popover>
-                                                         <Button type="button" size="icon" variant="ghost" onClick={commentForm.handleSubmit(onCommentSubmit)}>
-                                                            {commentTextValue || commentForm.getValues().attachment ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4" onClick={(e) => { e.preventDefault(); handleToggleVoiceRecording(); }} />}
+                                                         <Button type="button" size="icon" variant="ghost" onClick={commentTextValue?.trim() ? commentForm.handleSubmit(onCommentSubmit) : handleToggleVoiceRecording}>
+                                                            {commentTextValue?.trim() ? <Send className="h-4 w-4" /> : <Mic className="h-4 w-4"/>}
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -2885,7 +2883,3 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
-
-
-
-      

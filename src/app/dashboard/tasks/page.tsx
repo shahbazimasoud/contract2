@@ -106,9 +106,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 
-const DragDropContext = dynamic(() => import('react-beautiful-dnd').then(mod => mod.DragDropContext), { ssr: false, loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div> });
-const Droppable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Droppable), { ssr: false });
-const Draggable = dynamic(() => import('react-beautiful-dnd').then(mod => mod.Draggable), { ssr: false });
+const BoardView = dynamic(() => import('@/components/board-view'), {
+  ssr: false,
+  loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div>
+});
 
 
 const AUTH_USER_KEY = 'current_user';
@@ -1122,44 +1123,56 @@ export default function TasksPage() {
         }
 
         if (type === 'TASK') {
-            if (source.droppableId === destination.droppableId) {
-                // Reordering in the same column
-                const column = activeBoard.columns.find(col => col.id === source.droppableId);
-                if (!column) return;
+            const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
+            const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
 
-                const newTaskIds = Array.from(column.taskIds);
+            if (!startColumn || !finishColumn) return;
+
+            // Moving in the same column
+            if (startColumn.id === finishColumn.id) {
+                const newTaskIds = Array.from(startColumn.taskIds);
                 const [reorderedItem] = newTaskIds.splice(source.index, 1);
                 newTaskIds.splice(destination.index, 0, reorderedItem);
 
-                const newColumns = activeBoard.columns.map(col =>
-                    col.id === column.id ? { ...col, taskIds: newTaskIds } : col
-                );
+                const newColumn = {
+                    ...startColumn,
+                    taskIds: newTaskIds,
+                };
 
-                const newBoard = { ...activeBoard, columns: newColumns };
-                updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
+                const newBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col =>
+                        col.id === newColumn.id ? newColumn : col
+                    ),
+                };
+                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
+
             } else {
                 // Moving to a different column
-                const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
-                const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-                if (!startColumn || !finishColumn) return;
-
                 const startTaskIds = Array.from(startColumn.taskIds);
                 startTaskIds.splice(source.index, 1);
-                const newStartColumn = { ...startColumn, taskIds: startTaskIds };
+                const newStartColumn = {
+                    ...startColumn,
+                    taskIds: startTaskIds,
+                };
 
                 const finishTaskIds = Array.from(finishColumn.taskIds);
                 finishTaskIds.splice(destination.index, 0, draggableId);
-                const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
+                const newFinishColumn = {
+                    ...finishColumn,
+                    taskIds: finishTaskIds,
+                };
+
+                const newBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col => {
+                        if (col.id === newStartColumn.id) return newStartColumn;
+                        if (col.id === newFinishColumn.id) return newFinishColumn;
+                        return col;
+                    }),
+                };
+                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
                 
-                const newColumns = activeBoard.columns.map(col => {
-                    if (col.id === newStartColumn.id) return newStartColumn;
-                    if (col.id === newFinishColumn.id) return newFinishColumn;
-                    return col;
-                });
-
-                const newBoard = { ...activeBoard, columns: newColumns };
-                updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
-
                 // Update the task's columnId and add a log entry
                 const taskToUpdate = tasks.find(t => t.id === draggableId);
                 if (taskToUpdate && currentUser) {
@@ -1356,7 +1369,7 @@ export default function TasksPage() {
 
 
     const filteredTasks = useMemo(() => {
-        let baseTasks = activeBoardTasks.filter(t => !t.isArchived);
+        let baseTasks = activeBoardTasks;
         
         if (searchTerm) {
              baseTasks = baseTasks.filter(task => {
@@ -1541,7 +1554,7 @@ export default function TasksPage() {
     const commentTextValue = commentForm.watch('text');
 
 
-    if (!isClient || !currentUser || !Droppable || !Draggable) {
+    if (!isClient) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -1583,121 +1596,6 @@ export default function TasksPage() {
             )
         }
         return null;
-    }
-    
-    const renderTaskCard = (task: Task) => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const dueDate = new Date(task.dueDate);
-        const daysToDue = differenceInDays(dueDate, today);
-
-        let dueDateColor = "text-muted-foreground";
-        if (!task.isCompleted) {
-            if (daysToDue < 0) dueDateColor = "text-red-500";
-            else if (daysToDue < 7) dueDateColor = "text-orange-500";
-        }
-        
-        const assigneesToShow = task.assignees?.slice(0, 3) || [];
-        const hiddenAssigneesCount = (task.assignees?.length || 0) - assigneesToShow.length;
-
-        return (
-             <Card
-                className={cn(
-                    "mb-2 cursor-pointer transition-shadow hover:shadow-md bg-card group/taskcard relative",
-                     task.isCompleted && "border-l-4 border-green-500 opacity-70"
-                )}
-                onClick={() => handleOpenDetailsSheet(task)}
-            >
-                <CardContent className="p-3">
-                    <div className="flex items-start gap-3">
-                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleTaskCompletion(task.id, !task.isCompleted);
-                            }}
-                            className={cn(
-                                "mt-1 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0",
-                                task.isCompleted ? "bg-green-500 border-green-700" : "border-muted-foreground/50 hover:border-primary"
-                            )}
-                        >
-                            <Check className={cn("h-4 w-4 text-white transform transition-transform", task.isCompleted ? "animate-check-pop scale-100" : "scale-0")} />
-                        </button>
-
-                        <div className="flex-1 min-w-0">
-                             {(task.labelIds && task.labelIds.length > 0) && (
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                    {task.labelIds.map(labelId => {
-                                        const label = activeBoard?.labels?.find(l => l.id === labelId);
-                                        if (!label) return null;
-                                        return (
-                                            <Badge key={label.id} style={{ backgroundColor: label.color, color: '#fff' }} className="text-xs px-2 py-0.5 border-transparent">
-                                                {label.text}
-                                            </Badge>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                            <p className="font-semibold text-sm text-card-foreground break-words">{task.title}</p>
-                        </div>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTaskDialog(task, task.columnId);
-                            }}
-                            className="absolute top-1 right-1 h-7 w-7 rounded-md flex items-center justify-center transition-opacity opacity-0 group-hover/taskcard:opacity-100 hover:bg-muted"
-                        >
-                            <Edit className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                    </div>
-
-                    
-                    <div className="flex items-end justify-between mt-3 pl-8">
-                         <div className="flex items-center -space-x-2">
-                            <TooltipProvider>
-                                {assigneesToShow.map(id => {
-                                    const user = usersOnBoard.find(u => u.id === id);
-                                    return user ? (
-                                        <Tooltip key={id}><TooltipTrigger asChild>
-                                            <Avatar className="h-6 w-6 border-2 border-background">
-                                                <AvatarImage src={user.avatar} alt={user.name} />
-                                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger><TooltipContent><p>{t('tasks.tooltips.assigned_to', { name: user.name })}</p></TooltipContent></Tooltip>
-                                    ) : null;
-                                })}
-                                {hiddenAssigneesCount > 0 && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                             <Avatar className="h-6 w-6 border-2 border-background">
-                                                <AvatarFallback>+{hiddenAssigneesCount}</AvatarFallback>
-                                            </Avatar>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>{(task.assignees || []).slice(3).map(id => usersOnBoard.find(u => u.id === id)?.name).join(', ')}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )}
-                            </TooltipProvider>
-                        </div>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            {(task.comments?.length || 0) > 0 && (
-                                 <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{task.comments?.length}</span>
-                            )}
-                            {(task.attachments?.length || 0) > 0 && (
-                                <span className="flex items-center gap-1"><Paperclip className="h-3 w-3" />{task.attachments?.length}</span>
-                            )}
-                            {(task.checklist?.length || 0) > 0 && (
-                                 <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3" />{task.checklist?.filter(c => c.completed).length}/{task.checklist?.length}</span>
-                            )}
-                             <span className={cn("flex items-center gap-1", dueDateColor)}>
-                                <CalendarIcon className="h-3 w-3" />
-                                {format(new Date(task.dueDate), 'MMM d')}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        );
     }
     
     return (
@@ -1833,7 +1731,6 @@ export default function TasksPage() {
                     </div>
                 </div>
             </PageHeader>
-            <DragDropContext onDragEnd={onDragEnd}>
             {viewMode !== 'archive' && activeBoard ? (
                 <>
                     <Card className="mb-4">
@@ -1885,88 +1782,32 @@ export default function TasksPage() {
 
                     <div className="min-h-[60vh]">
                     {viewMode === 'board' ? (
-                            <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN">
-                                {(provided) => (
-                                    <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
-                                        {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
-                                                {(provided) => (
-                                                    <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
-                                                        <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
-                                                            <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab" onDoubleClick={() => handleEditColumnTitle(column.id, column.title)}>
-                                                                {editingColumnId === column.id ? (
-                                                                    <Input 
-                                                                        value={editingColumnTitle}
-                                                                        onChange={(e) => setEditingColumnTitle(e.target.value)}
-                                                                        onBlur={() => handleSaveColumnTitle(column.id)}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') handleSaveColumnTitle(column.id);
-                                                                            if (e.key === 'Escape') setEditingColumnId(null);
-                                                                        }}
-                                                                        autoFocus
-                                                                        className="h-8"
-                                                                    />
-                                                                ) : (
-                                                                    <h3 className="font-semibold">{column.title}</h3>
-                                                                )}
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
-                                                                    <DropdownMenuContent>
-                                                                        <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleOpenMoveColumnDialog(column)} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_list')}</DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
-                                                                {(provided, snapshot) => (
-                                                                    <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {column.taskIds.map((taskId, index) => {
-                                                                            const task = filteredTasks.find(t => t.id === taskId);
-                                                                            if (!task) return null;
-                                                                            return (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
-                                                                                    {(provided, snapshot) => (
-                                                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                            {renderTaskCard(task)}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </Draggable>
-                                                                            );
-                                                                        })}
-                                                                        {provided.placeholder}
-                                                                    </div>
-                                                                )}
-                                                            </Droppable>
-                                                            <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => handleOpenTaskDialog(null, column.id)} disabled={userPermissions === 'viewer'}>
-                                                                <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_new_task')}
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-                                        {provided.placeholder}
-                                        {userPermissions !== 'viewer' && (
-                                            <div className="w-80 flex-shrink-0">
-                                                {showAddColumnForm ? (
-                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg space-y-2">
-                                                        <Input {...columnForm.register('title')} placeholder={t('tasks.board.enter_list_title')} autoFocus />
-                                                        <div className="flex items-center gap-2">
-                                                            <Button type="submit">{t('tasks.board.add_list')}</Button>
-                                                            <Button type="button" variant="ghost" size="icon" onClick={() => setShowAddColumnForm(false)}><X /></Button>
-                                                        </div>
-                                                    </form>
-                                                ) : (
-                                                    <Button variant="ghost" className="w-full bg-muted/50 dark:bg-slate-800/50" onClick={() => setShowAddColumnForm(true)}>
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_another_list')}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </Droppable>
+                        <BoardView
+                            activeBoard={activeBoard}
+                            filteredTasks={filteredTasks}
+                            userPermissions={userPermissions}
+                            onDragEnd={onDragEnd}
+                            handleOpenTaskDialog={handleOpenTaskDialog}
+                            handleOpenDetailsSheet={handleOpenDetailsSheet}
+                            handleToggleTaskCompletion={handleToggleTaskCompletion}
+                            usersOnBoard={usersOnBoard}
+                            differenceInDays={differenceInDays}
+                            formatDate={format}
+                            t={t}
+                            showAddColumnForm={showAddColumnForm}
+                            setShowAddColumnForm={setShowAddColumnForm}
+                            newColumnFormRef={newColumnFormRef}
+                            columnForm={columnForm}
+                            handleAddColumn={handleAddColumn}
+                            editingColumnId={editingColumnId}
+                            editingColumnTitle={editingColumnTitle}
+                            setEditingColumnTitle={setEditingColumnTitle}
+                            handleEditColumnTitle={handleEditColumnTitle}
+                            handleSaveColumnTitle={handleSaveColumnTitle}
+                            handleOpenCopyColumnDialog={handleOpenCopyColumnDialog}
+                            handleOpenMoveColumnDialog={handleOpenMoveColumnDialog}
+                            handleArchiveColumn={handleArchiveColumn}
+                        />
                     ) : viewMode === 'calendar' ? (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
@@ -2065,7 +1906,6 @@ export default function TasksPage() {
                      {renderEmptyState()}
                 </div>
             )}
-            </DragDropContext>
             
             <Dialog open={isBoardDialogOpen} onOpenChange={handleCloseBoardDialog}>
                  <DialogContent>
@@ -2474,7 +2314,7 @@ export default function TasksPage() {
                                                             </p>
                                                         </div>
                                                         <div className="text-sm text-muted-foreground bg-secondary p-3 rounded-lg mt-1 space-y-2">
-                                                             {comment.text && <p>{comment.text}</p>}
+                                                             {comment.text && <p className="whitespace-pre-wrap">{comment.text}</p>}
                                                             {comment.attachment?.type === 'audio' && (
                                                                 <AudioPlayer src={comment.attachment.url} duration={comment.attachment.meta?.duration || 0} />
                                                             )}
@@ -2573,6 +2413,7 @@ export default function TasksPage() {
                                                         </Button>
                                                     </div>
                                                 </div>
+                                                <p className="text-xs text-muted-foreground mt-1 px-1">{t('tasks.comment_shortcut_hint')}</p>
                                                 <FormMessage className="text-xs">{commentForm.formState.errors.root?.message || commentForm.formState.errors.text?.message}</FormMessage>
                                             </form>
                                         </Form>
@@ -2871,4 +2712,3 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
-

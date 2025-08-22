@@ -747,21 +747,22 @@ export default function TasksPage() {
     const handleRestoreTask = (targetColumnId?: string) => {
         if (!taskToRestore) return;
         
+        if (userBoards.length === 0) {
+            toast({
+                title: t('common.error'),
+                description: t('tasks.toast.no_active_board_for_restore'),
+                variant: 'destructive',
+            });
+            return;
+        }
+
         const targetBoard = boards.find(b => b.id === (activeBoardId || taskToRestore.boardId));
          if(!targetBoard || targetBoard.columns.filter(c => !c.isArchived).length === 0){
-             if (userBoards.length === 0) {
-                 toast({
-                    title: t('common.error'),
-                    description: t('tasks.toast.no_active_board_for_restore'),
-                    variant: 'destructive',
-                });
-             } else {
-                 toast({
-                    title: t('common.error'),
-                    description: t('tasks.toast.no_active_columns_for_restore'),
-                    variant: 'destructive',
-                });
-             }
+            toast({
+                title: t('common.error'),
+                description: t('tasks.toast.no_active_columns_for_restore'),
+                variant: 'destructive',
+            });
             return;
         }
 
@@ -793,15 +794,6 @@ export default function TasksPage() {
     };
 
     const onArchiveTaskClick = (task: Task) => {
-        if (userBoards.length === 0) {
-            toast({
-                title: t('common.error'),
-                description: t('tasks.toast.no_active_board_for_restore'),
-                variant: 'destructive',
-            });
-            return;
-        }
-        
         setTaskToRestore(task);
         setIsRestoreTaskDialogOpen(true);
     }
@@ -1111,68 +1103,66 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-    
+
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-    
+
         if (type === 'COLUMN') {
-            const newColumnOrder = Array.from(activeBoard.columns.filter(c => !c.isArchived));
-            const [reorderedItem] = newColumnOrder.splice(source.index, 1);
-            newColumnOrder.splice(destination.index, 0, reorderedItem);
-            
-            const updatedBoard = { ...activeBoard, columns: [...newColumnOrder, ...activeBoard.columns.filter(c => c.isArchived)] };
+            const newColumns = Array.from(activeBoard.columns.filter(c => !c.isArchived));
+            const [reorderedItem] = newColumns.splice(source.index, 1);
+            newColumns.splice(destination.index, 0, reorderedItem);
+
+            const updatedBoard = {
+                ...activeBoard,
+                columns: [...newColumns, ...activeBoard.columns.filter(c => c.isArchived)]
+            };
             updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
-    
+
         if (type === 'TASK') {
-            const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
-            const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-    
-            if (!startColumn || !finishColumn) return;
-    
-            // Moving in the same column
-            if (startColumn === finishColumn) {
-                const newTaskIds = Array.from(startColumn.taskIds);
+            if (source.droppableId === destination.droppableId) {
+                // Reordering in the same column
+                const column = activeBoard.columns.find(col => col.id === source.droppableId);
+                if (!column) return;
+
+                const newTaskIds = Array.from(column.taskIds);
                 const [reorderedItem] = newTaskIds.splice(source.index, 1);
                 newTaskIds.splice(destination.index, 0, reorderedItem);
-    
-                const newColumn = {
-                    ...startColumn,
-                    taskIds: newTaskIds,
-                };
-    
-                const newBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col =>
-                        col.id === newColumn.id ? newColumn : col
-                    ),
-                };
-                updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
+
+                const newColumns = activeBoard.columns.map(col =>
+                    col.id === column.id ? { ...col, taskIds: newTaskIds } : col
+                );
+
+                const newBoard = { ...activeBoard, columns: newColumns };
+                updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
             } else {
                 // Moving to a different column
+                const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
+                const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
+                if (!startColumn || !finishColumn) return;
+
                 const startTaskIds = Array.from(startColumn.taskIds);
                 startTaskIds.splice(source.index, 1);
                 const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-    
+
                 const finishTaskIds = Array.from(finishColumn.taskIds);
                 finishTaskIds.splice(destination.index, 0, draggableId);
                 const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-    
-                const newBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col => {
-                        if (col.id === newStartColumn.id) return newStartColumn;
-                        if (col.id === newFinishColumn.id) return newFinishColumn;
-                        return col;
-                    }),
-                };
-                updateBoards(boards.map(b => b.id === activeBoard.id ? newBoard : b));
-    
-                // Update the task's columnId itself
+                
+                const newColumns = activeBoard.columns.map(col => {
+                    if (col.id === newStartColumn.id) return newStartColumn;
+                    if (col.id === newFinishColumn.id) return newFinishColumn;
+                    return col;
+                });
+
+                const newBoard = { ...activeBoard, columns: newColumns };
+                updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
+
+                // Update the task's columnId and add a log entry
                 const taskToUpdate = tasks.find(t => t.id === draggableId);
-                if (taskToUpdate) {
+                if (taskToUpdate && currentUser) {
                     const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
                     const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
                     updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
@@ -1360,12 +1350,9 @@ export default function TasksPage() {
     };
     
     const activeBoardTasks = useMemo(() => {
-        if (activeBoard) {
-            return tasks.filter(t => t.boardId === activeBoard.id);
-        } else {
-            return [];
-        }
-    }, [activeBoard, tasks]);
+        if (!activeBoardId) return [];
+        return tasks.filter(t => t.boardId === activeBoardId);
+    }, [tasks, activeBoardId]);
 
 
     const filteredTasks = useMemo(() => {
@@ -1871,9 +1858,6 @@ export default function TasksPage() {
                                     <div className="grid gap-4">
                                         <div className="space-y-2">
                                             <h4 className="font-medium leading-none">{t('contracts.filter.title')}</h4>
-                                            <p className="text-sm text-muted-foreground">
-                                                {t('contracts.filter.desc')}
-                                            </p>
                                         </div>
                                          <div className="grid gap-2">
                                             <div className="flex items-center space-x-2">
@@ -1937,15 +1921,19 @@ export default function TasksPage() {
                                                             <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                                                 {(provided, snapshot) => (
                                                                     <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {filteredTasks.filter(t => t.columnId === column.id).map((task, index) => (
-                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
-                                                                                {(provided, snapshot) => (
-                                                                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                        {renderTaskCard(task)}
-                                                                                    </div>
-                                                                                )}
-                                                                            </Draggable>
-                                                                        ))}
+                                                                        {column.taskIds.map((taskId, index) => {
+                                                                            const task = filteredTasks.find(t => t.id === taskId);
+                                                                            if (!task) return null;
+                                                                            return (
+                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} isCombineEnabled={false}>
+                                                                                    {(provided, snapshot) => (
+                                                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
+                                                                                            {renderTaskCard(task)}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </Draggable>
+                                                                            );
+                                                                        })}
                                                                         {provided.placeholder}
                                                                     </div>
                                                                 )}
@@ -2302,7 +2290,7 @@ export default function TasksPage() {
                                 <tbody>
                                     <tr>
                                         <td style={{padding: '20px', textAlign: 'center', backgroundColor: '#f9fafb'}}>
-                                            {appearanceSettings?.logo && <Image src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto', objectFit: 'contain' }} />}
+                                            {appearanceSettings?.logo && <img src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto', objectFit: 'contain' }} />}
                                         </td>
                                     </tr>
                                     <tr>
@@ -2883,3 +2871,4 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
+

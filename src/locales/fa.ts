@@ -1,3 +1,4 @@
+
 export const fa = {
   common: {
       actions: 'اقدامات',
@@ -801,6 +802,7 @@ export const fa = {
         task_restored: 'وظیفه بازیابی شد.',
         mic_error: 'دسترسی به میکروفون امکان‌پذیر نیست. لطفاً مجوزهای لازم را بررسی کنید.',
     },
+    comment_shortcut_hint: 'ارسال با Enter، خط جدید با Shift+Enter',
     column_titles: {
         todo: 'برای انجام',
         in_progress: 'در حال انجام',

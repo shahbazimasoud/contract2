@@ -1846,7 +1846,7 @@ export default function TasksPage() {
                 </div>
             </PageHeader>
              {viewMode !== 'archive' && activeBoard ? (
-                 <>
+                 <DragDropContext onDragEnd={onDragEnd}>
                     <Card className="mb-4">
                         <CardContent className="p-2 flex flex-wrap items-center gap-2">
                              <div className="relative flex-grow">
@@ -1896,90 +1896,88 @@ export default function TasksPage() {
 
                     <div className="min-h-[60vh]">
                     {viewMode === 'board' ? (
-                         <DragDropContext onDragEnd={onDragEnd}>
-                            <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN" isDropDisabled={userPermissions === 'viewer'}>
-                                {(provided) => (
-                                    <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
-                                        {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
-                                            <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
-                                                {(provided) => (
-                                                    <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
-                                                        <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
-                                                            <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab" onDoubleClick={() => handleEditColumnTitle(column.id, column.title)}>
-                                                                {editingColumnId === column.id ? (
-                                                                    <Input 
-                                                                        value={editingColumnTitle}
-                                                                        onChange={(e) => setEditingColumnTitle(e.target.value)}
-                                                                        onBlur={() => handleSaveColumnTitle(column.id)}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') handleSaveColumnTitle(column.id);
-                                                                            if (e.key === 'Escape') setEditingColumnId(null);
-                                                                        }}
-                                                                        autoFocus
-                                                                        className="h-8"
-                                                                    />
-                                                                ) : (
-                                                                    <h3 className="font-semibold">{column.title}</h3>
-                                                                )}
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
-                                                                    <DropdownMenuContent>
-                                                                        <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleOpenMoveColumnDialog(column)} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_list')}</DropdownMenuItem>
-                                                                        <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
-                                                            <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
-                                                                {(provided, snapshot) => (
-                                                                    <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
-                                                                        {(column.taskIds || []).map((taskId, index) => {
-                                                                            const task = filteredTasks.find(t => t.id === taskId);
-                                                                            if (!task) return null;
-                                                                            return (
-                                                                                <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer'} >
-                                                                                    {(provided, snapshot) => (
-                                                                                        <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
-                                                                                            {renderTaskCard(task)}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </Draggable>
-                                                                            );
-                                                                        })}
-                                                                        {provided.placeholder}
-                                                                    </div>
-                                                                )}
-                                                            </Droppable>
-                                                            <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => handleOpenTaskDialog(null, column.id)} disabled={userPermissions === 'viewer'}>
-                                                                <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_new_task')}
-                                                            </Button>
+                        <Droppable droppableId="all-columns" direction="horizontal" type="COLUMN" isDropDisabled={userPermissions === 'viewer'}>
+                            {(provided) => (
+                                <div {...provided.droppableProps} ref={provided.innerRef} className="flex gap-4 items-start overflow-x-auto pb-4">
+                                    {activeBoard.columns.filter(c => !c.isArchived).map((column, index) => (
+                                        <Draggable key={column.id} draggableId={column.id} index={index} isDragDisabled={userPermissions === 'viewer'}>
+                                            {(provided) => (
+                                                <div ref={provided.innerRef} {...provided.draggableProps} className="w-80 flex-shrink-0">
+                                                    <div className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg">
+                                                        <div {...provided.dragHandleProps} className="flex items-center justify-between p-2 cursor-grab" onDoubleClick={() => handleEditColumnTitle(column.id, column.title)}>
+                                                            {editingColumnId === column.id ? (
+                                                                <Input 
+                                                                    value={editingColumnTitle}
+                                                                    onChange={(e) => setEditingColumnTitle(e.target.value)}
+                                                                    onBlur={() => handleSaveColumnTitle(column.id)}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') handleSaveColumnTitle(column.id);
+                                                                        if (e.key === 'Escape') setEditingColumnId(null);
+                                                                    }}
+                                                                    autoFocus
+                                                                    className="h-8"
+                                                                />
+                                                            ) : (
+                                                                <h3 className="font-semibold">{column.title}</h3>
+                                                            )}
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="text-muted-foreground"/></Button></DropdownMenuTrigger>
+                                                                <DropdownMenuContent>
+                                                                    <DropdownMenuItem onClick={() => handleOpenCopyColumnDialog(column)}>{t('tasks.board.copy_list')}</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleOpenMoveColumnDialog(column)} disabled={activeBoard.columns.filter(c => !c.isArchived).length <= 1}>{t('tasks.board.move_list')}</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => handleArchiveColumn(column.id)}>{t('tasks.board.archive_list')}</DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
                                                         </div>
+                                                        <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
+                                                            {(provided, snapshot) => (
+                                                                <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
+                                                                    {(column.taskIds || []).map((taskId, index) => {
+                                                                        const task = filteredTasks.find(t => t.id === taskId);
+                                                                        if (!task) return null;
+                                                                        return (
+                                                                            <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={userPermissions === 'viewer' || task.isCompleted} >
+                                                                                {(provided, snapshot) => (
+                                                                                    <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={cn(snapshot.isDragging && 'opacity-80 shadow-lg')}>
+                                                                                        {renderTaskCard(task)}
+                                                                                    </div>
+                                                                                )}
+                                                                            </Draggable>
+                                                                        );
+                                                                    })}
+                                                                    {provided.placeholder}
+                                                                </div>
+                                                            )}
+                                                        </Droppable>
+                                                        <Button variant="ghost" className="w-full justify-start mt-2" onClick={() => handleOpenTaskDialog(null, column.id)} disabled={userPermissions === 'viewer'}>
+                                                            <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_new_task')}
+                                                        </Button>
                                                     </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-                                        {provided.placeholder}
-                                        {userPermissions !== 'viewer' && (
-                                            <div className="w-80 flex-shrink-0">
-                                                {showAddColumnForm ? (
-                                                    <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg space-y-2">
-                                                        <Input {...columnForm.register('title')} placeholder={t('tasks.board.enter_list_title')} autoFocus />
-                                                        <div className="flex items-center gap-2">
-                                                            <Button type="submit">{t('tasks.board.add_list')}</Button>
-                                                            <Button type="button" variant="ghost" size="icon" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4" /></Button>
-                                                        </div>
-                                                    </form>
-                                                ) : (
-                                                    <Button variant="ghost" className="w-full bg-muted/50 dark:bg-slate-800/50" onClick={() => setShowAddColumnForm(true)}>
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_another_list')}
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </Droppable>
-                        </DragDropContext>
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                    {userPermissions !== 'viewer' && (
+                                        <div className="w-80 flex-shrink-0">
+                                            {showAddColumnForm ? (
+                                                <form ref={newColumnFormRef} onSubmit={columnForm.handleSubmit(handleAddColumn)} className="bg-muted/60 dark:bg-slate-800/60 p-2 rounded-lg space-y-2">
+                                                    <Input {...columnForm.register('title')} placeholder={t('tasks.board.enter_list_title')} autoFocus />
+                                                    <div className="flex items-center gap-2">
+                                                        <Button type="submit">{t('tasks.board.add_list')}</Button>
+                                                        <Button type="button" variant="ghost" size="icon" onClick={() => setShowAddColumnForm(false)}><X className="h-4 w-4" /></Button>
+                                                    </div>
+                                                </form>
+                                            ) : (
+                                                <Button variant="ghost" className="w-full bg-muted/50 dark:bg-slate-800/50" onClick={() => setShowAddColumnForm(true)}>
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> {t('tasks.board.add_another_list')}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </Droppable>
                     ) : viewMode === 'calendar' ? (
                          <div className="border rounded-lg">
                             <div className="flex items-center justify-between p-4">
@@ -2012,7 +2010,7 @@ export default function TasksPage() {
                         </div>
                     ) : null }
                     </div>
-                </>
+                </DragDropContext>
             ) : viewMode === 'archive' ? (
                  <Card>
                     <CardHeader>
@@ -2561,12 +2559,12 @@ export default function TasksPage() {
                                         <Form {...commentForm}>
                                             <form onSubmit={commentForm.handleSubmit(onCommentSubmit)}>
                                                 <div className="relative">
-                                                     <Textarea
+                                                    <Textarea
                                                         {...commentForm.register("text")}
                                                         ref={commentInputRef}
                                                         placeholder={t('contracts.details.comment_placeholder')}
                                                         className="min-h-[60px] pr-20"
-                                                         onKeyDown={(e) => {
+                                                        onKeyDown={(e) => {
                                                             if (e.key === "Enter" && !e.shiftKey) {
                                                                 e.preventDefault();
                                                                 commentForm.handleSubmit(onCommentSubmit)();

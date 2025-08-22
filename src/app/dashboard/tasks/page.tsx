@@ -1127,38 +1127,44 @@ export default function TasksPage() {
             const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
     
             if (!startColumn || !finishColumn) return;
-    
+
+            // Moving within the same column
+            if (startColumn === finishColumn) {
+                const newTaskIds = Array.from(startColumn.taskIds);
+                const [reorderedItem] = newTaskIds.splice(source.index, 1);
+                newTaskIds.splice(destination.index, 0, reorderedItem);
+
+                const newColumn = { ...startColumn, taskIds: newTaskIds };
+                const newColumns = activeBoard.columns.map(col => col.id === newColumn.id ? newColumn : col);
+                const newBoard = { ...activeBoard, columns: newColumns };
+                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
+                return;
+            }
+
+            // Moving from one column to another
             const startTaskIds = Array.from(startColumn.taskIds);
-            const finishTaskIds = startColumn.id === finishColumn.id ? startTaskIds : Array.from(finishColumn.taskIds);
-    
-            // Remove from source
-            const [reorderedItem] = startTaskIds.splice(source.index, 1);
-            // Insert into destination
-            finishTaskIds.splice(destination.index, 0, reorderedItem);
-    
-            const updatedBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(col => {
-                    if (col.id === startColumn.id) {
-                        return { ...col, taskIds: startTaskIds };
-                    }
-                    if (col.id === finishColumn.id) {
-                        return { ...col, taskIds: finishTaskIds };
-                    }
-                    return col;
-                }),
-            };
-            updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
-    
-            // Update the task's columnId only if it changed
-            if (startColumn.id !== finishColumn.id) {
-                const taskToUpdate = tasks.find(t => t.id === draggableId);
+            startTaskIds.splice(source.index, 1);
+            const newStartColumn = { ...startColumn, taskIds: startTaskIds };
+
+            const finishTaskIds = Array.from(finishColumn.taskIds);
+            finishTaskIds.splice(destination.index, 0, draggableId);
+            const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
+            
+            const newColumns = activeBoard.columns.map(col => {
+                if (col.id === newStartColumn.id) return newStartColumn;
+                if (col.id === newFinishColumn.id) return newFinishColumn;
+                return col;
+            });
+            const newBoard = { ...activeBoard, columns: newColumns };
+            updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
+
+            // Update task's columnId
+             const taskToUpdate = tasks.find(t => t.id === draggableId);
                 if (taskToUpdate && currentUser) {
                     const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
                     const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
                     updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
                 }
-            }
         }
     };
     
@@ -1366,7 +1372,7 @@ export default function TasksPage() {
         }
 
         return baseTasks;
-  }, [activeBoardTasks, searchTerm, filters, currentUser]);
+    }, [activeBoardTasks, searchTerm, filters, currentUser]);
 
     const calendarTasks = useMemo(() => {
         if (!activeBoardId) return [];
@@ -2107,7 +2113,7 @@ export default function TasksPage() {
                                 <tbody>
                                     <tr>
                                         <td style={{padding: '20px', textAlign: 'center', backgroundColor: '#f9fafb'}}>
-                                            {appearanceSettings?.logo && <img src={appearanceSettings.logo} alt="Logo" width="40" height="40" style={{ margin: '0 auto', objectFit: 'contain' }} />}
+                                            {appearanceSettings?.logo && <Image src={appearanceSettings.logo} alt="Logo" width={40} height={40} style={{ margin: '0 auto', objectFit: 'contain' }} />}
                                         </td>
                                     </tr>
                                     <tr>
@@ -2689,4 +2695,5 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
+
 

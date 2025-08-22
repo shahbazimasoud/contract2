@@ -218,7 +218,7 @@ const BoardView: React.FC<BoardViewProps> = ({
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                    <Droppable droppableId={column.id} type="TASK">
+                                    <Droppable droppableId={column.id} type="TASK" isDropDisabled={userPermissions === 'viewer'}>
                                         {(provided, snapshot) => (
                                             <div ref={provided.innerRef} {...provided.droppableProps} className={cn("min-h-[100px] p-2 rounded-md transition-colors", snapshot.isDraggingOver ? "bg-secondary" : "")}>
                                                 {(column.taskIds || []).map((taskId, index) => {

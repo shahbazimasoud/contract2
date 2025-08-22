@@ -105,12 +105,7 @@ import { Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-
-const BoardView = dynamic(() => import('@/components/board-view'), {
-  ssr: false,
-  loading: () => <div className="flex h-64 w-full items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted-foreground" /></div>
-});
-
+import BoardView from '@/components/board-view';
 
 const AUTH_USER_KEY = 'current_user';
 const APPEARANCE_SETTINGS_KEY = 'appearance-settings';
@@ -182,10 +177,19 @@ const labelSchema = z.object({
 });
 
 
+const useIsClient = () => {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  return isClient;
+};
+
+
 export default function TasksPage() {
     const { t } = useLanguage();
     const { calendar, locale, format, formatDistance, dateFnsLocale, differenceInDays } = useCalendar();
-    const [isClient, setIsClient] = useState(false);
+    const isClient = useIsClient();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [boards, setBoards] = useState<TaskBoard[]>([]);
@@ -324,7 +328,6 @@ export default function TasksPage() {
     });
 
     useEffect(() => {
-        setIsClient(true);
         const storedUser = localStorage.getItem(AUTH_USER_KEY);
         if (storedUser) {
             const user = JSON.parse(storedUser);
@@ -346,12 +349,12 @@ export default function TasksPage() {
 
     const updateTasks = (newTasks: Task[]) => {
         setTasks(newTasks);
-        if(isClient) localStorage.setItem(TASKS_KEY, JSON.stringify(newTasks));
+        if(typeof window !== "undefined") localStorage.setItem(TASKS_KEY, JSON.stringify(newTasks));
     };
 
     const updateBoards = (newBoards: TaskBoard[]) => {
         setBoards(newBoards);
-        if(isClient) localStorage.setItem(BOARDS_KEY, JSON.stringify(newBoards));
+        if(typeof window !== "undefined") localStorage.setItem(BOARDS_KEY, JSON.stringify(newBoards));
     };
     
     const userBoards = useMemo(() => {
@@ -1104,69 +1107,76 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-
+    
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-
+    
+        const newBoards = [...boards];
+        const boardIndex = newBoards.findIndex(b => b.id === activeBoard.id);
+        if (boardIndex === -1) return;
+    
+        const newBoard = { ...newBoards[boardIndex] };
+    
         // Reordering columns
         if (type === 'COLUMN') {
-            const newColumns = Array.from(activeBoard.columns.filter(c => !c.isArchived));
+            const newColumns = Array.from(newBoard.columns);
             const [reorderedItem] = newColumns.splice(source.index, 1);
             newColumns.splice(destination.index, 0, reorderedItem);
-
-            const updatedBoard = {
-                ...activeBoard,
-                columns: [...newColumns, ...activeBoard.columns.filter(c => c.isArchived)]
-            };
-            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+    
+            newBoard.columns = newColumns;
+            newBoards[boardIndex] = newBoard;
+            updateBoards(newBoards);
             return;
         }
-
+    
         // Reordering tasks
         if (type === 'TASK') {
-            const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
-            const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-
-            if (!startColumn || !finishColumn) return;
-
+            const startColumnIndex = newBoard.columns.findIndex(col => col.id === source.droppableId);
+            const finishColumnIndex = newBoard.columns.findIndex(col => col.id === destination.droppableId);
+    
+            if (startColumnIndex === -1 || finishColumnIndex === -1) return;
+    
+            const newColumns = [...newBoard.columns];
+    
             // Moving within the same column
-            if (startColumn === finishColumn) {
-                const newTaskIds = Array.from(startColumn.taskIds);
+            if (startColumnIndex === finishColumnIndex) {
+                const column = { ...newColumns[startColumnIndex] };
+                const newTaskIds = Array.from(column.taskIds);
                 const [reorderedItem] = newTaskIds.splice(source.index, 1);
                 newTaskIds.splice(destination.index, 0, reorderedItem);
-
-                const newColumn = { ...startColumn, taskIds: newTaskIds };
-                const updatedBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col => (col.id === newColumn.id ? newColumn : col)),
-                };
-                updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
+    
+                column.taskIds = newTaskIds;
+                newColumns[startColumnIndex] = column;
+    
+                newBoard.columns = newColumns;
+                newBoards[boardIndex] = newBoard;
+                updateBoards(newBoards);
             } else {
                 // Moving from one column to another
+                const startColumn = { ...newColumns[startColumnIndex] };
+                const finishColumn = { ...newColumns[finishColumnIndex] };
+    
                 const startTaskIds = Array.from(startColumn.taskIds);
                 startTaskIds.splice(source.index, 1);
-                const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-
+                startColumn.taskIds = startTaskIds;
+    
                 const finishTaskIds = Array.from(finishColumn.taskIds);
                 finishTaskIds.splice(destination.index, 0, draggableId);
-                const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-                
-                const updatedBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col => {
-                        if (col.id === newStartColumn.id) return newStartColumn;
-                        if (col.id === newFinishColumn.id) return newFinishColumn;
-                        return col;
-                    }),
-                };
-                updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
-
+                finishColumn.taskIds = finishTaskIds;
+    
+                newColumns[startColumnIndex] = startColumn;
+                newColumns[finishColumnIndex] = finishColumn;
+    
+                newBoard.columns = newColumns;
+                newBoards[boardIndex] = newBoard;
+                updateBoards(newBoards);
+    
                 // Update task's columnId
                 const updatedTasks = tasks.map(t => {
                     if (t.id === draggableId) {
                          const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-                        return { ...t, columnId: newFinishColumn.id, logs: [...(t.logs || []), log] };
+                        return { ...t, columnId: finishColumn.id, logs: [...(t.logs || []), log] };
                     }
                     return t;
                 });
@@ -2710,8 +2720,3 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
-
-
-
-
-    

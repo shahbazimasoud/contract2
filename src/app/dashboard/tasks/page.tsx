@@ -1110,57 +1110,66 @@ export default function TasksPage() {
             return;
         }
     
-        // Reordering columns
         if (type === 'COLUMN') {
-            const newColumns = Array.from(activeBoard.columns);
-            const [reorderedItem] = newColumns.splice(source.index, 1);
-            newColumns.splice(destination.index, 0, reorderedItem);
+            const newColumnOrder = Array.from(activeBoard.columns);
+            const [reorderedItem] = newColumnOrder.splice(source.index, 1);
+            newColumnOrder.splice(destination.index, 0, reorderedItem);
     
-            const updatedBoard = { ...activeBoard, columns: newColumns };
-            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+            const updatedBoard = {
+              ...activeBoard,
+              columns: newColumnOrder,
+            };
+            updateBoards(boards.map(b => (b.id === updatedBoard.id ? updatedBoard : b)));
             return;
         }
     
-        // Reordering tasks
         const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
         const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
     
         if (!startColumn || !finishColumn) return;
-    
-        // Moving within the same column
+
         if (startColumn === finishColumn) {
             const newTaskIds = Array.from(startColumn.taskIds);
             const [reorderedItem] = newTaskIds.splice(source.index, 1);
             newTaskIds.splice(destination.index, 0, reorderedItem);
-    
-            const newColumn = { ...startColumn, taskIds: newTaskIds };
-            const updatedBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(col => col.id === newColumn.id ? newColumn : col)
+        
+            const newColumn = {
+                ...startColumn,
+                taskIds: newTaskIds,
             };
-            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
+        
+            const newBoard = {
+                ...activeBoard,
+                columns: activeBoard.columns.map(c => c.id === newColumn.id ? newColumn : c),
+            };
+        
+            updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
         } else {
-            // Moving from one column to another
             const startTaskIds = Array.from(startColumn.taskIds);
             startTaskIds.splice(source.index, 1);
-            const newStartColumn = { ...startColumn, taskIds: startTaskIds };
-    
+            const newStartColumn = {
+              ...startColumn,
+              taskIds: startTaskIds,
+            };
+        
             const finishTaskIds = Array.from(finishColumn.taskIds);
             finishTaskIds.splice(destination.index, 0, draggableId);
-            const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-    
-            const updatedBoard = {
-                ...activeBoard,
-                columns: activeBoard.columns.map(col => {
-                    if (col.id === newStartColumn.id) return newStartColumn;
-                    if (col.id === newFinishColumn.id) return newFinishColumn;
-                    return col;
-                })
+            const newFinishColumn = {
+              ...finishColumn,
+              taskIds: finishTaskIds,
             };
-            updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
-    
-            // Update task's columnId
-             const updatedTasks = tasks.map(t => {
+
+            const newBoard = {
+                ...activeBoard,
+                columns: activeBoard.columns.map(c => {
+                  if (c.id === newStartColumn.id) return newStartColumn;
+                  if (c.id === newFinishColumn.id) return newFinishColumn;
+                  return c;
+                }),
+            };
+            updateBoards(boards.map(b => (b.id === newBoard.id ? newBoard : b)));
+
+            const updatedTasks = tasks.map(t => {
                 if (t.id === draggableId) {
                      const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
                     return { ...t, columnId: finishColumn.id, logs: [...(t.logs || []), log] };
@@ -2857,9 +2866,10 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
     }, []);
 
     const formatTime = (seconds: number) => {
-        const minutes = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const totalSeconds = Math.floor(seconds);
+        const minutes = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${minutes.toString().padStart(1, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     return (

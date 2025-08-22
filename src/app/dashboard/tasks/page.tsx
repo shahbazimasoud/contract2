@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { PlusCircle, MoreHorizontal, ClipboardCheck, Calendar as CalendarIcon, X, Users as UsersIcon, MessageSquare, Download, CheckCircle, ArrowUpDown, Tag, Settings, Trash2, Edit, Share2, Paperclip, Upload, Archive, ArchiveRestore, Calendar as CalendarViewIcon, ChevronLeft, ChevronRight, Copy, Mail, SlidersHorizontal, ChevronsUpDown, Check, History, SmilePlus, Flag, Loader2, ArrowLeft, ArrowRight, ChevronDown, Mic, Pause, Play, StopCircle, Send, LayoutGrid, Filter } from 'lucide-react';
-import type { DropResult } from "react-beautiful-dnd";
+import { DragDropContext, type DropResult } from "react-beautiful-dnd";
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -1104,16 +1104,16 @@ export default function TasksPage() {
     
     const onDragEnd = (result: DropResult) => {
         const { destination, source, draggableId, type } = result;
-
+    
         if (!destination || !activeBoard || userPermissions === 'viewer') {
             return;
         }
-
+    
         if (type === 'COLUMN') {
             const newColumns = Array.from(activeBoard.columns.filter(c => !c.isArchived));
             const [reorderedItem] = newColumns.splice(source.index, 1);
             newColumns.splice(destination.index, 0, reorderedItem);
-
+    
             const updatedBoard = {
                 ...activeBoard,
                 columns: [...newColumns, ...activeBoard.columns.filter(c => c.isArchived)]
@@ -1121,59 +1121,37 @@ export default function TasksPage() {
             updateBoards(boards.map(b => b.id === activeBoard.id ? updatedBoard : b));
             return;
         }
-
+    
         if (type === 'TASK') {
             const startColumn = activeBoard.columns.find(col => col.id === source.droppableId);
             const finishColumn = activeBoard.columns.find(col => col.id === destination.droppableId);
-
+    
             if (!startColumn || !finishColumn) return;
-
-            // Moving in the same column
-            if (startColumn.id === finishColumn.id) {
-                const newTaskIds = Array.from(startColumn.taskIds);
-                const [reorderedItem] = newTaskIds.splice(source.index, 1);
-                newTaskIds.splice(destination.index, 0, reorderedItem);
-
-                const newColumn = {
-                    ...startColumn,
-                    taskIds: newTaskIds,
-                };
-
-                const newBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col =>
-                        col.id === newColumn.id ? newColumn : col
-                    ),
-                };
-                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
-
-            } else {
-                // Moving to a different column
-                const startTaskIds = Array.from(startColumn.taskIds);
-                startTaskIds.splice(source.index, 1);
-                const newStartColumn = {
-                    ...startColumn,
-                    taskIds: startTaskIds,
-                };
-
-                const finishTaskIds = Array.from(finishColumn.taskIds);
-                finishTaskIds.splice(destination.index, 0, draggableId);
-                const newFinishColumn = {
-                    ...finishColumn,
-                    taskIds: finishTaskIds,
-                };
-
-                const newBoard = {
-                    ...activeBoard,
-                    columns: activeBoard.columns.map(col => {
-                        if (col.id === newStartColumn.id) return newStartColumn;
-                        if (col.id === newFinishColumn.id) return newFinishColumn;
-                        return col;
-                    }),
-                };
-                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
-                
-                // Update the task's columnId and add a log entry
+    
+            const startTaskIds = Array.from(startColumn.taskIds);
+            const finishTaskIds = startColumn.id === finishColumn.id ? startTaskIds : Array.from(finishColumn.taskIds);
+    
+            // Remove from source
+            const [reorderedItem] = startTaskIds.splice(source.index, 1);
+            // Insert into destination
+            finishTaskIds.splice(destination.index, 0, reorderedItem);
+    
+            const updatedBoard = {
+                ...activeBoard,
+                columns: activeBoard.columns.map(col => {
+                    if (col.id === startColumn.id) {
+                        return { ...col, taskIds: startTaskIds };
+                    }
+                    if (col.id === finishColumn.id) {
+                        return { ...col, taskIds: finishTaskIds };
+                    }
+                    return col;
+                }),
+            };
+            updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
+    
+            // Update the task's columnId only if it changed
+            if (startColumn.id !== finishColumn.id) {
                 const taskToUpdate = tasks.find(t => t.id === draggableId);
                 if (taskToUpdate && currentUser) {
                     const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
@@ -1731,8 +1709,8 @@ export default function TasksPage() {
                     </div>
                 </div>
             </PageHeader>
-            {viewMode !== 'archive' && activeBoard ? (
-                <>
+             {viewMode !== 'archive' && activeBoard ? (
+                <DragDropContext onDragEnd={onDragEnd}>
                     <Card className="mb-4">
                         <CardContent className="p-2 flex flex-wrap items-center gap-2">
                              <div className="relative flex-grow">
@@ -1786,7 +1764,6 @@ export default function TasksPage() {
                             activeBoard={activeBoard}
                             filteredTasks={filteredTasks}
                             userPermissions={userPermissions}
-                            onDragEnd={onDragEnd}
                             handleOpenTaskDialog={handleOpenTaskDialog}
                             handleOpenDetailsSheet={handleOpenDetailsSheet}
                             handleToggleTaskCompletion={handleToggleTaskCompletion}
@@ -1840,7 +1817,7 @@ export default function TasksPage() {
                         </div>
                     ) : null }
                     </div>
-                </>
+                </DragDropContext>
             ) : viewMode === 'archive' ? (
                  <Card>
                     <CardHeader>
@@ -2712,3 +2689,4 @@ const AudioPlayer = ({ src, duration }: { src: string, duration: number }) => {
         </div>
     );
 };
+

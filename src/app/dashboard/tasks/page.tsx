@@ -1137,35 +1137,40 @@ export default function TasksPage() {
                 newTaskIds.splice(destination.index, 0, reorderedItem);
 
                 const newColumn = { ...startColumn, taskIds: newTaskIds };
-                const newColumns = activeBoard.columns.map(col => col.id === newColumn.id ? newColumn : col);
-                const newBoard = { ...activeBoard, columns: newColumns };
-                updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
-                return;
-            }
+                const updatedBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col => (col.id === newColumn.id ? newColumn : col)),
+                };
+                updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
+            } else {
+                // Moving from one column to another
+                const startTaskIds = Array.from(startColumn.taskIds);
+                startTaskIds.splice(source.index, 1);
+                const newStartColumn = { ...startColumn, taskIds: startTaskIds };
 
-            // Moving from one column to another
-            const startTaskIds = Array.from(startColumn.taskIds);
-            startTaskIds.splice(source.index, 1);
-            const newStartColumn = { ...startColumn, taskIds: startTaskIds };
+                const finishTaskIds = Array.from(finishColumn.taskIds);
+                finishTaskIds.splice(destination.index, 0, draggableId);
+                const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
+                
+                const updatedBoard = {
+                    ...activeBoard,
+                    columns: activeBoard.columns.map(col => {
+                        if (col.id === newStartColumn.id) return newStartColumn;
+                        if (col.id === newFinishColumn.id) return newFinishColumn;
+                        return col;
+                    }),
+                };
+                updateBoards(boards.map(b => b.id === updatedBoard.id ? updatedBoard : b));
 
-            const finishTaskIds = Array.from(finishColumn.taskIds);
-            finishTaskIds.splice(destination.index, 0, draggableId);
-            const newFinishColumn = { ...finishColumn, taskIds: finishTaskIds };
-
-            const newColumns = activeBoard.columns.map(col => {
-                if (col.id === newStartColumn.id) return newStartColumn;
-                if (col.id === newFinishColumn.id) return newFinishColumn;
-                return col;
-            });
-            const newBoard = { ...activeBoard, columns: newColumns };
-            updateBoards(boards.map(b => b.id === newBoard.id ? newBoard : b));
-
-            // Update task's columnId
-            const taskToUpdate = tasks.find(t => t.id === draggableId);
-            if (taskToUpdate && currentUser) {
-                const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
-                const updatedTask = { ...taskToUpdate, columnId: finishColumn.id, logs: [...(taskToUpdate.logs || []), log] };
-                updateTasks(tasks.map(t => (t.id === draggableId ? updatedTask : t)));
+                // Update task's columnId
+                const updatedTasks = tasks.map(t => {
+                    if (t.id === draggableId) {
+                         const log = createLogEntry('moved_column', { from: startColumn.title, to: finishColumn.title });
+                        return { ...t, columnId: newFinishColumn.id, logs: [...(t.logs || []), log] };
+                    }
+                    return t;
+                });
+                updateTasks(updatedTasks);
             }
         }
     };
@@ -1378,8 +1383,16 @@ export default function TasksPage() {
 
     const calendarTasks = useMemo(() => {
         if (!activeBoardId) return [];
-        return tasks.filter(t => t.boardId === activeBoardId && !t.isArchived);
-    }, [tasks, activeBoardId]);
+        const baseTasks = tasks.filter(t => t.boardId === activeBoardId && !t.isArchived);
+        if (searchTerm) {
+             return baseTasks.filter(task => {
+                const searchLower = searchTerm.toLowerCase();
+                return task.title.toLowerCase().includes(searchLower) ||
+                    task.description?.toLowerCase().includes(searchLower);
+            });
+        }
+        return baseTasks;
+    }, [tasks, activeBoardId, searchTerm]);
 
 
     const calendarDays = useMemo(() => {
